@@ -13,9 +13,12 @@ class Normalize(Processor):
     def output_dim(self) -> int:
         return 1
 
+    def _initialize(self, **kwargs) -> None:
+        self._eps = kwargs.get("eps", 1e-8)
+
     def fit(self,
             columns: np.ndarray) -> Processor:
-        self._caches["mean"], self._caches["std"] = columns.mean(), columns.std()
+        self._caches["mean"], self._caches["std"] = columns.mean(), columns.std() + self._eps
         return self
 
     def _process(self,
