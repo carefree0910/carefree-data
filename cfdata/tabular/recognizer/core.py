@@ -91,7 +91,7 @@ class Recognizer:
     def _check_exclude_categorical(self,
                                    num_samples: int,
                                    num_unique_values: int) -> Tuple[str, Union[str, None]]:
-        if not self.force_valid and num_samples == 1:
+        if not self.force_valid and num_unique_values == 1:
             msg = (f"all values in column {self.name}, which tends to be categorical column, "
                    "are the SAME. It'll be excluded since it might be redundant")
             return "exclude", msg
