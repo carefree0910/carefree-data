@@ -8,11 +8,10 @@ raw_data_type = Union[List[List[Union[str, float]]], None]
 data_type = Union[raw_data_type, np.ndarray]
 
 
-class DataTuple:
-    def __init__(self,
-                 x: data_type,
-                 y: data_type):
-        self.x, self.y = x, y
+class DataTuple(NamedTuple):
+    x: data_type
+    y: data_type
+    xT: data_type = None
 
     def __eq__(self, other: "DataTuple"):
         if not np.allclose(self.x, other.x, equal_nan=True):
@@ -27,22 +26,13 @@ class DataTuple:
             return self.y.tolist() == other.y.tolist()
         return np.allclose(self.y, other.y, equal_nan=True)
 
-    def __str__(self):
-        if isinstance(self.x, np.ndarray):
-            with np.printoptions(precision=3, suppress=True):
-                return str(np.hstack([self.x, self.y]))
-        return str([feature + label for feature, label in zip(self.x, self.y)])
 
-    __repr__ = __str__
-
-    @property
-    def xT(self):
-        if getattr(self, "_xt", None) is None:
-            if isinstance(self.x, list):
-                self._xt = list(map(list, zip(*self.x)))
-            else:
-                self._xt = self.x.T
-        return self._xt
+    @classmethod
+    def with_transpose(cls,
+                       x: data_type,
+                       y: data_type):
+        xt = x.T if not isinstance(x, list) else list(map(list, zip(*x)))
+        return DataTuple(x, y, xt)
 
 
 class ColumnTypes(Enum):

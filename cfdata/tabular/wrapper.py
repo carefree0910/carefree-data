@@ -247,14 +247,14 @@ class TabularData:
         self._is_file = True
         self._label_idx, self._skip_first, self._delim = label_idx, skip_first, delim
         x, y = self._read_file(file_path)
-        self._raw = DataTuple(x, y)
+        self._raw = DataTuple.with_transpose(x, y)
         return self._core_fit()
 
     def _read_from_arr(self,
                        x: data_type,
                        y: data_type) -> "TabularData":
         self._is_arr = True
-        self._raw = DataTuple(x, y)
+        self._raw = DataTuple.with_transpose(x, y)
         return self._core_fit()
 
     def _transform(self,
@@ -309,7 +309,7 @@ class TabularData:
                   return_converted: bool = False) -> Union[DataTuple, Tuple[DataTuple, DataTuple]]:
         if self._is_file:
             x, y = self._read_file(x)
-        raw = DataTuple(x, y)
+        raw = DataTuple.with_transpose(x, y)
         return self._transform(raw, return_converted)
 
     def recover_labels(self,
