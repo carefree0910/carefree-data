@@ -26,6 +26,8 @@ class DataTuple(NamedTuple):
             return self.y.tolist() == other.y.tolist()
         return np.allclose(self.y, other.y, equal_nan=True)
 
+    def __ne__(self, other: "DataTuple"):
+        return not self == other
 
     @classmethod
     def with_transpose(cls,
