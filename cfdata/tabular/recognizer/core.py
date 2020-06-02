@@ -14,6 +14,7 @@ class Recognizer:
                  column_name: str,
                  *,
                  is_label: bool = False,
+                 task_type: TaskTypes = None,
                  force_valid: bool = False,
                  force_string: bool = False,
                  force_numerical: bool = False,
@@ -21,6 +22,7 @@ class Recognizer:
                  numerical_threshold: float = 0.5):
         self.name = column_name
         self.is_label = is_label
+        self.task_type = task_type
         self.force_valid = force_valid
         self.force_string = force_string
         self.force_numerical = force_numerical
@@ -58,9 +60,11 @@ class Recognizer:
                              flat_arr: flat_arr_type) -> Tuple[bool, Union[FeatureInfo, None]]:
         if self.force_numerical or self.force_categorical:
             return False, None
-        if not self.is_label and is_all_numeric(flat_arr):
-            return False, None
-        if self.is_label and not isinstance(flat_arr[0], (str, np.str_)):
+        all_numeric = is_all_numeric(flat_arr)
+        is_regression = self.task_type is TaskTypes.REGRESSION
+        if self.is_label and is_regression and not all_numeric:
+            raise ValueError("task_type is REGRESSION but labels are not all numeric")
+        if all_numeric:
             return False, None
         self._counter = get_counter_from_arr(flat_arr)
         unique_values = [elem[0] for elem in self._counter.most_common()]
@@ -130,21 +134,26 @@ class Recognizer:
                    "are NaN. It'll be excluded since it might be redundant")
             return self._make_invalid_info(msg, contains_nan, nan_mask)
         # check whether it's a numerical column
+        all_int = np.allclose(np_flat_valid, np_flat_valid_int)
         if (
-            self.force_numerical or
-            not self.force_categorical and not np.allclose(np_flat_valid, np_flat_valid_int)
+            self.force_numerical
+            or self.is_label and self.task_type is TaskTypes.REGRESSION
+            or not self.force_categorical and not all_int
         ):
-            self._info = FeatureInfo(contains_nan, np_flat, nan_mask=nan_mask)
-            return self
-        min_feat = np_flat_valid_int.min()
-        np_flat_valid_int -= min_feat
-        max_feature_value = np_flat_valid_int.max()
-        if max_feature_value > 1e6:
-            unique_values, counts = np.unique(np_flat_valid_int, return_counts=True)
+            if not (self.is_label and self.task_type is TaskTypes.CLASSIFICATION):
+                self._info = FeatureInfo(contains_nan, np_flat, nan_mask=nan_mask)
+                return self
+        # deal with categorical column
+        np_flat_categorical = np_flat_valid_int if all_int else np_flat_valid
+        min_feat = np_flat_categorical.min()
+        np_flat_categorical -= min_feat
+        max_feature_value = np_flat_categorical.max()
+        if not all_int or max_feature_value > 1e6:
+            unique_values, counts = np.unique(np_flat_categorical, return_counts=True)
             num_unique_values = len(unique_values)
             need_transform = unique_values[-1] != num_unique_values - 1
         else:
-            counts = np.bincount(np_flat_valid_int)
+            counts = np.bincount(np_flat_categorical)
             unique_values = np.nonzero(counts)[0]
             num_unique_values = len(unique_values)
             need_transform = num_unique_values != len(counts)
