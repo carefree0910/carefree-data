@@ -3,10 +3,10 @@ import numpy as np
 
 from typing import *
 from collections import Counter
+from cftool.misc import get_counter_from_arr
 
 from ..types import *
 from ...misc.c import *
-from ...misc.toolkit import get_counter_from_arr
 
 
 class Recognizer:

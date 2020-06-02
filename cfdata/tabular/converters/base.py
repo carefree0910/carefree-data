@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 
 from ..types import *
 from ..recognizer import Recognizer
-from ...misc.toolkit import register_core
+from cftool.misc import register_core
 
 converter_dict: Dict[str, Type["Converter"]] = {}
 

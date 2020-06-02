@@ -3,9 +3,10 @@ import unittest
 
 import numpy as np
 
+from cftool.misc import shallow_copy_dict
+
 from cfdata.tabular import *
 from cfdata.tabular.types import *
-from cfdata.misc.toolkit import shallow_copy_dict
 
 
 class TestTabularData(unittest.TestCase):

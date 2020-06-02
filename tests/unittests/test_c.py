@@ -1,10 +1,11 @@
 import unittest
 import numpy as np
 
+from cftool.misc import timeit
+
 from cfdata.misc.c import *
 from cfdata.misc.c.cython_wrappers import *
 from cfdata.misc.c.cython_substitute import *
-from cfdata.misc.toolkit import timeit
 
 types = ["used", "c", "naive"]
 

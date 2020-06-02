@@ -2,8 +2,7 @@ import numpy as np
 
 from typing import *
 from abc import ABC, abstractmethod
-
-from ...misc.toolkit import register_core
+from cftool.misc import register_core
 
 processor_dict: Dict[str, Type["Processor"]] = {}
 

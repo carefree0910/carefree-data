@@ -1,8 +1,7 @@
 import math
 import numpy as np
-from collections import Counter
 
-from ..toolkit import is_numeric
+from cftool.misc import is_numeric
 
 
 def naive_transform_flat_data_with_dict(flat_data, transform_dict):
