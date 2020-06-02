@@ -1,3 +1,4 @@
+import os
 import math
 import unittest
 
@@ -106,6 +107,15 @@ class TestTabularData(unittest.TestCase):
 
     def test_read_from_list_without_column_info(self):
         self._test_core({})
+
+    def test_save_and_load(self):
+        task = "mnist_small"
+        task_file = os.path.join("data", f"{task}.txt")
+        data = TabularData().read(task_file).save(task)
+        loaded = TabularData().load(task)
+        self.assertTrue(data == loaded)
+        self.assertTrue(loaded.transform(task_file) == data.processed)
+        os.remove(f"{task}.zip")
 
 
 if __name__ == '__main__':
