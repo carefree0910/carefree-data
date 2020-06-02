@@ -23,6 +23,8 @@ class DataTuple:
             return False
         if self.y is None and other.y is None:
             return True
+        if isinstance(self.y[0][0], np.str_):
+            return self.y.tolist() == other.y.tolist()
         return np.allclose(self.y, other.y, equal_nan=True)
 
     def __str__(self):
