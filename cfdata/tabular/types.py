@@ -14,7 +14,20 @@ class DataTuple(NamedTuple):
     xT: data_type = None
 
     def __eq__(self, other: "DataTuple"):
-        if not np.allclose(self.x, other.x, equal_nan=True):
+        self_x_is_list = isinstance(self.x, list)
+        other_x_is_list = isinstance(other.x, list)
+        if self_x_is_list and not other_x_is_list:
+            return False
+        if not self_x_is_list and other_x_is_list:
+            return False
+        if self_x_is_list:
+            x_allclose = self.x == other.x
+        else:
+            if isinstance(self.x[0][0], np.str_):
+                x_allclose = self.x.tolist() == other.x.tolist()
+            else:
+                x_allclose = np.allclose(self.x, other.x, equal_nan=True)
+        if not x_allclose:
             return False
         if self.y is None and other.y is not None:
             return False
@@ -22,6 +35,14 @@ class DataTuple(NamedTuple):
             return False
         if self.y is None and other.y is None:
             return True
+        self_y_is_list = isinstance(self.y, list)
+        other_y_is_list = isinstance(other.y, list)
+        if self_y_is_list and not other_y_is_list:
+            return False
+        if not self_y_is_list and other_y_is_list:
+            return False
+        if self_y_is_list:
+            return self.y == other.y
         if isinstance(self.y[0][0], np.str_):
             return self.y.tolist() == other.y.tolist()
         return np.allclose(self.y, other.y, equal_nan=True)
