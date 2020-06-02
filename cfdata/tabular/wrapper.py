@@ -1,7 +1,10 @@
 import os
+import logging
+
 import numpy as np
 
 from typing import *
+from cftool.misc import SavingMixin, timing_context
 
 from .types import *
 from .recognizer import *
@@ -9,7 +12,7 @@ from .converters import *
 from .processors import *
 
 
-class TabularData:
+class TabularData(SavingMixin):
     def __init__(self,
                  *,
                  task_type: TaskTypes = None,
@@ -24,7 +27,9 @@ class TabularData:
                  categorical_columns: List[int] = None,
                  process_methods: Dict[int, str] = None,
                  label_process_method: str = None,
-                 numerical_threshold: float = None):
+                 numerical_threshold: float = None,
+                 trigger_logging: bool = False,
+                 verbose_level: int = 1):
         self._task_type = task_type
         self.label_name = label_name
         self.string_label = string_label
@@ -42,7 +47,27 @@ class TabularData:
         self._label_idx = self._skip_first = self._delim = None
         self._raw = self._converted = self._processed = None
         self._recognizers = self._converters = self._processors = None
+        self._init_logging(verbose_level, trigger_logging)
         self.excludes = set()
+
+    def __eq__(self, other: "TabularData"):
+        if self.raw != other.raw:
+            return False
+        if self.converted != other.converted:
+            return False
+        return self.processed == other.processed
+
+    @property
+    def cache_excludes(self):
+        return {"_recognizers", "_converters", "_processors"}
+
+    @property
+    def data_tuple_base(self) -> Type[NamedTuple]:
+        return DataTuple
+
+    @property
+    def data_tuple_attributes(self) -> List[str]:
+        return ["_raw", "_converted", "_processed"]
 
     @property
     def raw(self) -> DataTuple:
@@ -152,90 +177,104 @@ class TabularData:
         return data.ravel()
 
     def _core_fit(self) -> "TabularData":
-        # convert features
-        features = self._raw.xT
-        converted_features = []
-        self._recognizers, self._converters = {}, {}
-        for i, flat_arr in enumerate(features):
-            column_name = self.column_names[i]
-            force_valid = self.force_valid_columns[i]
-            force_string = self.force_string_columns[i]
-            force_numerical = self.force_numerical_columns[i]
-            force_categorical = self.force_categorical_columns[i]
-            if i == self.raw_dim - 1 == len(self.excludes):
-                if i > 0:
-                    print(f"last column {column_name} is forced to be valid "
-                          "because previous columns are all excluded")
-                force_valid = True
-            kwargs = {
-                "force_string": force_string,
-                "force_numerical": force_numerical,
-                "force_categorical": force_categorical,
-                "force_valid": force_valid
-            }
-            if self._numerical_threshold is not None:
-                kwargs["numerical_threshold"] = self._numerical_threshold
-            recognizer = self._recognizers[i] = Recognizer(column_name, **kwargs).fit(flat_arr)
-            if not recognizer.info.is_valid:
-                print(recognizer.info.msg)
-                self.excludes.add(i)
-                continue
-            converter = self._converters[i] = Converter.make_with(recognizer)
-            converted_features.append(converter.converted_input)
-        # convert labels
-        if self._raw.y is None:
-            converted_labels = self._recognizers[-1] = self._converters[-1] = None
-        else:
-            recognizer = self._recognizers[-1] = Recognizer(
-                self.label_name,
-                is_label=True,
-                task_type=self._task_type,
-                force_valid=True,
-                force_string=self.string_label,
-                force_numerical=self.numerical_label,
-                force_categorical=self.categorical_label,
-                numerical_threshold=1.
-            ).fit(self._flatten(self._raw.y))
-            converter = self._converters[-1] = Converter.make_with(recognizer)
-            converted_labels = converter.converted_input.reshape([-1, 1])
-        # get converted
-        self._converted = DataTuple(np.vstack(converted_features).T, converted_labels)
-        # process features
-        self._processors = {}
-        processed_features = []
-        previous_processors = []
-        idx = 0
-        x = self._converted.x
-        while idx < self.raw_dim:
-            if idx in self.excludes:
-                idx += 1
-                continue
-            column_type = self._converters[idx].info.column_type
-            method = None
-            if self._process_methods is not None:
-                method = self._process_methods.get(idx)
-            if method is None:
-                method = "normalize" if column_type is ColumnTypes.NUMERICAL else "one_hot"
-            processor = self._processors[idx] = processor_dict[method](previous_processors)
-            previous_processors.append(processor)
-            columns = x[..., processor.input_indices]
-            processed_features.append(processor.fit(columns).process(columns))
-            idx += processor.input_dim
-        # process labels
-        y = self._converted.y
-        if y is None:
-            processed_labels = self._processors[-1] = None
-        else:
-            column_type = self._converters[-1].info.column_type
-            method = None
-            if self._label_process_method is not None:
-                method = self._label_process_method
-            if method is None:
-                method = "normalize" if column_type is ColumnTypes.NUMERICAL else "identical"
-            processor = self._processors[-1] = processor_dict[method]([])
-            processed_labels = processor.fit(y).process(y)
-        # get processed
-        self._processed = DataTuple(np.hstack(processed_features), processed_labels)
+        with timing_context(self, "convert"):
+            # convert features
+            features = self._raw.xT
+            converted_features = []
+            self._recognizers, self._converters = {}, {}
+            for i, flat_arr in enumerate(features):
+                column_name = self.column_names[i]
+                force_valid = self.force_valid_columns[i]
+                force_string = self.force_string_columns[i]
+                force_numerical = self.force_numerical_columns[i]
+                force_categorical = self.force_categorical_columns[i]
+                if i == self.raw_dim - 1 == len(self.excludes):
+                    if i > 0:
+                        self.log_msg(
+                            f"last column {column_name} is forced to be valid "
+                            "because previous columns are all excluded", self.warning_prefix,
+                            verbose_level=2, msg_level=logging.WARNING
+                        )
+                    force_valid = True
+                kwargs = {
+                    "force_string": force_string,
+                    "force_numerical": force_numerical,
+                    "force_categorical": force_categorical,
+                    "force_valid": force_valid
+                }
+                if self._numerical_threshold is not None:
+                    kwargs["numerical_threshold"] = self._numerical_threshold
+                with timing_context(self, "fit recognizer"):
+                    recognizer = self._recognizers[i] = Recognizer(column_name, **kwargs).fit(flat_arr)
+                if not recognizer.info.is_valid:
+                    self.log_msg(recognizer.info.msg, self.warning_prefix, 2, logging.WARNING)
+                    self.excludes.add(i)
+                    continue
+                with timing_context(self, "fit converter"):
+                    converter = self._converters[i] = Converter.make_with(recognizer)
+                converted_features.append(converter.converted_input)
+            # convert labels
+            if self._raw.y is None:
+                converted_labels = self._recognizers[-1] = self._converters[-1] = None
+            else:
+                with timing_context(self, "fit recognizer"):
+                    recognizer = self._recognizers[-1] = Recognizer(
+                        self.label_name,
+                        is_label=True,
+                        task_type=self._task_type,
+                        force_valid=True,
+                        force_string=self.string_label,
+                        force_numerical=self.numerical_label,
+                        force_categorical=self.categorical_label,
+                        numerical_threshold=1.
+                    ).fit(self._flatten(self._raw.y))
+                with timing_context(self, "fit converter"):
+                    converter = self._converters[-1] = Converter.make_with(recognizer)
+                converted_labels = converter.converted_input.reshape([-1, 1])
+            # get converted
+            self._converted = DataTuple(np.vstack(converted_features).T, converted_labels)
+        with timing_context(self, "process"):
+            # process features
+            self._processors = {}
+            processed_features = []
+            previous_processors = []
+            idx = 0
+            x = self._converted.x
+            while idx < self.raw_dim:
+                if idx in self.excludes:
+                    idx += 1
+                    continue
+                column_type = self._converters[idx].info.column_type
+                method = None
+                if self._process_methods is not None:
+                    method = self._process_methods.get(idx)
+                if method is None:
+                    method = "normalize" if column_type is ColumnTypes.NUMERICAL else "one_hot"
+                processor = self._processors[idx] = processor_dict[method](previous_processors)
+                previous_processors.append(processor)
+                columns = x[..., processor.input_indices]
+                with timing_context(self, "fit processor"):
+                    processor.fit(columns)
+                with timing_context(self, "process with processor"):
+                    processed_features.append(processor.process(columns))
+                idx += processor.input_dim
+            # process labels
+            y = self._converted.y
+            if y is None:
+                processed_labels = self._processors[-1] = None
+            else:
+                column_type = self._converters[-1].info.column_type
+                method = None
+                if self._label_process_method is not None:
+                    method = self._label_process_method
+                if method is None:
+                    method = "normalize" if column_type is ColumnTypes.NUMERICAL else "identical"
+                with timing_context(self, "fit processor"):
+                    processor = self._processors[-1] = processor_dict[method]([]).fit(y)
+                with timing_context(self, "process with processor"):
+                    processed_labels = processor.process(y)
+            # get processed
+            self._processed = DataTuple(np.hstack(processed_features), processed_labels)
         return self
 
     def _read_from_file(self,
@@ -246,7 +285,8 @@ class TabularData:
                         delim: str = None) -> "TabularData":
         self._is_file = True
         self._label_idx, self._skip_first, self._delim = label_idx, skip_first, delim
-        x, y = self._read_file(file_path)
+        with timing_context(self, "_read_file"):
+            x, y = self._read_file(file_path)
         self._raw = DataTuple.with_transpose(x, y)
         return self._core_fit()
 
@@ -297,10 +337,13 @@ class TabularData:
              y: Union[int, data_type] = -1,
              **kwargs) -> "TabularData":
         if isinstance(x, str):
-            return self._read_from_file(x, label_idx=y, **kwargs)
-        if isinstance(y, int):
-            y = None
-        return self._read_from_arr(x, y)
+            self._read_from_file(x, label_idx=y, **kwargs)
+        else:
+            if isinstance(y, int):
+                y = None
+            self._read_from_arr(x, y)
+        self.log_timing()
+        return self
 
     def transform(self,
                   x: Union[str, data_type],
@@ -319,6 +362,13 @@ class TabularData:
         process_recovered = self._processors[-1].recover(y, inplace=inplace)
         convert_recovered = self.converters[-1].recover(process_recovered.ravel(), inplace=inplace)
         return convert_recovered.reshape([-1, 1])
+
+    def load(self, folder, *, compress=True) -> "TabularData":
+        super().load(folder)
+        is_file, is_arr = self._is_file, self._is_arr
+        self.read(*self._raw[:2])
+        self._is_file, self._is_arr = is_file, is_arr
+        return self
 
 
 __all__ = ["TabularData"]
