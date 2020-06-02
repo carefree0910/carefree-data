@@ -21,6 +21,11 @@ class Converter(ABC):
         self._initialize(**kwargs)
         self._fit()
 
+    def __str__(self):
+        return f"Converter({self.info.column_type})"
+
+    __repr__ = __str__
+
     @abstractmethod
     def _fit(self) -> "Converter":
         pass

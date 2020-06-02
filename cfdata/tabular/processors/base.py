@@ -21,6 +21,11 @@ class Processor(ABC):
         self._col_indices = [start_idx + i for i in range(self.input_dim)]
         self._initialize(**kwargs)
 
+    def __str__(self):
+        return f"{type(self).__name__}()"
+
+    __repr__ = __str__
+
     @property
     @abstractmethod
     def input_dim(self) -> int:

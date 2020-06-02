@@ -30,6 +30,11 @@ class Recognizer:
         self.numerical_threshold = numerical_threshold
         self._info = self._counter = self._transform_dict = None
 
+    def __str__(self):
+        return f"Recognizer({self.info.column_type})"
+
+    __repr__ = __str__
+
     @property
     def info(self) -> FeatureInfo:
         return self._info
