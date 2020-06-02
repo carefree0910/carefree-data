@@ -29,38 +29,17 @@ def _is_numeric(s):
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def transform_data_with_dicts(np.ndarray[np.float32_t, ndim=2] data, list_of_idx, list_of_dict):
-    cdef unsigned int td=len(list_of_idx)
-    assert td == len(list_of_dict)
-    if td == 0:
-        return data
-    cdef dict d
+def transform_flat_data_with_dict(np.ndarray[np.float32_t, ndim=1] flat_data, transform_dict):
+    cdef dict d = transform_dict
     cdef float elem
-    cdef unsigned int i, j, idx, dim=len(data[0]), n=len(data)
-    cdef np.ndarray[np.float32_t, ndim=1] sample
-    cdef np.ndarray[np.float32_t, ndim=2] rs=np.zeros((n, dim), dtype=np.float32)
+    cdef unsigned int i, n=len(flat_data)
     for i in range(n):
-        sample = data[i]
-        for j in range(td):
-            d = list_of_dict[j]
-            idx = list_of_idx[j]
-            elem = float(sample[idx])
-            if isnan(elem):
-                sample[idx] = d.get("nan", 0)
-            else:
-                sample[idx] = d.get(elem, 0)
-        rs[i] = sample
-    return rs
-
-
-@cython.wraparound(False)
-@cython.boundscheck(False)
-def counter(arr x):
-    cdef unsigned int i, n=len(x)
-    d = defaultdict(int)
-    for i in range(n):
-        d[x[i]] += 1
-    return d
+        elem = float(flat_data[i])
+        if isnan(elem):
+            flat_data[i] = d.get("nan", 0)
+        else:
+            flat_data[i] = d.get(elem, 0)
+    return flat_data
 
 
 @cython.wraparound(False)
@@ -75,7 +54,7 @@ def is_all_numeric(arr x):
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def flat_str_to_float32(arr x):
+def flat_arr_to_float32(arr x):
     cdef unsigned i, n=len(x)
     cdef np.ndarray[np.float32_t, ndim=1] rs=np.zeros(n, dtype=np.float32)
     for i in range(n):

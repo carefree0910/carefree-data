@@ -265,6 +265,12 @@ def get_unique_indices(arr, return_raw=False):
     return unique, unique_cnt, np.split(sorting_indices, split_arr)
 
 
+def get_counter_from_arr(arr):
+    if isinstance(arr, np.ndarray):
+        arr = dict(zip(*np.unique(arr, return_counts=True)))
+    return Counter(arr)
+
+
 def register_core(name: str,
                   global_dict: Dict[str, type], *,
                   before_register: callable = None,
@@ -393,8 +399,8 @@ class general_batch_manager(context_error_handler):
 
 
 __all__ = [
-    "get_indices_from_another", "get_unique_indices", "get_one_hot", "hash_code", "prefix_dict",
-    "check_params", "timestamp", "fix_float_to_length", "truncate_string_to_length", "grouped",
+    "get_indices_from_another", "get_unique_indices", "get_counter_from_arr", "get_one_hot", "hash_code",
+    "prefix_dict", "check_params", "timestamp", "fix_float_to_length", "truncate_string_to_length", "grouped",
     "is_numeric", "show_or_save", "update_dict", "context_error_handler", "timeit",
     "general_batch_manager", "prod", "shallow_copy_dict", "register_core"
 ]
