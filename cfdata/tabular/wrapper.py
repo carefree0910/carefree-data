@@ -383,5 +383,8 @@ class TabularData(SavingMixin):
         self._is_file, self._is_arr = is_file, is_arr
         return self
 
+    def to_dataset(self) -> TabularDataset:
+        return TabularDataset(*self.processed.xy, task_type=self.task_type)
+
 
 __all__ = ["TabularData"]
