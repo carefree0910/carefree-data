@@ -140,12 +140,13 @@ class Recognizer:
             return self._make_invalid_info(msg, contains_nan, nan_mask)
         # check whether it's a numerical column
         all_int = np.allclose(np_flat_valid, np_flat_valid_int)
+        is_classification_label = self.is_label and self.task_type is TaskTypes.CLASSIFICATION
         if (
             self.force_numerical
             or self.is_label and self.task_type is TaskTypes.REGRESSION
             or not self.force_categorical and not all_int
         ):
-            if not (self.is_label and self.task_type is TaskTypes.CLASSIFICATION):
+            if not is_classification_label:
                 self._info = FeatureInfo(contains_nan, np_flat, nan_mask=nan_mask)
                 return self
         # deal with categorical column
@@ -165,7 +166,7 @@ class Recognizer:
             counts = counts[unique_values]
         need_transform = min_feat != 0 or need_transform
         status, msg = self._check_exclude_categorical(num_samples, num_unique_values)
-        if status != "keep":
+        if not is_classification_label and status != "keep":
             if status == "numerical":
                 self._info = FeatureInfo(contains_nan, np_flat, nan_mask=nan_mask, msg=msg)
                 return self
