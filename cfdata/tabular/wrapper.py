@@ -386,5 +386,9 @@ class TabularData(SavingMixin):
     def to_dataset(self) -> TabularDataset:
         return TabularDataset(*self.processed.xy, task_type=self.task_type)
 
+    @classmethod
+    def from_dataset(cls, dataset: TabularDataset):
+        return cls(task_type=dataset.task_type).read(*dataset.xy)
+
 
 __all__ = ["TabularData"]
