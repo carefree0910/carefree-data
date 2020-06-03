@@ -30,6 +30,15 @@ class TabularData(SavingMixin):
                  numerical_threshold: float = None,
                  trigger_logging: bool = False,
                  verbose_level: int = 1):
+        if task_type is not None:
+            if task_type is TaskTypes.CLASSIFICATION:
+                if numerical_label:
+                    raise ValueError("numerical labels are invalid in CLASSIFICATION tasks")
+            else:
+                if string_label:
+                    raise ValueError("string labels are invalid in REGRESSION tasks")
+                if categorical_label:
+                    raise ValueError("categorical labels are invalid in REGRESSION tasks")
         self._task_type = task_type
         self.label_name = label_name
         self.string_label = string_label
