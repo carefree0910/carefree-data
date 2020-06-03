@@ -50,6 +50,10 @@ class DataTuple(NamedTuple):
     def __ne__(self, other: "DataTuple"):
         return not self == other
 
+    @property
+    def xy(self) -> Tuple[data_type, data_type]:
+        return self.x, self.y
+
     @classmethod
     def with_transpose(cls,
                        x: data_type,
