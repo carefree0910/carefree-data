@@ -1,7 +1,9 @@
 import numpy as np
 
-from enum import Enum
 from typing import *
+from enum import Enum
+from sklearn.utils import Bunch
+from sklearn.datasets import *
 
 flat_arr_type = Union[list, np.ndarray]
 raw_data_type = Union[List[List[Union[str, float]]], None]
@@ -103,7 +105,80 @@ class FeatureInfo(NamedTuple):
         return self.column_type is ColumnTypes.NUMERICAL
 
 
+class TabularDataset(NamedTuple):
+    x: np.ndarray
+    y: np.ndarray
+    task_type: Union[None, TaskTypes] = None
+    label_name: Union[None, str] = "label"
+    label_names: Union[None, List[str]] = None
+    feature_names: Union[None, List[str]] = None
+
+    @property
+    def xy(self) -> Tuple[np.ndarray, np.ndarray]:
+        return self.x, self.y
+
+    @property
+    def is_clf(self) -> bool:
+        return self.task_type is TaskTypes.CLASSIFICATION
+
+    @property
+    def is_reg(self) -> bool:
+        return self.task_type is TaskTypes.REGRESSION
+
+    @property
+    def num_features(self) -> int:
+        return self.x.shape[1]
+
+    @property
+    def num_classes(self) -> int:
+        if self.task_type == "reg":
+            return 0
+        return self.y.max().item() + 1
+
+    @staticmethod
+    def to_task_type(x: np.ndarray,
+                     y: np.ndarray,
+                     task_type: TaskTypes) -> Tuple[np.ndarray, np.ndarray]:
+        x = x.astype(np.float32)
+        is_clf = task_type is TaskTypes.CLASSIFICATION
+        y = y.reshape([-1, 1]).astype(np.int if is_clf else np.float32)
+        return x, y
+
+    @classmethod
+    def from_bunch(cls,
+                   bunch: Bunch,
+                   task_type: TaskTypes) -> "TabularDataset":
+        x, y = TabularDataset.to_task_type(bunch.data, bunch.target, task_type)
+        label_names = bunch.get("target_names")
+        feature_names = bunch.get("feature_names")
+        return TabularDataset(x, y, task_type, label_names=label_names, feature_names=feature_names)
+
+    @classmethod
+    def from_xy(cls,
+                x: np.ndarray,
+                y: np.ndarray,
+                task_type: TaskTypes) -> "TabularDataset":
+        x, y = cls.to_task_type(x, y, task_type)
+        return TabularDataset(x, y, task_type)
+
+    @classmethod
+    def iris(cls) -> "TabularDataset":
+        return cls.from_bunch(load_iris(), TaskTypes.CLASSIFICATION)
+
+    @classmethod
+    def boston(cls) -> "TabularDataset":
+        return cls.from_bunch(load_boston(), TaskTypes.REGRESSION)
+
+    @classmethod
+    def digits(cls) -> "TabularDataset":
+        return cls.from_bunch(load_digits(), TaskTypes.CLASSIFICATION)
+
+    @classmethod
+    def breast_cancer(cls) -> "TabularDataset":
+        return cls.from_bunch(load_breast_cancer(), TaskTypes.CLASSIFICATION)
+
+
 __all__ = [
     "flat_arr_type", "raw_data_type", "data_type",
-    "DataTuple", "ColumnTypes", "TaskTypes", "FeatureInfo"
+    "DataTuple", "ColumnTypes", "TaskTypes", "FeatureInfo", "TabularDataset"
 ]
