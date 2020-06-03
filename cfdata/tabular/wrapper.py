@@ -240,15 +240,13 @@ class TabularData(SavingMixin):
                 with timing_context(self, "fit converter"):
                     converter = self._converters[-1] = Converter.make_with(recognizer)
                 converted_labels = converter.converted_input.reshape([-1, 1])
-            # get converted
-            self._converted = DataTuple(np.vstack(converted_features).T, converted_labels)
+        converted_x = np.vstack(converted_features).T
         with timing_context(self, "process"):
             # process features
             self._processors = {}
             processed_features = []
             previous_processors = []
             idx = 0
-            x = self._converted.x
             while idx < self.raw_dim:
                 if idx in self.excludes:
                     idx += 1
@@ -261,15 +259,14 @@ class TabularData(SavingMixin):
                     method = "normalize" if column_type is ColumnTypes.NUMERICAL else "one_hot"
                 processor = self._processors[idx] = processor_dict[method](previous_processors)
                 previous_processors.append(processor)
-                columns = x[..., processor.input_indices]
+                columns = converted_x[..., processor.input_indices]
                 with timing_context(self, "fit processor"):
                     processor.fit(columns)
                 with timing_context(self, "process with processor"):
                     processed_features.append(processor.process(columns))
                 idx += processor.input_dim
             # process labels
-            y = self._converted.y
-            if y is None:
+            if converted_labels is None:
                 processed_labels = self._processors[-1] = None
             else:
                 column_type = self._converters[-1].info.column_type
@@ -279,11 +276,14 @@ class TabularData(SavingMixin):
                 if method is None:
                     method = "normalize" if column_type is ColumnTypes.NUMERICAL else "identical"
                 with timing_context(self, "fit processor"):
-                    processor = self._processors[-1] = processor_dict[method]([]).fit(y)
+                    processor = self._processors[-1] = processor_dict[method]([]).fit(converted_labels)
                 with timing_context(self, "process with processor"):
-                    processed_labels = processor.process(y)
-            # get processed
-            self._processed = DataTuple(np.hstack(processed_features), processed_labels)
+                    processed_labels = processor.process(converted_labels)
+        if self.task_type is TaskTypes.CLASSIFICATION:
+            converted_labels = converted_labels.astype(np.int)
+            processed_labels = processed_labels.astype(np.int)
+        self._converted = DataTuple(converted_x, converted_labels)
+        self._processed = DataTuple(np.hstack(processed_features), processed_labels)
         return self
 
     def _read_from_file(self,
@@ -333,6 +333,10 @@ class TabularData(SavingMixin):
         else:
             converted_labels = self._converters[-1].convert(self._flatten(raw.y))
             transformed_labels = self._processors[-1].process(converted_labels.reshape([-1, 1]))
+        # check categorical
+        if self.task_type is TaskTypes.CLASSIFICATION:
+            converted_labels = converted_labels.astype(np.int)
+            transformed_labels = transformed_labels.astype(np.int)
         transformed = DataTuple(transformed_features, transformed_labels)
         if not return_converted:
             return transformed
