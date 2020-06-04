@@ -1,7 +1,9 @@
+import math
 import numpy as np
 
 from typing import *
 from enum import Enum
+from functools import partial
 from sklearn.utils import Bunch
 from sklearn.datasets import *
 
@@ -161,6 +163,8 @@ class TabularDataset(NamedTuple):
         x, y = cls.to_task_type(x, y, task_type)
         return TabularDataset(x, y, task_type)
 
+    # scikit-learn datasets
+
     @classmethod
     def iris(cls) -> "TabularDataset":
         return cls.from_bunch(load_iris(), TaskTypes.CLASSIFICATION)
@@ -176,6 +180,138 @@ class TabularDataset(NamedTuple):
     @classmethod
     def breast_cancer(cls) -> "TabularDataset":
         return cls.from_bunch(load_breast_cancer(), TaskTypes.CLASSIFICATION)
+
+    # artificial datasets
+
+    @classmethod
+    def xor(cls, *,
+            size: int = 100,
+            scale: float = 1.) -> "TabularDataset":
+        x = np.random.randn(size) * scale
+        y = np.random.randn(size) * scale
+        z = (x * y >= 0).astype(np.int)
+        return TabularDataset.from_xy(np.c_[x, y].astype(np.float32), z, TaskTypes.CLASSIFICATION)
+
+    @classmethod
+    def spiral(cls, *,
+               size: int = 50,
+               scale: float = 4.,
+               nun_spirals: int = 7,
+               num_classes: int = 7) -> "TabularDataset":
+        xs = np.zeros((size * nun_spirals, 2), dtype=np.float32)
+        ys = np.zeros(size * nun_spirals, dtype=np.int)
+        pi = math.pi
+        for i in range(nun_spirals):
+            ix = range(size * i, size * (i + 1))
+            r = np.linspace(0.0, 1, size + 1)[1:]
+            t_start = 2 * i * pi / nun_spirals
+            t_end = 2 * (i + scale) * pi / nun_spirals
+            t = np.linspace(t_start, t_end, size) + np.random.random(size=size) * 0.1
+            xs[ix] = np.c_[r * np.sin(t), r * np.cos(t)]
+            ys[ix] = i % num_classes
+        return cls.from_xy(xs, ys, TaskTypes.CLASSIFICATION)
+
+    @classmethod
+    def two_clusters(cls, *,
+                     size: int = 100,
+                     scale: float = 1.,
+                     center: float = 0.,
+                     distance: float = 2.,
+                     num_dimensions: int = 2) -> "TabularDataset":
+        center1 = (np.random.random(num_dimensions) + center - 0.5) * scale + distance
+        center2 = (np.random.random(num_dimensions) + center - 0.5) * scale - distance
+        cluster1 = (np.random.randn(size, num_dimensions) + center1) * scale
+        cluster2 = (np.random.randn(size, num_dimensions) + center2) * scale
+        data = np.vstack((cluster1, cluster2)).astype(np.float32)
+        labels = np.array([1] * size + [0] * size, np.int)
+        indices = np.random.permutation(size * 2)
+        data, labels = data[indices], labels[indices]
+        return cls.from_xy(data, labels, TaskTypes.CLASSIFICATION)
+
+    @classmethod
+    def simple_non_linear(cls, *,
+                          size: int = 120) -> "TabularDataset":
+        xs = np.random.randn(size, 2).astype(np.float32) * 1.5
+        ys = np.zeros(size, dtype=np.int)
+        mask = xs[..., 1] >= xs[..., 0] ** 2
+        xs[..., 1][mask] += 2
+        ys[mask] = 1
+        return cls.from_xy(xs, ys, TaskTypes.CLASSIFICATION)
+
+    @classmethod
+    def nine_grid(cls, *,
+                  size: int = 120) -> "TabularDataset":
+        x, y = np.random.randn(2, size).astype(np.float32)
+        labels = np.zeros(size, np.int)
+        xl, xr = x <= -1, x >= 1
+        yf, yc = y <= -1, y >= 1
+        x_mid_mask = ~xl & ~xr
+        y_mid_mask = ~yf & ~yc
+        mask2 = x_mid_mask & y_mid_mask
+        labels[mask2] = 2
+        labels[(x_mid_mask | y_mid_mask) & ~mask2] = 1
+        xs = np.vstack([x, y]).T
+        return cls.from_xy(xs, labels, TaskTypes.CLASSIFICATION)
+
+    @staticmethod
+    def _fetch_ys(affine_train, affine_test, task_type):
+        if task_type is TaskTypes.REGRESSION:
+            y_train, y_test = affine_train, affine_test
+        else:
+            y_train = (affine_train > 0).astype(np.int)
+            y_test = (affine_test > 0).astype(np.int)
+        return y_train, y_test
+
+    @classmethod
+    def noisy_linear(cls, *,
+                     size: int = 10000,
+                     n_dim: int = 100,
+                     n_valid: int = 5,
+                     noise_scale: float = 0.5,
+                     task_type: TaskTypes = TaskTypes.REGRESSION,
+                     test_ratio: float = 0.15) -> Tuple["TabularDataset", "TabularDataset"]:
+        x_train = np.random.randn(size, n_dim)
+        x_train_noise = x_train + np.random.randn(size, n_dim) * noise_scale
+        x_test = np.random.randn(int(size * test_ratio), n_dim)
+        idx = np.random.permutation(n_dim)[:n_valid]
+        w = np.random.randn(n_valid, 1)
+        affine_train = x_train[..., idx].dot(w)
+        affine_test = x_test[..., idx].dot(w)
+        tr_set, te_set = map(
+            cls.from_xy,
+            [x_train_noise, x_test],
+            TabularDataset._fetch_ys(affine_train, affine_test, task_type),
+            2 * [task_type]
+        )
+        return tr_set, te_set
+
+    @classmethod
+    def noisy_poly(cls, *,
+                   p: int = 3,
+                   size: int = 10000,
+                   n_dim: int = 100,
+                   n_valid: int = 5,
+                   noise_scale: float = 0.5,
+                   task_type: TaskTypes = TaskTypes.REGRESSION,
+                   test_ratio: float = 0.15) -> Tuple["TabularDataset", "TabularDataset"]:
+        assert p > 1, "p should be greater than 1"
+        x_train = np.random.randn(size, n_dim)
+        x_train_list = [x_train] + [x_train ** i for i in range(2, p + 1)]
+        x_train_noise = x_train + np.random.randn(size, n_dim) * noise_scale
+        x_test = np.random.randn(int(size * test_ratio), n_dim)
+        x_test_list = [x_test] + [x_test ** i for i in range(2, p + 1)]
+        idx_list = [np.random.permutation(n_dim)[:n_valid] for _ in range(p)]
+        w_list = [np.random.randn(n_valid, 1) for _ in range(p)]
+        o_train = [x[..., idx].dot(w) for x, idx, w in zip(x_train_list, idx_list, w_list)]
+        o_test = [x[..., idx].dot(w) for x, idx, w in zip(x_test_list, idx_list, w_list)]
+        affine_train, affine_test = map(partial(np.sum, axis=0), [o_train, o_test])
+        tr_set, te_set = map(
+            cls.from_xy,
+            [x_train_noise, x_test],
+            TabularDataset._fetch_ys(affine_train, affine_test, task_type),
+            2 * [task_type]
+        )
+        return tr_set, te_set
 
 
 __all__ = [
