@@ -387,8 +387,11 @@ class TabularData(SavingMixin):
         return TabularDataset(*self.processed.xy, task_type=self.task_type)
 
     @classmethod
-    def from_dataset(cls, dataset: TabularDataset):
-        return cls(task_type=dataset.task_type).read(*dataset.xy)
+    def from_dataset(cls,
+                     dataset: TabularDataset,
+                     **kwargs):
+        task_type = kwargs.pop("task_type", dataset.task_type)
+        return cls(task_type=task_type, **kwargs).read(*dataset.xy)
 
 
 __all__ = ["TabularData"]
