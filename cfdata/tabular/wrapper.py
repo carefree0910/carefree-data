@@ -257,7 +257,7 @@ class TabularData(SavingMixin):
                     method = self._process_methods.get(idx)
                 if method is None:
                     method = "normalize" if column_type is ColumnTypes.NUMERICAL else "one_hot"
-                processor = self._processors[idx] = processor_dict[method](previous_processors)
+                processor = self._processors[idx] = processor_dict[method](previous_processors.copy())
                 previous_processors.append(processor)
                 columns = converted_x[..., processor.input_indices]
                 with timing_context(self, "fit processor"):
