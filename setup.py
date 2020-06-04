@@ -2,7 +2,7 @@ import numpy
 from Cython.Build import cythonize
 from setuptools import setup, find_packages, Extension
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 
 DESCRIPTION = "Data processing module implemented with numpy"
 with open("README.md") as f:
@@ -24,12 +24,13 @@ setup(
         "cfdata.misc.c.cython_utils",
         sources=["cfdata/misc/c/cython_utils.pyx"],
         language="c",
-        include_dirs=[numpy.get_include()],
+        include_dirs=[numpy.get_include(), "cfdata/misc/c"],
         library_dirs=[],
         libraries=[],
         extra_compile_args=[],
         extra_link_args=[]
     )),
+    package_data={"cfdata.misc.c": ["cython_utils.pyx"]},
     author="carefree0910",
     author_email="syameimaru_kurumi@pku.edu.cn",
     url="https://github.com/carefree0910/carefree-data",
