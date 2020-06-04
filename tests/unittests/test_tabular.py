@@ -129,7 +129,7 @@ class TestTabularData(unittest.TestCase):
         self._test_recover_labels_core(TabularDataset.breast_cancer())
 
     def _test_recover_features_core(self, dataset):
-        column_indices = list(range(dataset.x.shape[1]))
+        column_indices = list(range(dataset.num_features))
         data = TabularData.from_dataset(dataset)
         dataset_processed = data.to_dataset()
         dataset_xt = dataset.x.T
