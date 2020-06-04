@@ -2,9 +2,15 @@ import numpy
 from Cython.Build import cythonize
 from setuptools import setup, find_packages, Extension
 
+VERSION = "0.1.0"
+
+DESCRIPTION = "Data processing module implemented with numpy"
+with open("README.md") as f:
+    LONG_DESCRIPTION = f.read()
+
 setup(
     name="carefree-data",
-    version="0.1.0",
+    version=VERSION,
     packages=find_packages(exclude=("tests",)),
     install_requires=[
         "carefree-toolkit",
@@ -26,6 +32,10 @@ setup(
     )),
     author="carefree0910",
     author_email="syameimaru_kurumi@pku.edu.cn",
-    description="Data processing module implemented with numpy",
+    url="https://github.com/carefree0910/carefree-data",
+    download_url=f"https://github.com/carefree0910/carefree-data/archive/v{VERSION}.tar.gz",
+    description=DESCRIPTION,
+    long_description=LONG_DESCRIPTION,
+    long_description_content_type="text/markdown",
     keywords="python numpy data-science"
 )
