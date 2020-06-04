@@ -150,6 +150,15 @@ class TestTabularData(unittest.TestCase):
         self._test_recover_features_core(TabularDataset.digits())
         self._test_recover_features_core(TabularDataset.breast_cancer())
 
+    def _test_equal_core(self, dataset):
+        self.assertTrue(TabularData().read(*dataset.xy) == TabularData.from_dataset(dataset))
+
+    def test_equal(self):
+        self._test_equal_core(TabularDataset.iris())
+        self._test_equal_core(TabularDataset.boston())
+        self._test_equal_core(TabularDataset.digits())
+        self._test_equal_core(TabularDataset.breast_cancer())
+
 
 if __name__ == '__main__':
     unittest.main()
