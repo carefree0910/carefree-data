@@ -117,16 +117,16 @@ class TestTabularData(unittest.TestCase):
         self.assertTrue(loaded.transform(task_file) == data.processed)
         os.remove(f"{task}.zip")
 
-    def _test_dataset_core(self, dataset):
+    def _test_recover_labels_core(self, dataset):
         data = TabularData.from_dataset(dataset)
         dataset_processed = data.to_dataset()
         self.assertTrue(np.allclose(data.recover_labels(dataset_processed.y), dataset.y))
 
-    def test_dataset(self):
-        self._test_dataset_core(TabularDataset.iris())
-        self._test_dataset_core(TabularDataset.boston())
-        self._test_dataset_core(TabularDataset.digits())
-        self._test_dataset_core(TabularDataset.breast_cancer())
+    def test_recover_labels(self):
+        self._test_recover_labels_core(TabularDataset.iris())
+        self._test_recover_labels_core(TabularDataset.boston())
+        self._test_recover_labels_core(TabularDataset.digits())
+        self._test_recover_labels_core(TabularDataset.breast_cancer())
 
 
 if __name__ == '__main__':
