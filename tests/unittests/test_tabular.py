@@ -128,6 +128,28 @@ class TestTabularData(unittest.TestCase):
         self._test_recover_labels_core(TabularDataset.digits())
         self._test_recover_labels_core(TabularDataset.breast_cancer())
 
+    def _test_recover_features_core(self, dataset):
+        column_indices = list(range(dataset.x.shape[1]))
+        data = TabularData.from_dataset(dataset)
+        dataset_processed = data.to_dataset()
+        dataset_xt = dataset.x.T
+        dataset_processed_x = dataset_processed.x
+        for col_idx in column_indices:
+            if col_idx in data.excludes:
+                continue
+            processor = data.processors[col_idx]
+            columns = dataset_processed_x[..., processor.output_indices]
+            processor_recovered = processor.recover(columns)
+            converter = data.converters[col_idx]
+            recovered = converter.recover(processor_recovered.ravel())
+            self.assertTrue(np.allclose(recovered, dataset_xt[col_idx], atol=1e-5))
+
+    def test_recover_features(self):
+        self._test_recover_features_core(TabularDataset.iris())
+        self._test_recover_features_core(TabularDataset.boston())
+        self._test_recover_features_core(TabularDataset.digits())
+        self._test_recover_features_core(TabularDataset.breast_cancer())
+
 
 if __name__ == '__main__':
     unittest.main()
