@@ -4,15 +4,16 @@ import logging
 import numpy as np
 
 from typing import *
-from cftool.misc import SavingMixin, timing_context
+from cftool.misc import timing_context
 
 from .types import *
 from .recognizer import *
 from .converters import *
 from .processors import *
+from ..base import DataBase
 
 
-class TabularData(SavingMixin):
+class TabularData(DataBase):
     def __init__(self,
                  *,
                  task_type: TaskTypes = None,
