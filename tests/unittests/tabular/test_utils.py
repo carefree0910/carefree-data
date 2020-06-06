@@ -119,6 +119,24 @@ class TestTabularUtils(unittest.TestCase):
         diff = ratios[1] - ratios[0]
         self.assertTrue(np.all(diff < tolerance))
 
+    def test_data_loader(self):
+        n_class = 10
+        n = int(10 ** 5)
+
+        x = np.random.random([n, 100]).astype(np_float_type)
+        y = np.random.randint(0, n_class, [n, 1])
+        data = TabularData().read(x, y)
+        sampler = ImbalancedSampler(data)
+        loader = DataLoader(128, sampler)
+        x_batch_shape = y_batch_shape = None
+        for i, (x_batch, y_batch) in enumerate(loader):
+            new_x_shape, new_y_shape = x_batch.shape, y_batch.shape
+            if x_batch_shape is None:
+                x_batch_shape, y_batch_shape = new_x_shape, new_y_shape
+            elif i != len(loader) - 1:
+                self.assertTrue(x_batch_shape == new_x_shape)
+                self.assertTrue(y_batch_shape == new_y_shape)
+
 
 if __name__ == '__main__':
     unittest.main()
