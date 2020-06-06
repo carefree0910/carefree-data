@@ -117,6 +117,9 @@ class TabularDataset(NamedTuple):
     label_names: Union[None, List[str]] = None
     feature_names: Union[None, List[str]] = None
 
+    def __len__(self):
+        return self.x.shape[0]
+
     @property
     def xy(self) -> Tuple[np.ndarray, np.ndarray]:
         return self.x, self.y

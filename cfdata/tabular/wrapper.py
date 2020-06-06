@@ -61,6 +61,9 @@ class TabularData(DataBase):
         self._init_logging(verbose_level, trigger_logging)
         self.excludes = set()
 
+    def __len__(self):
+        return len(self._processed.x)
+
     def __eq__(self, other: "TabularData"):
         if self.raw != other.raw:
             return False
