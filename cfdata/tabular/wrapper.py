@@ -121,7 +121,8 @@ class TabularData(DataBase):
             return self._task_type
         if self._recognizers[-1] is None:
             return
-        return TaskTypes.from_column_type(self._recognizers[-1].info.column_type)
+        self._task_type = TaskTypes.from_column_type(self._recognizers[-1].info.column_type)
+        return self._task_type
 
     @property
     def column_names(self) -> Dict[int, str]:
