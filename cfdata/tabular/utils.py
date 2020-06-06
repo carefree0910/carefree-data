@@ -13,6 +13,19 @@ class SplitResult(NamedTuple):
     corresponding_indices: np.ndarray
     remaining_indices: np.ndarray
 
+    @classmethod
+    def concat(cls,
+               results: List["SplitResult"]) -> "SplitResult":
+        datasets = [result.dataset for result in results]
+        basic_info = datasets[0][2:]
+        x_list, y_list = zip(*[dataset.xy for dataset in datasets])
+        x_concat, y_concat = map(np.vstack, [x_list, y_list])
+        return SplitResult(
+            TabularDataset(x_concat, y_concat, *basic_info),
+            np.hstack([result.corresponding_indices for result in results]),
+            np.hstack([result.remaining_indices for result in results])
+        )
+
 
 class DataSplitter(SavingMixin):
     """
