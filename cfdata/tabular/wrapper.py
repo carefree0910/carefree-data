@@ -64,6 +64,10 @@ class TabularData(DataBase):
     def __len__(self):
         return len(self._processed.x)
 
+    def __getitem__(self, indices: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        x, y = self.processed.xy
+        return x[indices], y[indices]
+
     def __eq__(self, other: "TabularData"):
         if self.raw != other.raw:
             return False
