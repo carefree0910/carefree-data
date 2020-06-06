@@ -159,6 +159,14 @@ class TabularData(DataBase):
     def force_categorical_columns(self) -> Dict[int, bool]:
         return self._get_dict("_categorical_columns")
 
+    @property
+    def is_clf(self) -> bool:
+        return self.task_type is TaskTypes.CLASSIFICATION
+
+    @property
+    def is_reg(self) -> bool:
+        return self.task_type is TaskTypes.REGRESSION
+
     # Core
 
     def _read_file(self,
