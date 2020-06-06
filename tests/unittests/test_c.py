@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from cftool.misc import timeit
+from cftool.misc import timeit, allclose
 
 from cfdata.types import *
 from cfdata.misc.c import *
@@ -44,7 +44,7 @@ class TestC(unittest.TestCase):
         for t, m in zip(types, methods):
             with timeit(t):
                 results.append(m(self.arr1))
-        self.assertTrue(np.allclose(*results))
+        self.assertTrue(allclose(*results))
 
     def test_transform_flat_data_with_dict(self):
         self._print_header("transform_flat_data_with_dict")
@@ -59,7 +59,7 @@ class TestC(unittest.TestCase):
         for t, m in zip(types, methods):
             with timeit(t):
                 results.append(m(arr, transform_dict))
-        self.assertTrue(np.allclose(*results))
+        self.assertTrue(allclose(*results))
 
 
 if __name__ == '__main__':
