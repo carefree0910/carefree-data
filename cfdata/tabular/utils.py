@@ -330,4 +330,32 @@ class DataSplitter(SavingMixin):
         return list(map(self.split, n_list))
 
 
-__all__ = ["SplitResult", "DataSplitter"]
+class KFold:
+    def __init__(self,
+                 k: int,
+                 dataset: TabularDataset,
+                 **kwargs):
+        if k <= 1:
+            raise ValueError("k should be larger than 1 in KFold")
+        ratio = 1. / k
+        self.n_list = (k - 1) * [ratio]
+        self.splitter = DataSplitter(**kwargs).fit(dataset)
+        self.split_results = self._order = self._cursor = None
+
+    def __iter__(self):
+        self.split_results = self.splitter.split_multiple(self.n_list, return_remained=True)
+        self._order = np.random.permutation(len(self.split_results)).tolist()
+        self._cursor = 0
+        return self
+
+    def __next__(self) -> Tuple[SplitResult, SplitResult]:
+        if self._cursor >= len(self._order):
+            raise StopIteration
+        train_results = self.split_results.copy()
+        test_result = train_results.pop(self._order[self._cursor])
+        train_result = SplitResult.concat(train_results)
+        self._cursor += 1
+        return train_result, test_result
+
+
+__all__ = ["SplitResult", "DataSplitter", "KFold"]
