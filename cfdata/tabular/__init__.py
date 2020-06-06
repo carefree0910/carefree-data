@@ -1,8 +1,9 @@
 from .types import *
+from .utils import *
 from .wrapper import TabularData
 
 
 __all__ = [
-    "TabularData", "TabularDataset",
-    "TaskTypes", "ColumnTypes"
+    "TabularData", "TabularDataset", "TaskTypes", "ColumnTypes",
+    "SplitResult", "DataSplitter"
 ]
