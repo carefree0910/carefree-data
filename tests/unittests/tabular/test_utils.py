@@ -104,6 +104,21 @@ class TestTabularUtils(unittest.TestCase):
             k_random = KRandom(k, test_ratio, TabularDataset.from_xy(x, y, task))
             self._k_core(n, k_random)
 
+    def test_imbalance_sampler(self):
+        counts = []
+        tolerance = 0.05
+        for power in range(3, 6):
+            n = int(10 ** power)
+            x = np.random.random([n, 100]).astype(np_float_type)
+            y = (np.random.random([n, 1]) >= 0.95).astype(np_int_type) + 2
+            data = TabularData().read(x, y)
+            sampler = ImbalancedSampler(data)
+            counts.append(np.unique(y[sampler.get_indices()], return_counts=True)[1])
+        counts = np.vstack(counts)
+        ratios = (counts / counts.sum(1, keepdims=True)).T
+        diff = ratios[1] - ratios[0]
+        self.assertTrue(np.all(diff < tolerance))
+
 
 if __name__ == '__main__':
     unittest.main()
