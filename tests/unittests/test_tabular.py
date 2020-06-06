@@ -6,6 +6,7 @@ import numpy as np
 
 from cftool.misc import shallow_copy_dict
 
+from cfdata.types import *
 from cfdata.tabular import *
 from cfdata.tabular.types import *
 
@@ -71,7 +72,7 @@ class TestTabularData(unittest.TestCase):
         new = DataTuple([[0]], new_y)
         y_np = self.y_np
         if data.recognizers[-1].info.column_type is not ColumnTypes.STRING:
-            y_np = y_np.astype(np.float32)
+            y_np = y_np.astype(np_float_type)
         original = DataTuple([[0]], y_np)
         return new == original
 

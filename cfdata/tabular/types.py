@@ -7,6 +7,8 @@ from functools import partial
 from sklearn.utils import Bunch
 from sklearn.datasets import *
 
+from ..types import *
+
 flat_arr_type = Union[list, np.ndarray]
 raw_data_type = Union[List[List[Union[str, float]]], None]
 data_type = Union[raw_data_type, np.ndarray]
@@ -141,9 +143,9 @@ class TabularDataset(NamedTuple):
     def to_task_type(x: np.ndarray,
                      y: np.ndarray,
                      task_type: TaskTypes) -> Tuple[np.ndarray, np.ndarray]:
-        x = x.astype(np.float32)
+        x = x.astype(np_float_type)
         is_clf = task_type is TaskTypes.CLASSIFICATION
-        y = y.reshape([-1, 1]).astype(np.int if is_clf else np.float32)
+        y = y.reshape([-1, 1]).astype(np_int_type if is_clf else np_float_type)
         return x, y
 
     @classmethod
@@ -189,8 +191,8 @@ class TabularDataset(NamedTuple):
             scale: float = 1.) -> "TabularDataset":
         x = np.random.randn(size) * scale
         y = np.random.randn(size) * scale
-        z = (x * y >= 0).astype(np.int)
-        return TabularDataset.from_xy(np.c_[x, y].astype(np.float32), z, TaskTypes.CLASSIFICATION)
+        z = (x * y >= 0).astype(np_int_type)
+        return TabularDataset.from_xy(np.c_[x, y].astype(np_float_type), z, TaskTypes.CLASSIFICATION)
 
     @classmethod
     def spiral(cls, *,
@@ -198,8 +200,8 @@ class TabularDataset(NamedTuple):
                scale: float = 4.,
                nun_spirals: int = 7,
                num_classes: int = 7) -> "TabularDataset":
-        xs = np.zeros((size * nun_spirals, 2), dtype=np.float32)
-        ys = np.zeros(size * nun_spirals, dtype=np.int)
+        xs = np.zeros((size * nun_spirals, 2), dtype=np_float_type)
+        ys = np.zeros(size * nun_spirals, dtype=np_int_type)
         pi = math.pi
         for i in range(nun_spirals):
             ix = range(size * i, size * (i + 1))
@@ -222,8 +224,8 @@ class TabularDataset(NamedTuple):
         center2 = (np.random.random(num_dimensions) + center - 0.5) * scale - distance
         cluster1 = (np.random.randn(size, num_dimensions) + center1) * scale
         cluster2 = (np.random.randn(size, num_dimensions) + center2) * scale
-        data = np.vstack((cluster1, cluster2)).astype(np.float32)
-        labels = np.array([1] * size + [0] * size, np.int)
+        data = np.vstack((cluster1, cluster2)).astype(np_float_type)
+        labels = np.array([1] * size + [0] * size, np_int_type)
         indices = np.random.permutation(size * 2)
         data, labels = data[indices], labels[indices]
         return cls.from_xy(data, labels, TaskTypes.CLASSIFICATION)
@@ -231,8 +233,8 @@ class TabularDataset(NamedTuple):
     @classmethod
     def simple_non_linear(cls, *,
                           size: int = 120) -> "TabularDataset":
-        xs = np.random.randn(size, 2).astype(np.float32) * 1.5
-        ys = np.zeros(size, dtype=np.int)
+        xs = np.random.randn(size, 2).astype(np_float_type) * 1.5
+        ys = np.zeros(size, dtype=np_int_type)
         mask = xs[..., 1] >= xs[..., 0] ** 2
         xs[..., 1][mask] += 2
         ys[mask] = 1
@@ -241,8 +243,8 @@ class TabularDataset(NamedTuple):
     @classmethod
     def nine_grid(cls, *,
                   size: int = 120) -> "TabularDataset":
-        x, y = np.random.randn(2, size).astype(np.float32)
-        labels = np.zeros(size, np.int)
+        x, y = np.random.randn(2, size).astype(np_float_type)
+        labels = np.zeros(size, np_int_type)
         xl, xr = x <= -1, x >= 1
         yf, yc = y <= -1, y >= 1
         x_mid_mask = ~xl & ~xr
@@ -258,8 +260,8 @@ class TabularDataset(NamedTuple):
         if task_type is TaskTypes.REGRESSION:
             y_train, y_test = affine_train, affine_test
         else:
-            y_train = (affine_train > 0).astype(np.int)
-            y_test = (affine_test > 0).astype(np.int)
+            y_train = (affine_train > 0).astype(np_int_type)
+            y_test = (affine_test > 0).astype(np_int_type)
         return y_train, y_test
 
     @classmethod

@@ -1,6 +1,7 @@
 import numpy as np
 
 from ...types import *
+from ....types import *
 from ..base import Converter
 
 
@@ -14,7 +15,7 @@ class StringConverter(Converter):
 
     def _convert(self,
                  flat_arr: flat_arr_type) -> np.ndarray:
-        return np.array([self._transform_dict[elem] for elem in flat_arr], np.float32)
+        return np.array([self._transform_dict[elem] for elem in flat_arr], np_float_type)
 
     def _recover(self,
                  flat_arr: flat_arr_type) -> np.ndarray:

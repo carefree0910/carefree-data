@@ -11,6 +11,7 @@ from .recognizer import *
 from .converters import *
 from .processors import *
 from ..base import DataBase
+from ..types import np_int_type
 
 
 class TabularData(DataBase):
@@ -281,8 +282,8 @@ class TabularData(DataBase):
                 with timing_context(self, "process with processor"):
                     processed_labels = processor.process(converted_labels)
         if self.task_type is TaskTypes.CLASSIFICATION:
-            converted_labels = converted_labels.astype(np.int)
-            processed_labels = processed_labels.astype(np.int)
+            converted_labels = converted_labels.astype(np_int_type)
+            processed_labels = processed_labels.astype(np_int_type)
         self._converted = DataTuple(converted_x, converted_labels)
         self._processed = DataTuple(np.hstack(processed_features), processed_labels)
         return self
@@ -336,8 +337,8 @@ class TabularData(DataBase):
             transformed_labels = self._processors[-1].process(converted_labels.reshape([-1, 1]))
         # check categorical
         if self.task_type is TaskTypes.CLASSIFICATION:
-            converted_labels = converted_labels.astype(np.int)
-            transformed_labels = transformed_labels.astype(np.int)
+            converted_labels = converted_labels.astype(np_int_type)
+            transformed_labels = transformed_labels.astype(np_int_type)
         transformed = DataTuple(transformed_features, transformed_labels)
         if not return_converted:
             return transformed

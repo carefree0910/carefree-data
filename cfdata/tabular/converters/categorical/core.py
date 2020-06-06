@@ -1,6 +1,7 @@
 import numpy as np
 
 from ...types import *
+from ....types import *
 from ..base import Converter
 from ....misc.c import transform_flat_data_with_dict
 
@@ -15,14 +16,14 @@ class CategoricalConverter(Converter):
 
     def _convert(self,
                  flat_arr: flat_arr_type) -> np.ndarray:
-        flat_arr = np.asarray(flat_arr, np.float32)
+        flat_arr = np.asarray(flat_arr, np_float_type)
         if not self.info.need_transform:
             return flat_arr
         return transform_flat_data_with_dict(flat_arr, self._transform_dict)
 
     def _recover(self,
                  flat_arr: flat_arr_type) -> np.ndarray:
-        flat_arr = np.asarray(flat_arr, np.float32)
+        flat_arr = np.asarray(flat_arr, np_float_type)
         if not self.info.need_transform:
             return flat_arr
         return transform_flat_data_with_dict(flat_arr, self._reverse_transform_dict)

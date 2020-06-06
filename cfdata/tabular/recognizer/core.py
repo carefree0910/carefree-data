@@ -6,6 +6,7 @@ from collections import Counter
 from cftool.misc import get_counter_from_arr
 
 from ..types import *
+from ...types import *
 from ...misc.c import *
 
 
@@ -123,12 +124,14 @@ class Recognizer:
             return self
         if isinstance(flat_arr[0], (str, np.str_)):
             np_flat = flat_arr_to_float32(flat_arr)
+            if np_float_type != np.float32:
+                np_flat = np.asarray(np_flat, np_float_type)
         else:
-            np_flat = np.asarray(flat_arr, np.float32)
+            np_flat = np.asarray(flat_arr, np_float_type)
         nan_mask = np.isnan(np_flat)
         valid_mask = ~nan_mask
         np_flat_valid = np_flat[valid_mask]
-        np_flat_valid_int = np_flat_valid.astype(np.int)
+        np_flat_valid_int = np_flat_valid.astype(np_int_type)
         num_samples, num_valid_samples = map(len, [np_flat, np_flat_valid])
         contains_nan = num_samples != num_valid_samples
         if not contains_nan:

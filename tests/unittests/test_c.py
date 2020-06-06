@@ -3,6 +3,7 @@ import numpy as np
 
 from cftool.misc import timeit
 
+from cfdata.types import *
 from cfdata.misc.c import *
 from cfdata.misc.c.cython_wrappers import *
 from cfdata.misc.c.cython_substitute import *
@@ -48,7 +49,7 @@ class TestC(unittest.TestCase):
     def test_transform_flat_data_with_dict(self):
         self._print_header("transform_flat_data_with_dict")
         results = []
-        arr = np.array(self.arr3, dtype=np.float32)
+        arr = np.array(self.arr3, dtype=np_float_type)
         transform_dict = {1: 0, 2: 1, 3.4: 2, 5.6: 3, 7.8: 4}
         methods = [
             transform_flat_data_with_dict,

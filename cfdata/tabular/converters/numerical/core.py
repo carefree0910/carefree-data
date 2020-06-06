@@ -3,6 +3,7 @@ import numpy as np
 from typing import *
 
 from ...types import *
+from ....types import *
 from ..base import Converter
 
 
@@ -40,7 +41,7 @@ class NumericalConverter(Converter):
 
     def _convert(self,
                  flat_arr: flat_arr_type) -> np.ndarray:
-        np_flat = np.asarray(flat_arr, np.float32)
+        np_flat = np.asarray(flat_arr, np_float_type)
         if self._nan_fill is None:
             return np_flat
         np_flat[np.isnan(np_flat)] = self.nan_fill
@@ -48,7 +49,7 @@ class NumericalConverter(Converter):
 
     def _recover(self,
                  flat_arr: flat_arr_type) -> np.ndarray:
-        return np.asarray(flat_arr, np.float32)
+        return np.asarray(flat_arr, np_float_type)
 
 
 __all__ = ["NumericalConverter"]
