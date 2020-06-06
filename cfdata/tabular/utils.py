@@ -446,7 +446,85 @@ class ImbalancedSampler(LoggingMixin):
         return indices
 
 
+class LabelCollators:
+    @staticmethod
+    def reg_default(y_batch):
+        assert len(y_batch) == 2
+        return y_batch[1] - y_batch[0]
+
+    @staticmethod
+    def clf_default(y_batch):
+        assert len(y_batch) == 2
+        return y_batch[1] == y_batch[0]
+
+
+class DataLoader:
+    def __init__(self,
+                 batch_size: int,
+                 sampler: ImbalancedSampler,
+                 *,
+                 n_siamese: int = 1,
+                 label_collator: callable = None,
+                 verbose_level: int = 2):
+        self._indices_in_use = None
+        self._verbose_level = verbose_level
+        self.data = sampler.data
+        self._n_siamese, self._label_collator = n_siamese, label_collator
+        self._n_samples, self.sampler = len(self.data), sampler
+        self.batch_size = min(self._n_samples, batch_size)
+        self._verbose_level = verbose_level
+
+    def __len__(self):
+        n_iter = int(self._n_samples / self.batch_size)
+        return n_iter + int(n_iter * self.batch_size < self._n_samples)
+
+    def __iter__(self):
+        for attr, init_value in self.reset_caches.items():
+            setattr(self, attr, init_value)
+        return self
+
+    def __next__(self):
+        data_next = self._get_next_batch()
+        if self._n_siamese == 1:
+            return data_next
+        all_data = [data_next] if self._check_valid_batch(data_next) else []
+        while len(all_data) < self._n_siamese:
+            data_next = self._get_next_batch()
+            if self._check_valid_batch(data_next):
+                all_data.append(data_next)
+        x_batch, y_batch = zip(*all_data)
+        if self._label_collator is not None:
+            y_batch = self._label_collator(y_batch)
+        return x_batch, y_batch
+
+    @property
+    def reset_caches(self):
+        return {
+            "_indices_in_use": self.sampler.get_indices(),
+            "_siamese_cursor": 0, "_cursor": -1
+        }
+
+    def _get_next_batch(self):
+        n_iter, self._cursor = len(self), self._cursor + 1
+        if self._cursor == n_iter * self._n_siamese:
+            raise StopIteration
+        if self._n_siamese > 1:
+            new_siamese_cursor = int(self._cursor / n_iter)
+            if new_siamese_cursor > self._siamese_cursor:
+                self._siamese_cursor = new_siamese_cursor
+                self._indices_in_use = self.sampler.get_indices()
+        start = (self._cursor - n_iter * self._siamese_cursor) * self.batch_size
+        end = start + self.batch_size
+        batch = self.data[self._indices_in_use[start:end]]
+        return batch
+
+    def _check_valid_batch(self, batch):
+        if len(batch[0]) == self.batch_size:
+            return True
+        return False
+
+
 __all__ = [
     "SplitResult", "DataSplitter", "KFold", "KRandom",
-    "ImbalancedSampler"
+    "ImbalancedSampler", "LabelCollators", "DataLoader"
 ]
