@@ -240,7 +240,7 @@ class DataSplitter(SavingMixin):
     def fit(self,
             dataset: TabularDataset) -> "DataSplitter":
         self._dataset = dataset
-        self._is_regression = dataset.task_type is TaskTypes.REGRESSION
+        self._is_regression = dataset.is_reg
         self._x = dataset.x
         self._y = dataset.y
         if not self.is_time_series:
