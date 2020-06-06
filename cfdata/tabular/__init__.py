@@ -5,5 +5,6 @@ from .wrapper import TabularData
 
 __all__ = [
     "TabularData", "TabularDataset", "TaskTypes", "ColumnTypes",
-    "SplitResult", "DataSplitter", "KFold", "KRandom"
+    "SplitResult", "DataSplitter", "KFold", "KRandom",
+    "ImbalancedSampler"
 ]
