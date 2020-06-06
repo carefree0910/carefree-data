@@ -280,7 +280,7 @@ class DataSplitter(SavingMixin):
                 self._remained_indices, np.array([], np.int)
             )
         if n < 1.:
-            n = int(len(self._x) * n)
+            n = int(round(len(self._x) * n))
         if self.is_time_series:
             split_method = self._split_time_series
         else:
@@ -309,8 +309,8 @@ class DataSplitter(SavingMixin):
             if return_remained and ratio_sum == 1:
                 raise ValueError("sum of `n_list` should be less than 1 "
                                  "when `return_remained` is True")
-            n_selected = int(n_total * ratio_sum)
-            n_list[:-1] = [int(n_total * ratio) for ratio in n_list[:-1]]
+            n_selected = int(round(n_total * ratio_sum))
+            n_list[:-1] = [int(round(n_total * ratio)) for ratio in n_list[:-1]]
             n_list[-1] = n_selected - sum(n_list[:-1])
             if ratio_sum < 1.:
                 n_list.append(n_total - n_selected)
