@@ -55,6 +55,55 @@ class TestTabularUtils(unittest.TestCase):
             _assert_proportion(n, new_proportion2, new_proportion3)
             _assert_proportion(n, new_proportion3, new_proportion1)
 
+    def _k_core(self, n_total, iterator):
+        te_indices = None
+        trx_shape = try_shape = tex_shape = tey_shape = None
+        for tr_split, te_split in iterator:
+            tr_set, te_set = tr_split.dataset, te_split.dataset
+            new_trx_shape, new_try_shape = tr_set.x.shape, tr_set.y.shape
+            new_tex_shape, new_tey_shape = te_set.x.shape, te_set.y.shape
+            new_te_indices = set(te_split.corresponding_indices)
+            self.assertTrue(new_trx_shape[0] + new_tex_shape[0] == n_total)
+            self.assertTrue(new_try_shape[0] + new_tey_shape[0] == n_total)
+            if te_indices is not None:
+                if isinstance(iterator, KFold):
+                    self.assertFalse(te_indices & new_te_indices)
+                elif isinstance(iterator, KRandom):
+                    self.assertTrue(te_indices & new_te_indices)
+            te_indices = new_te_indices
+            self.assertFalse(set(tr_split.corresponding_indices) & te_indices)
+            if trx_shape is None:
+                trx_shape, try_shape = new_trx_shape, new_try_shape
+                tex_shape, tey_shape = new_tex_shape, new_tey_shape
+            else:
+                self.assertTrue(trx_shape == new_trx_shape)
+                self.assertTrue(try_shape == new_try_shape)
+                self.assertTrue(tex_shape == new_tex_shape)
+                self.assertTrue(tey_shape == new_tey_shape)
+
+    def test_k_fold(self):
+        k = 10
+        n_class = 10
+        task = TaskTypes.CLASSIFICATION
+        for power in range(4, 7):
+            n = int(10 ** power)
+            x = np.random.random([n, 100]).astype(np_float_type)
+            y = np.random.randint(0, n_class, [n, 1])
+            k_fold = KFold(k, TabularDataset.from_xy(x, y, task))
+            self._k_core(n, k_fold)
+
+    def test_k_random(self):
+        k = 10
+        test_ratio = 0.1
+        n_class = 10
+        task = TaskTypes.CLASSIFICATION
+        for power in range(4, 7):
+            n = int(10 ** power)
+            x = np.random.random([n, 100]).astype(np_float_type)
+            y = np.random.randint(0, n_class, [n, 1])
+            k_random = KRandom(k, test_ratio, TabularDataset.from_xy(x, y, task))
+            self._k_core(n, k_random)
+
 
 if __name__ == '__main__':
     unittest.main()
