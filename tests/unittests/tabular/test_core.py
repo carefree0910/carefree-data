@@ -111,7 +111,7 @@ class TestTabularData(unittest.TestCase):
 
     def test_save_and_load(self):
         task = "mnist_small"
-        task_file = os.path.join("data", f"{task}.txt")
+        task_file = os.path.join(os.pardir, "data", f"{task}.txt")
         data = TabularData().read(task_file).save(task)
         loaded = TabularData().load(task)
         self.assertTrue(data == loaded)
