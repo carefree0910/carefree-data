@@ -85,7 +85,7 @@ class TestTabularUtils(unittest.TestCase):
         k = 10
         n_class = 10
         task = TaskTypes.CLASSIFICATION
-        for power in range(4, 7):
+        for power in range(3, 6):
             n = int(10 ** power)
             x = np.random.random([n, 100]).astype(np_float_type)
             y = np.random.randint(0, n_class, [n, 1])
@@ -97,7 +97,7 @@ class TestTabularUtils(unittest.TestCase):
         test_ratio = 0.1
         n_class = 10
         task = TaskTypes.CLASSIFICATION
-        for power in range(4, 7):
+        for power in range(3, 6):
             n = int(10 ** power)
             x = np.random.random([n, 100]).astype(np_float_type)
             y = np.random.randint(0, n_class, [n, 1])
