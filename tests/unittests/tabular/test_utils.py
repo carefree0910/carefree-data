@@ -137,6 +137,35 @@ class TestTabularUtils(unittest.TestCase):
                 self.assertTrue(x_batch_shape == new_x_shape)
                 self.assertTrue(y_batch_shape == new_y_shape)
 
+    def test_k_fold_sanity(self):
+        num_features = 8
+        for power in [1, 2, 3]:
+            num_samples = int(10 ** power)
+            half_samples = num_samples // 2
+            num_elem = num_samples * num_features
+            x = np.arange(num_elem).reshape([num_samples, num_features])
+            y = np.zeros(num_samples, np_int_type)
+            # here, number of positive samples will be less than number of negative samples (by 2)
+            # hence, one positive sample will be duplicated, and one negative sample will be dropped
+            y[-half_samples+1:] = 1
+            dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+            k_fold = KFold(half_samples, dataset)
+            for train_fold, test_fold in k_fold:
+                x_stack = np.vstack([train_fold.dataset.x, test_fold.dataset.x])
+                x_unique = np.unique(x_stack.ravel())
+                self.assertEqual(num_elem - len(x_unique), num_features)
+                self.assertTrue(sorted(test_fold.dataset.y.ravel()), [0, 1])
+            # here, labels are balanced
+            # hence, all folds should cover the entire dataset
+            y[-half_samples] = 1
+            dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+            k_fold = KFold(half_samples, dataset)
+            for train_fold, test_fold in k_fold:
+                x_stack = np.vstack([train_fold.dataset.x, test_fold.dataset.x])
+                x_unique = np.unique(x_stack.ravel())
+                self.assertEqual(num_elem, len(x_unique))
+                self.assertEqual(sorted(test_fold.dataset.y.ravel()), [0, 1])
+
 
 if __name__ == '__main__':
     unittest.main()
