@@ -358,6 +358,42 @@ class DataSplitter(SavingMixin):
 
 
 class KFold:
+    """
+    Util class which can perform k-fold data splitting:
+    1. X = {x1, x2, ..., xn} -> [X1, X2, ..., Xk]
+    2. Xi ∩ Xj = ∅, ∀ i, j = 1,..., K
+    3. X1 ∪ X2 ∪ ... ∪ Xk = X
+
+    * Notice that `KFold` does not always hold the principles listed above, because `DataSplitter`
+    will ensure that at least one sample of each class will be kept. In this case, when we apply
+    `KFold` to an imbalance dataset, `KFold` may slightly violate principle 2. and 3.
+
+    Parameters
+    ----------
+    k : int, number of folds
+    dataset : TabularDataset, dataset which we want to split
+    **kwargs : used to initialize `DataSplitter` instance
+
+    Examples
+    ----------
+    >>> import numpy as np
+    >>>
+    >>> from cfdata.types import np_int_type
+    >>> from cfdata.tabular.types import TaskTypes
+    >>> from cfdata.tabular.wrapper import TabularDataset
+    >>>
+    >>> x = np.arange(12).reshape([6, 2])
+    >>> # create an imbalance dataset
+    >>> y = np.zeros(6, np_int_type)
+    >>> y[[-1, -2]] = 1
+    >>> dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+    >>> k_fold = KFold(3, dataset)
+    >>> for train_fold, test_fold in k_fold:
+    >>>     print(np.vstack([train_fold.dataset.x, test_fold.dataset.x]))
+    >>>     print(np.vstack([train_fold.dataset.y, test_fold.dataset.y]))
+
+    """
+
     def __init__(self,
                  k: int,
                  dataset: TabularDataset,
