@@ -37,7 +37,33 @@ class DataSplitter(SavingMixin):
 
     Examples
     --------
-    See tests/unittests/tabular/test_utils.py
+    >>> import numpy as np
+    >>>
+    >>> from cfdata.types import np_int_type
+    >>> from cfdata.tabular.types import TaskTypes
+    >>> from cfdata.tabular.wrapper import TabularDataset
+    >>>
+    >>> x = np.arange(12).reshape([6, 2])
+    >>> # create an imbalance dataset
+    >>> y = np.zeros(6, np_int_type)
+    >>> y[[-1, -2]] = 1
+    >>> dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+    >>> data_splitter = DataSplitter().fit(dataset)
+    >>> # labels in result will keep its ratio
+    >>> result = data_splitter.split(3)
+    >>> # [0 0 1]
+    >>> print(result.dataset.y.ravel())
+    >>> data_splitter.reset()
+    >>> result = data_splitter.split(0.5)
+    >>> # [0 0 1]
+    >>> print(result.dataset.y.ravel())
+    >>> # at least one sample of each class will be kept
+    >>> y[-2] = 0
+    >>> dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+    >>> data_splitter = DataSplitter().fit(dataset)
+    >>> result = data_splitter.split(2)
+    >>> # [0 0 0 0 0 1] [0 1]
+    >>> print(y, result.dataset.y.ravel())
 
     """
 
