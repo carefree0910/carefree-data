@@ -515,7 +515,7 @@ class ImbalancedSampler(LoggingMixin):
         if self._sampler is not None:
             self.log_msg(
                 f"using imbalanced sampler with label counts = {label_counts.tolist()}",
-                self.info_prefix, verbose_level
+                self.info_prefix, 2
             )
 
     def __len__(self):
