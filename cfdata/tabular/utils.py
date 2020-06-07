@@ -488,8 +488,7 @@ class ImbalancedSampler(LoggingMixin):
                  *,
                  shuffle: bool = True,
                  sample_method: str = "multinomial",
-                 verbose_level: int = 2,
-                 trigger_logging: bool = False):
+                 verbose_level: int = 2):
         self.data = data
         self._sample_imbalance_flag = True
         self.shuffle, self._n_samples = shuffle, len(data)
@@ -512,7 +511,7 @@ class ImbalancedSampler(LoggingMixin):
                 sample_weights /= sample_weights.sum()
                 self._sampler = Sampler(sample_method, sample_weights)
 
-        self._init_logging(verbose_level, trigger_logging)
+        self._verbose_level = verbose_level
         if self._sampler is not None:
             self.log_msg(
                 f"using imbalanced sampler with label counts = {label_counts.tolist()}",
