@@ -482,6 +482,42 @@ class KRandom:
 
 
 class ImbalancedSampler(LoggingMixin):
+    """
+    Util class which can sample imbalance dataset in a balanced way
+
+    Parameters
+    ----------
+    data : TabularData, data which we want to sample from
+    imbalance_threshold : float
+    * for binary class cases, if n_pos / n_neg < threshold, we'll treat data as imbalance data
+    * for multi  class cases, if n_min_class / n_max_class < threshold, we'll treat data as imbalance data
+    shuffle : bool, whether shuffle the returned indices
+    sample_method : str, sampling method used in `cftool.misc.Sampler`
+    * currently only 'multinomial' is supported
+    verbose_level : int, verbose level used in `LoggingMixin`
+
+    Examples
+    ----------
+    >>> import numpy as np
+    >>>
+    >>> from cfdata.types import np_int_type
+    >>> from cfdata.tabular import TabularData
+    >>> from cftool.misc import get_counter_from_arr
+    >>>
+    >>> n = 20
+    >>> x = np.arange(2 * n).reshape([n, 2])
+    >>> # create an imbalance dataset
+    >>> y = np.zeros([n, 1], np_int_type)
+    >>> y[-1] = [1]
+    >>> data = TabularData().read(x, y)
+    >>> sampler = ImbalancedSampler(data)
+    >>> # Counter({1: 12, 0: 8})
+    >>> # This may vary, but will be rather balanced
+    >>> # You might notice that positive samples are even more than negative samples!
+    >>> print(get_counter_from_arr(y[sampler.get_indices()]))
+
+    """
+
     def __init__(self,
                  data: TabularData,
                  imbalance_threshold: float = 0.1,
