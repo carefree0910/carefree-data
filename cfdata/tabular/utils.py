@@ -221,7 +221,7 @@ class DataSplitter(SavingMixin):
         for indices, n_sample_per_label in zip(self._label_indices_list_in_use, n_samples_per_label):
             n_samples_in_use = len(indices)
             tgt_indices_list.append(indices[-n_sample_per_label:])
-            if n_sample_per_label >= n_samples_in_use - 1:
+            if n_sample_per_label >= n_samples_in_use:
                 pop_indices_list.append([])
                 n_overlap += n_sample_per_label
             else:
