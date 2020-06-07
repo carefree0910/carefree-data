@@ -424,13 +424,13 @@ class KFold:
 class KRandom:
     def __init__(self,
                  k: int,
-                 test_ratio: float,
+                 num_test: Union[int, float],
                  dataset: TabularDataset,
                  **kwargs):
         if k <= 1:
             raise ValueError("k should be larger than 1 in KFold")
         self._cursor = None
-        self.k, self.test_ratio = k, test_ratio
+        self.k, self.num_test = k, num_test
         self.splitter = DataSplitter(**kwargs).fit(dataset)
 
     def __iter__(self):
@@ -442,7 +442,7 @@ class KRandom:
             raise StopIteration
         self._cursor += 1
         self.splitter.reset()
-        test_result, train_result = self.splitter.split_multiple([self.test_ratio], return_remained=True)
+        test_result, train_result = self.splitter.split_multiple([self.num_test], return_remained=True)
         return train_result, test_result
 
 
