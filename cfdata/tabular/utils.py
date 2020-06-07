@@ -591,6 +591,35 @@ class LabelCollators:
 
 
 class DataLoader:
+    """
+    Util class which can generated batches from `ImbalancedSampler`
+
+    Examples
+    ----------
+    >>> import numpy as np
+    >>>
+    >>> from cfdata.types import np_int_type
+    >>> from cfdata.tabular import TabularData
+    >>> from cftool.misc import get_counter_from_arr
+    >>>
+    >>> n = 20
+    >>> x = np.arange(2 * n).reshape([n, 2])
+    >>> y = np.zeros([n, 1], np_int_type)
+    >>> y[-1] = [1]
+    >>> data = TabularData().read(x, y)
+    >>> sampler = ImbalancedSampler(data)
+    >>> loader = DataLoader(16, sampler)
+    >>> y_batches = []
+    >>> for x_batch, y_batch in loader:
+    >>>     y_batches.append(y_batch)
+    >>>     # (16, 1) (16, 1)
+    >>>     # (4, 1) (4, 1)
+    >>>     print(x_batch.shape, y_batch.shape)
+    >>> # Counter({1: 11, 0: 9})
+    >>> print(get_counter_from_arr(np.vstack(y_batches).ravel()))
+
+    """
+
     def __init__(self,
                  batch_size: int,
                  sampler: ImbalancedSampler,
