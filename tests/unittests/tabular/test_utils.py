@@ -166,6 +166,23 @@ class TestTabularUtils(unittest.TestCase):
                 self.assertEqual(num_elem, len(x_unique))
                 self.assertEqual(sorted(test_fold.dataset.y.ravel()), [0, 1])
 
+    def test_k_random_sanity(self):
+        num_features = 8
+        for power in [1, 2, 3]:
+            num_samples = int(10 ** power)
+            num_elem = num_samples * num_features
+            x = np.arange(num_elem).reshape([num_samples, num_features])
+            y = np.zeros(num_samples, np_int_type)
+            # here, we only have one positive sample
+            # but we will still have this positive sample in each test fold
+            y[-1] = 1
+            dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+            k_random = KRandom(10, 2, dataset)
+            for train_fold, test_fold in k_random:
+                x_stack = np.vstack([train_fold.dataset.x, test_fold.dataset.x])
+                self.assertEqual(num_elem - len(np.unique(x_stack.ravel())), num_features)
+                self.assertTrue(sorted(test_fold.dataset.y.ravel()), [0, 1])
+
 
 if __name__ == '__main__':
     unittest.main()
