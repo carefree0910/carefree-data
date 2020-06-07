@@ -422,6 +422,41 @@ class KFold:
 
 
 class KRandom:
+    """
+    Util class which can perform k-random data splitting:
+    1. X = {x1, x2, ..., xn} -> [X1, X2, ..., Xk]
+    2. idx{X1} ≠ idx{X2} ≠ ... ≠ idx{Xk}, where idx{X} = {1, 2, ..., n}
+    3. X1 = X2 = ... = Xk = X
+
+    Parameters
+    ----------
+    k : int, number of folds
+    num_test : {int, float}
+    * if float and  < 1 : ratio of the test dataset
+    * if int   and  > 1 : exact number of test samples
+    dataset : TabularDataset, dataset which we want to split
+    **kwargs : used to initialize `DataSplitter` instance
+
+    Examples
+    ----------
+    >>> import numpy as np
+    >>>
+    >>> from cfdata.types import np_int_type
+    >>> from cfdata.tabular.types import TaskTypes
+    >>> from cfdata.tabular.wrapper import TabularDataset
+    >>>
+    >>> x = np.arange(12).reshape([6, 2])
+    >>> # create an imbalance dataset
+    >>> y = np.zeros(6, np_int_type)
+    >>> y[[-1, -2]] = 1
+    >>> dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+    >>> k_random = KRandom(3, 2, dataset)
+    >>> for train_fold, test_fold in k_random:
+    >>>     print(np.vstack([train_fold.dataset.x, test_fold.dataset.x]))
+    >>>     print(np.vstack([train_fold.dataset.y, test_fold.dataset.y]))
+
+    """
+
     def __init__(self,
                  k: int,
                  num_test: Union[int, float],
