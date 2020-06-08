@@ -42,6 +42,7 @@ class DataSplitter(SavingMixin):
     >>> from cfdata.types import np_int_type
     >>> from cfdata.tabular.types import TaskTypes
     >>> from cfdata.tabular.wrapper import TabularDataset
+    >>> from cfdata.tabular.utils import DataSplitter
     >>>
     >>> x = np.arange(12).reshape([6, 2])
     >>> # create an imbalance dataset
@@ -360,6 +361,7 @@ class DataSplitter(SavingMixin):
 class KFold:
     """
     Util class which can perform k-fold data splitting:
+
     1. X = {x1, x2, ..., xn} -> [X1, X2, ..., Xk]
     2. Xi ∩ Xj = ∅, ∀ i, j = 1,..., K
     3. X1 ∪ X2 ∪ ... ∪ Xk = X
@@ -381,6 +383,7 @@ class KFold:
     >>> from cfdata.types import np_int_type
     >>> from cfdata.tabular.types import TaskTypes
     >>> from cfdata.tabular.wrapper import TabularDataset
+    >>> from cfdata.tabular.utils import KFold
     >>>
     >>> x = np.arange(12).reshape([6, 2])
     >>> # create an imbalance dataset
@@ -424,6 +427,7 @@ class KFold:
 class KRandom:
     """
     Util class which can perform k-random data splitting:
+
     1. X = {x1, x2, ..., xn} -> [X1, X2, ..., Xk]
     2. idx{X1} ≠ idx{X2} ≠ ... ≠ idx{Xk}, where idx{X} = {1, 2, ..., n}
     3. X1 = X2 = ... = Xk = X
@@ -444,6 +448,7 @@ class KRandom:
     >>> from cfdata.types import np_int_type
     >>> from cfdata.tabular.types import TaskTypes
     >>> from cfdata.tabular.wrapper import TabularDataset
+    >>> from cfdata.tabular.utils import KRandom
     >>>
     >>> x = np.arange(12).reshape([6, 2])
     >>> # create an imbalance dataset
@@ -502,6 +507,7 @@ class ImbalancedSampler(LoggingMixin):
     >>>
     >>> from cfdata.types import np_int_type
     >>> from cfdata.tabular import TabularData
+    >>> from cfdata.tabular.utils import ImbalancedSampler
     >>> from cftool.misc import get_counter_from_arr
     >>>
     >>> n = 20
@@ -600,6 +606,8 @@ class DataLoader:
     >>>
     >>> from cfdata.types import np_int_type
     >>> from cfdata.tabular import TabularData
+    >>> from cfdata.tabular.utils import DataLoader
+    >>> from cfdata.tabular.utils import ImbalancedSampler
     >>> from cftool.misc import get_counter_from_arr
     >>>
     >>> n = 20
