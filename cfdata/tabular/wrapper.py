@@ -55,6 +55,7 @@ class TabularData(DataBase):
         self._label_process_method = label_process_method
         self._numerical_threshold = numerical_threshold
         self._is_file = self._is_arr = False
+        self._num_classes = None
         self._label_idx = self._skip_first = self._delim = None
         self._raw = self._converted = self._processed = None
         self._recognizers = self._converters = self._processors = None
@@ -170,6 +171,14 @@ class TabularData(DataBase):
     @property
     def is_reg(self) -> bool:
         return self.task_type is TaskTypes.REGRESSION
+
+    @property
+    def num_classes(self) -> int:
+        if self.is_reg:
+            return 0
+        if self._num_classes is None:
+            self._num_classes = self._processed.y.max() + 1
+        return self._num_classes
 
     # Core
 
