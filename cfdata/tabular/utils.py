@@ -6,7 +6,6 @@ from cftool.misc import *
 
 from .types import *
 from ..types import *
-from .wrapper import TabularData
 
 
 class SplitResult(NamedTuple):
@@ -525,7 +524,7 @@ class ImbalancedSampler(LoggingMixin):
     """
 
     def __init__(self,
-                 data: TabularData,
+                 data,
                  imbalance_threshold: float = 0.1,
                  *,
                  shuffle: bool = True,
