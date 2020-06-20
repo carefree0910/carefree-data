@@ -113,7 +113,7 @@ class TestTabularData(unittest.TestCase):
         task = "mnist_small"
         task_file = os.path.join(os.pardir, "data", f"{task}.txt")
         data = TabularData().read(task_file).save(task)
-        loaded = TabularData().load(task)
+        loaded = TabularData.load(task)
         self.assertTrue(data == loaded)
         self.assertTrue(loaded.transform(task_file) == data.processed)
         os.remove(f"{task}.zip")

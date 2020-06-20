@@ -5,7 +5,7 @@ import logging
 import numpy as np
 
 from typing import *
-from cftool.misc import timing_context
+from cftool.misc import timing_context, SavingMixin
 
 from .types import *
 from .recognizer import *
@@ -453,12 +453,17 @@ class TabularData(DataBase):
         convert_recovered = self.converters[-1].recover(process_recovered.ravel(), inplace=inplace)
         return convert_recovered.reshape([-1, 1])
 
-    def load(self, folder, *, compress=True) -> "TabularData":
-        super().load(folder)
-        is_file, is_arr = self._is_file, self._is_arr
-        self.read(*self._raw[:2])
-        self._is_file, self._is_arr = is_file, is_arr
-        return self
+    @classmethod
+    def load(cls,
+             folder: str,
+             *,
+             compress=True) -> "TabularData":
+        data = cls()
+        SavingMixin.load(data, folder, compress=compress)
+        is_file, is_arr = data._is_file, data._is_arr
+        data.read(*data._raw[:2])
+        data._is_file, data._is_arr = is_file, is_arr
+        return data
 
     def to_dataset(self) -> TabularDataset:
         return TabularDataset(*self.processed.xy, task_type=self.task_type)
