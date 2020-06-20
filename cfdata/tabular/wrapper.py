@@ -435,7 +435,8 @@ class TabularData(DataBase):
                   *,
                   return_converted: bool = False) -> Union[DataTuple, Tuple[DataTuple, DataTuple]]:
         if self._is_file:
-            x, y = self._read_file(x)
+            if y is None:
+                x, y = self._read_file(x)
         raw = DataTuple.with_transpose(x, y)
         return self._transform(raw, return_converted)
 
