@@ -193,30 +193,6 @@ class TabularData(DataBase):
 
     # Core
 
-    def _read_file(self,
-                   file_path: str) -> Tuple[raw_data_type, raw_data_type]:
-        ext = os.path.splitext(file_path)[1][1:]
-        set_default = lambda n, default: n if n is not None else default
-        if ext == "txt":
-            skip_first, delim = map(set_default, [self._skip_first, self._delim], [False, " "])
-        elif ext == "csv":
-            skip_first, delim = map(set_default, [self._skip_first, self._delim], [True, ","])
-        else:
-            raise NotImplementedError(f"file type '{ext}' not recognized")
-        with open(file_path, "r") as f:
-            if skip_first:
-                f.readline()
-            data = [["nan" if not elem else elem for elem in line.strip().split(delim)] for line in f]
-        if self._label_idx is None:
-            if len(data[0]) != len(self._raw.x[0]):
-                raise ValueError("file contains labels but 'contains_labels=False' passed in")
-            return data, None
-        if self._label_idx < 0:
-            self._label_idx = len(data[0]) + self._label_idx
-        x = [line[:self._label_idx] + line[self._label_idx+1:] for line in data]
-        y = [line[self._label_idx:self._label_idx+1] for line in data]
-        return x, y
-
     @staticmethod
     def _flatten(data: data_type) -> data_type:
         if isinstance(data, list):
@@ -338,7 +314,7 @@ class TabularData(DataBase):
         self._is_file = True
         self._label_idx, self._skip_first, self._delim = label_idx, skip_first, delim
         with timing_context(self, "_read_file"):
-            x, y = self._read_file(file_path)
+            x, y = self.read_file(file_path)
         self._raw = DataTuple.with_transpose(x, y)
         return self._core_fit()
 
@@ -389,6 +365,30 @@ class TabularData(DataBase):
 
     # API
 
+    def read_file(self,
+                  file_path: str) -> Tuple[raw_data_type, raw_data_type]:
+        ext = os.path.splitext(file_path)[1][1:]
+        set_default = lambda n, default: n if n is not None else default
+        if ext == "txt":
+            skip_first, delim = map(set_default, [self._skip_first, self._delim], [False, " "])
+        elif ext == "csv":
+            skip_first, delim = map(set_default, [self._skip_first, self._delim], [True, ","])
+        else:
+            raise NotImplementedError(f"file type '{ext}' not recognized")
+        with open(file_path, "r") as f:
+            if skip_first:
+                f.readline()
+            data = [["nan" if not elem else elem for elem in line.strip().split(delim)] for line in f]
+        if self._label_idx is None:
+            if len(data[0]) != len(self._raw.x[0]):
+                raise ValueError("file contains labels but 'contains_labels=False' passed in")
+            return data, None
+        if self._label_idx < 0:
+            self._label_idx = len(data[0]) + self._label_idx
+        x = [line[:self._label_idx] + line[self._label_idx+1:] for line in data]
+        y = [line[self._label_idx:self._label_idx+1] for line in data]
+        return x, y
+
     def read(self,
              x: Union[str, data_type],
              y: Union[int, data_type] = -1,
@@ -424,7 +424,7 @@ class TabularData(DataBase):
                 y: data_type = None) -> "TabularData":
         copied = copy.copy(self)
         if self._is_file:
-            x, y = self._read_file(x)
+            x, y = self.read_file(x)
         raw = copied._raw = DataTuple.with_transpose(x, y)
         copied._converted, copied._processed = self._transform(raw, True)
         return copied
@@ -436,7 +436,7 @@ class TabularData(DataBase):
                   return_converted: bool = False) -> Union[DataTuple, Tuple[DataTuple, DataTuple]]:
         if self._is_file:
             if y is None:
-                x, y = self._read_file(x)
+                x, y = self.read_file(x)
         raw = DataTuple.with_transpose(x, y)
         return self._transform(raw, return_converted)
 
