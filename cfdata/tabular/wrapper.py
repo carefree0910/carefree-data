@@ -28,6 +28,8 @@ class TabularData(DataBase):
                  numerical_columns: List[int] = None,
                  categorical_columns: List[int] = None,
                  process_methods: Dict[int, str] = None,
+                 default_numerical_process: str = "normalize",
+                 default_categorical_process: str = "one_hot",
                  label_process_method: str = None,
                  numerical_threshold: float = None,
                  trigger_logging: bool = False,
@@ -52,6 +54,8 @@ class TabularData(DataBase):
         self._numerical_columns = numerical_columns
         self._categorical_columns = categorical_columns
         self._process_methods = process_methods
+        self._default_numerical_process = default_numerical_process
+        self._default_categorical_process = default_categorical_process
         self._label_process_method = label_process_method
         self._numerical_threshold = numerical_threshold
         self._is_file = self._is_arr = False
@@ -281,9 +285,14 @@ class TabularData(DataBase):
                 column_type = self._converters[idx].info.column_type
                 method = None
                 if self._process_methods is not None:
-                    method = self._process_methods.get(idx)
+                    method = self._process_methods.get(idx, "auto")
                 if method is None:
-                    method = "normalize" if column_type is ColumnTypes.NUMERICAL else "one_hot"
+                    method = "identical"
+                elif method == "auto":
+                    if column_type is ColumnTypes.NUMERICAL:
+                        method = self._default_numerical_process
+                    else:
+                        method = self._default_categorical_process
                 processor = self._processors[idx] = processor_dict[method](previous_processors.copy())
                 previous_processors.append(processor)
                 columns = converted_x[..., processor.input_indices]
