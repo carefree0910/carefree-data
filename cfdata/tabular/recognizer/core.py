@@ -48,6 +48,12 @@ class Recognizer:
     def transform_dict(self) -> Dict[Union[int, str], int]:
         return self._transform_dict
 
+    @property
+    def num_unique_values(self) -> Union[int, float]:
+        if self._info.is_numerical:
+            return math.inf
+        return len(self._transform_dict)
+
     def _make_invalid_info(self,
                            msg: str,
                            contains_nan: bool,
