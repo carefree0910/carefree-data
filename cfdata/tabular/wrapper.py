@@ -71,7 +71,8 @@ class TabularData(DataBase):
 
     def __getitem__(self, indices: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         x, y = self.processed.xy
-        return x[indices], y[indices]
+        y_batch = None if y is None else y[indices]
+        return x[indices], y_batch
 
     def __eq__(self, other: "TabularData"):
         if self.raw != other.raw:
@@ -371,8 +372,9 @@ class TabularData(DataBase):
             transformed_labels = self._processors[-1].process(converted_labels.reshape([-1, 1]))
         # check categorical
         if self.task_type is TaskTypes.CLASSIFICATION:
-            converted_labels = converted_labels.astype(np_int_type)
-            transformed_labels = transformed_labels.astype(np_int_type)
+            if converted_labels is not None:
+                converted_labels = converted_labels.astype(np_int_type)
+                transformed_labels = transformed_labels.astype(np_int_type)
         transformed = DataTuple(transformed_features, transformed_labels)
         if not return_converted:
             return transformed
