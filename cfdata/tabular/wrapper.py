@@ -363,6 +363,16 @@ class TabularData(DataBase):
         converted = DataTuple(converted_features.T, converted_labels)
         return converted, transformed
 
+    def _get_raw(self,
+                 x: Union[str, data_type],
+                 y: data_type = None) -> DataTuple:
+        if self._is_file:
+            if isinstance(x, str):
+                if y is not None:
+                    raise ValueError(f"x refers to file_path but y is still provided ({y}), which is illegal")
+                x, y = self.read_file(x)
+        return DataTuple.with_transpose(x, y)
+
     # API
 
     def read_file(self,
@@ -423,9 +433,7 @@ class TabularData(DataBase):
                 x: Union[str, data_type],
                 y: data_type = None) -> "TabularData":
         copied = copy.copy(self)
-        if self._is_file:
-            x, y = self.read_file(x)
-        raw = copied._raw = DataTuple.with_transpose(x, y)
+        raw = copied._raw = self._get_raw(x, y)
         copied._converted, copied._processed = self._transform(raw, True)
         return copied
 
@@ -434,10 +442,7 @@ class TabularData(DataBase):
                   y: data_type = None,
                   *,
                   return_converted: bool = False) -> Union[DataTuple, Tuple[DataTuple, DataTuple]]:
-        if self._is_file:
-            if y is None:
-                x, y = self.read_file(x)
-        raw = DataTuple.with_transpose(x, y)
+        raw = self._get_raw(x, y)
         return self._transform(raw, return_converted)
 
     def recover_labels(self,
