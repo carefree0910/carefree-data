@@ -11,6 +11,7 @@ from .types import *
 from .recognizer import *
 from .converters import *
 from .processors import *
+from .utils import DataSplitter
 from ..base import DataBase
 from ..types import np_int_type
 
@@ -400,6 +401,23 @@ class TabularData(DataBase):
             self._read_from_arr(x, y)
         self.log_timing()
         return self
+
+    def split(self, ratio: float) -> Tuple["TabularData", "TabularData"]:
+        splitter = DataSplitter(shuffle=False).fit(self.to_dataset())
+        split = splitter.split(ratio)
+        split_indices = split.corresponding_indices
+        remained_indices = split.remaining_indices
+        raw, converted, processed = self._raw, self._converted, self._processed
+        p1, p2 = map(copy.copy, [self] * 2)
+        p1._raw, p1._converted, p1._processed = map(
+            DataTuple.split_with,
+            [raw, converted, processed], [split_indices] * 3
+        )
+        p2._raw, p2._converted, p2._processed = map(
+            DataTuple.split_with,
+            [raw, converted, processed], [remained_indices] * 3
+        )
+        return p1, p2
 
     def copy_to(self,
                 x: Union[str, data_type],
