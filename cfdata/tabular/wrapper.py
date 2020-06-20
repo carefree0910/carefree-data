@@ -360,7 +360,7 @@ class TabularData(DataBase):
         transformed = DataTuple(transformed_features, transformed_labels)
         if not return_converted:
             return transformed
-        converted = DataTuple(converted_features, converted_labels)
+        converted = DataTuple(converted_features.T, converted_labels)
         return converted, transformed
 
     # API
