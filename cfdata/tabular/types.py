@@ -61,8 +61,18 @@ class DataTuple(NamedTuple):
         return self.x, self.y
 
     def split_with(self, indices: np.ndarray) -> "DataTuple":
-        xT = None if self.xT is None else self.xT[..., indices]
-        return DataTuple(self.x[indices], self.y[indices], xT)
+        if self.xT is None:
+            x = xT = None
+        elif isinstance(self.xT, np.ndarray):
+            x = None
+            xT = self.xT[..., indices]
+        else:
+            x = [self.x[i] for i in indices]
+            y = [self.y[i] for i in indices]
+            xT = [[line[i] for i in indices] for line in self.xT]
+        if x is None:
+            x, y = self.x[indices], self.y[indices]
+        return DataTuple(x, y, xT)
 
     @classmethod
     def with_transpose(cls,
