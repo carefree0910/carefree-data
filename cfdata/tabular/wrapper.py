@@ -178,6 +178,10 @@ class TabularData(DataBase):
         return self.task_type is TaskTypes.REGRESSION
 
     @property
+    def is_file(self) -> bool:
+        return self._is_file
+
+    @property
     def num_classes(self) -> int:
         if self.is_reg:
             return 0
