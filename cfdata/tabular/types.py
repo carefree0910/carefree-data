@@ -83,6 +83,15 @@ class TaskTypes(Enum):
     CLASSIFICATION = "clf"
 
     @classmethod
+    def from_str(cls,
+                 task_type: str) -> "TaskTypes":
+        if task_type == "reg":
+            return cls.REGRESSION
+        if task_type == "clf":
+            return cls.CLASSIFICATION
+        raise ValueError(f"task_type '{task_type}' is not recognized")
+
+    @classmethod
     def from_column_type(cls,
                          column_type: ColumnTypes) -> "TaskTypes":
         if column_type is ColumnTypes.NUMERICAL:
