@@ -531,6 +531,7 @@ class ImbalancedSampler(LoggingMixin):
                  sample_method: str = "multinomial",
                  verbose_level: int = 2):
         self.data = data
+        self.imbalance_threshold = imbalance_threshold
         self._sample_imbalance_flag = True
         self.shuffle, self._n_samples = shuffle, len(data)
         if not self.shuffle or data.task_type is TaskTypes.REGRESSION:
@@ -552,7 +553,7 @@ class ImbalancedSampler(LoggingMixin):
                 sample_weights /= sample_weights.sum()
                 self._sampler = Sampler(sample_method, sample_weights)
 
-        self._verbose_level = verbose_level
+        self._sample_method, self._verbose_level = sample_method, verbose_level
         if self._sampler is not None:
             self.log_msg(
                 f"using imbalanced sampler with label counts = {label_counts.tolist()}",
@@ -581,6 +582,15 @@ class ImbalancedSampler(LoggingMixin):
         if self.shuffle:
             np.random.shuffle(indices)
         return indices
+
+    def copy(self) -> "ImbalancedSampler":
+        return ImbalancedSampler(
+            self.data,
+            self.imbalance_threshold,
+            shuffle=self.shuffle,
+            sample_method=self._sample_method,
+            verbose_level=self._verbose_level
+        )
 
 
 class LabelCollators:
@@ -647,8 +657,7 @@ class DataLoader:
         return n_iter + int(n_iter * self.batch_size < self._n_samples)
 
     def __iter__(self):
-        for attr, init_value in self.reset_caches.items():
-            setattr(self, attr, init_value)
+        self._reset()
         return self
 
     def __next__(self):
@@ -672,6 +681,10 @@ class DataLoader:
             "_siamese_cursor": 0, "_cursor": -1
         }
 
+    def _reset(self):
+        for attr, init_value in self.reset_caches.items():
+            setattr(self, attr, init_value)
+
     def _get_next_batch(self):
         n_iter, self._cursor = len(self), self._cursor + 1
         if self._cursor == n_iter * self._n_siamese:
@@ -690,6 +703,15 @@ class DataLoader:
         if len(batch[0]) == self.batch_size:
             return True
         return False
+
+    def copy(self) -> "DataLoader":
+        return DataLoader(
+            self.batch_size,
+            self.sampler.copy(),
+            n_siamese=self._n_siamese,
+            label_collator=self._label_collator,
+            verbose_level=self._verbose_level
+        )
 
 
 __all__ = [
