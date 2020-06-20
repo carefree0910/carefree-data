@@ -1,4 +1,5 @@
 import os
+import copy
 import logging
 
 import numpy as np
@@ -399,6 +400,16 @@ class TabularData(DataBase):
             self._read_from_arr(x, y)
         self.log_timing()
         return self
+
+    def copy_to(self,
+                x: Union[str, data_type],
+                y: data_type = None) -> "TabularData":
+        copied = copy.copy(self)
+        if self._is_file:
+            x, y = self._read_file(x)
+        raw = copied._raw = DataTuple.with_transpose(x, y)
+        copied._converted, copied._processed = self._transform(raw, True)
+        return copied
 
     def transform(self,
                   x: Union[str, data_type],
