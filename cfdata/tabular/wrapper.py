@@ -303,6 +303,8 @@ class TabularData(DataBase):
             processed_labels = processed_labels.astype(np_int_type)
         self._converted = DataTuple(converted_x, converted_labels)
         self._processed = DataTuple(np.hstack(processed_features), processed_labels)
+        self._valid_columns = [col for col in range(self.raw_dim) if col not in self.excludes]
+        self._valid_columns_dict = None
         return self
 
     def _read_from_file(self,
