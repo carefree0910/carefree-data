@@ -62,9 +62,9 @@ class DataTuple(NamedTuple):
 
     def split_with(self, indices: np.ndarray) -> "DataTuple":
         if self.xT is None:
-            x = xT = None
+            x = y = xT = None
         elif isinstance(self.xT, np.ndarray):
-            x = None
+            x = y = None
             xT = self.xT[..., indices]
         else:
             x = [self.x[i] for i in indices]
