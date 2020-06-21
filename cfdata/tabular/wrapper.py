@@ -327,6 +327,19 @@ class TabularData(DataBase):
         self._raw = DataTuple.with_transpose(x, y)
         return self._core_fit()
 
+    def _transform_labels(self,
+                          raw: DataTuple) -> Tuple[np.ndarray, np.ndarray]:
+        if raw.y is None:
+            converted_labels = transformed_labels = None
+        else:
+            converted_labels = self._converters[-1].convert(self._flatten(raw.y))
+            transformed_labels = self._processors[-1].process(converted_labels.reshape([-1, 1]))
+        if self.task_type is TaskTypes.CLASSIFICATION:
+            if converted_labels is not None:
+                converted_labels = converted_labels.astype(np_int_type)
+                transformed_labels = transformed_labels.astype(np_int_type)
+        return converted_labels, transformed_labels
+
     def _transform(self,
                    raw: DataTuple,
                    return_converted: bool) -> Union[DataTuple, Tuple[DataTuple, DataTuple]]:
@@ -349,16 +362,8 @@ class TabularData(DataBase):
             idx += processor.input_dim
         transformed_features = np.hstack(processed)
         # transform labels
-        if raw.y is None:
-            converted_labels = transformed_labels = None
-        else:
-            converted_labels = self._converters[-1].convert(self._flatten(raw.y))
-            transformed_labels = self._processors[-1].process(converted_labels.reshape([-1, 1]))
-        # check categorical
-        if self.task_type is TaskTypes.CLASSIFICATION:
-            if converted_labels is not None:
-                converted_labels = converted_labels.astype(np_int_type)
-                transformed_labels = transformed_labels.astype(np_int_type)
+        converted_labels, transformed_labels = self._transform_labels(raw)
+        # aggregate
         transformed = DataTuple(transformed_features, transformed_labels)
         if not return_converted:
             return transformed
@@ -446,6 +451,16 @@ class TabularData(DataBase):
                   return_converted: bool = False) -> Union[DataTuple, Tuple[DataTuple, DataTuple]]:
         raw = self._get_raw(x, y)
         return self._transform(raw, return_converted)
+
+    def transform_labels(self,
+                         y: data_type,
+                         *,
+                         return_converted: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+        raw = DataTuple(None, y)
+        converted_labels, transformed_labels = self._transform_labels(raw)
+        if not return_converted:
+            return transformed_labels
+        return converted_labels, transformed_labels
 
     def recover_labels(self,
                        y: np.ndarray,
