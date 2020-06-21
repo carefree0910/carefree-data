@@ -188,7 +188,7 @@ class TabularData(DataBase):
         if self.is_reg:
             return 0
         if self._num_classes is None:
-            self._num_classes = self._processed.y.max() + 1
+            self._num_classes = self._processed.y.max().item() + 1
         return self._num_classes
 
     # Core
