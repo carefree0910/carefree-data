@@ -474,8 +474,9 @@ class TabularData(DataBase):
     def load(cls,
              folder: str,
              *,
-             compress=True) -> "TabularData":
-        data = cls()
+             compress: bool = True,
+             verbose_level: int = 0) -> "TabularData":
+        data = cls(verbose_level=verbose_level)
         SavingMixin.load(data, folder, compress=compress)
         is_file, is_arr = data._is_file, data._is_arr
         data.read(*data._raw[:2])
