@@ -674,15 +674,12 @@ class DataLoader:
             y_batch = self._label_collator(y_batch)
         return x_batch, y_batch
 
-    @property
-    def reset_caches(self):
-        return {
+    def _reset(self):
+        reset_caches = {
             "_indices_in_use": self.sampler.get_indices(),
             "_siamese_cursor": 0, "_cursor": -1
         }
-
-    def _reset(self):
-        for attr, init_value in self.reset_caches.items():
+        for attr, init_value in reset_caches.items():
             setattr(self, attr, init_value)
 
     def _get_next_batch(self):
