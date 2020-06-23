@@ -568,6 +568,10 @@ class ImbalancedSampler(LoggingMixin):
         return self._sampler is not None
 
     @property
+    def sample_imbalance(self) -> bool:
+        return self._sample_imbalance_flag
+
+    @property
     def label_ratios(self) -> Union[None, np.ndarray]:
         return self._label_ratios
 
@@ -676,7 +680,7 @@ class DataLoader:
 
     @property
     def enabled_sampling(self) -> bool:
-        return self.sampler.is_imbalance
+        return self.sampler.sample_imbalance
 
     @enabled_sampling.setter
     def enabled_sampling(self, value: bool):
