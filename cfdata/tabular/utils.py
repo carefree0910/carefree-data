@@ -664,10 +664,10 @@ class DataLoader:
         data_next = self._get_next_batch()
         if self._n_siamese == 1:
             return data_next
-        all_data = [data_next] if self._check_valid_batch(data_next) else []
+        all_data = [data_next] if self._check_full_batch(data_next) else []
         while len(all_data) < self._n_siamese:
             data_next = self._get_next_batch()
-            if self._check_valid_batch(data_next):
+            if self._check_full_batch(data_next):
                 all_data.append(data_next)
         x_batch, y_batch = zip(*all_data)
         if self._label_collator is not None:
@@ -699,7 +699,7 @@ class DataLoader:
         batch = self.data[self._indices_in_use[start:end]]
         return batch
 
-    def _check_valid_batch(self, batch):
+    def _check_full_batch(self, batch):
         if len(batch[0]) == self.batch_size:
             return True
         return False
