@@ -529,6 +529,7 @@ class ImbalancedSampler(LoggingMixin):
                  *,
                  shuffle: bool = True,
                  sample_method: str = "multinomial",
+                 verbose_imbalance: bool = True,
                  verbose_level: int = 2):
         self.data = data
         self.imbalance_threshold = imbalance_threshold
@@ -554,7 +555,7 @@ class ImbalancedSampler(LoggingMixin):
                 self._sampler = Sampler(sample_method, sample_weights)
 
         self._sample_method, self._verbose_level = sample_method, verbose_level
-        if self._sampler is not None:
+        if verbose_imbalance and self._sampler is not None:
             self.log_msg(
                 f"using imbalanced sampler with label counts = {label_counts.tolist()}",
                 self.info_prefix, 2
@@ -593,7 +594,8 @@ class ImbalancedSampler(LoggingMixin):
             self.imbalance_threshold,
             shuffle=self.shuffle,
             sample_method=self._sample_method,
-            verbose_level=self._verbose_level
+            verbose_level=self._verbose_level,
+            verbose_imbalance=False
         )
 
 
