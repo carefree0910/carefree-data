@@ -674,6 +674,14 @@ class DataLoader:
             y_batch = self._label_collator(y_batch)
         return x_batch, y_batch
 
+    @property
+    def enabled_sampling(self) -> bool:
+        return self.sampler.is_imbalance
+
+    @enabled_sampling.setter
+    def enabled_sampling(self, value: bool):
+        self.sampler.switch_imbalance_status(value)
+
     def _reset(self):
         reset_caches = {
             "_indices_in_use": self.sampler.get_indices(),
