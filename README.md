@@ -19,6 +19,8 @@
     + For `.csv`, `","` will be the default `delimiter`, and the first row will be skipped as default.
     + `delimiter`, `label index`, `skip first` could be set manually.
 
+#### Pandas-free
+
 There is one more thing we'd like to mention: `carefree-data` is 'Pandas-free'. Pandas is an open source library providing easy-to-use data structures on structured datasets. Although it is a widely used library in almost every famous Machine Learning and Deep Learning module, we finally decided to escape from it, and the reasons are listed below:
 
 + `carefree-data` wants to have full control on the data, and Pandas is not flexible enough.
