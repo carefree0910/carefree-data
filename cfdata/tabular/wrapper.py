@@ -419,9 +419,10 @@ class TabularData(DataBase):
         self.log_timing()
         return self
 
-    def split(self, ratio: float) -> Tuple["TabularData", "TabularData"]:
+    def split(self,
+              n: Union[int, float]) -> Tuple["TabularData", "TabularData"]:
         splitter = DataSplitter(shuffle=False).fit(self.to_dataset())
-        split = splitter.split(ratio)
+        split = splitter.split(n)
         split_indices = split.corresponding_indices
         remained_indices = split.remaining_indices
         raw, converted, processed = self._raw, self._converted, self._processed
