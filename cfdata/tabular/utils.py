@@ -319,7 +319,7 @@ class DataSplitter(SavingMixin):
                 TabularDataset.from_xy(remained_x, remained_y, self._dataset.task_type),
                 self._remained_indices, np.array([], np.int)
             )
-        if n < 1.:
+        if n < 1. or (n == 1. and isinstance(n, float)):
             n = int(round(len(self._x) * n))
         if self.is_time_series:
             split_method = self._split_time_series
