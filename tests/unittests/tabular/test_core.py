@@ -161,6 +161,25 @@ class TestTabularData(unittest.TestCase):
         self._test_equal_core(TabularDataset.digits())
         self._test_equal_core(TabularDataset.breast_cancer())
 
+    def test_from_str(self):
+        self.assertTrue(TaskTypes.from_str("reg") is TaskTypes.REGRESSION)
+        self.assertTrue(TaskTypes.from_str("clf") is TaskTypes.CLASSIFICATION)
+
+    def test_split_data_tuple_with_indices(self):
+        lst, npy = list(range(10)), np.arange(10)
+        dt = DataTuple(lst, None)
+        self.assertEqual(dt.split_with([2, 4, 6]).x, [2, 4, 6])
+        dt = DataTuple(npy, None)
+        self.assertTrue(np.allclose(dt.split_with([2, 4, 6]).x, [2, 4, 6]))
+        dt = DataTuple(None, lst)
+        self.assertEqual(dt.split_with([1, 3, 5]).y, [1, 3, 5])
+        dt = DataTuple(None, npy)
+        self.assertTrue(np.allclose(dt.split_with([1, 3, 5]).y, [1, 3, 5]))
+        dt = DataTuple.with_transpose(list(map(list, zip(lst))), None)
+        self.assertEqual(dt.split_with([7, 8, 9]).xT, [[7, 8, 9]])
+        dt = DataTuple.with_transpose(npy[..., None], None)
+        self.assertTrue(np.allclose(dt.split_with([7, 8, 9]).xT, [[7, 8, 9]]))
+
 
 if __name__ == '__main__':
     unittest.main()
