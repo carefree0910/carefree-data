@@ -60,18 +60,23 @@ class DataTuple(NamedTuple):
     def xy(self) -> Tuple[data_type, data_type]:
         return self.x, self.y
 
-    def split_with(self, indices: np.ndarray) -> "DataTuple":
-        if self.xT is None:
-            x = y = xt = None
-        elif isinstance(self.xT, np.ndarray):
-            x = y = None
-            xt = self.xT[..., indices]
+    def split_with(self,
+                   indices: Union[np.ndarray, List[int]]) -> "DataTuple":
+        x = y = xt = None
+        if isinstance(self.x, np.ndarray) or isinstance(self.y, np.ndarray):
+            if self.x is not None:
+                x = self.x[indices]
+            if self.y is not None:
+                y = self.y[indices]
+            if self.xT is not None:
+                xt = self.xT[..., indices]
         else:
-            x = [self.x[i] for i in indices]
-            y = [self.y[i] for i in indices]
-            xt = [[line[i] for i in indices] for line in self.xT]
-        if x is None:
-            x, y = self.x[indices], self.y[indices]
+            if self.x is not None:
+                x = [self.x[i] for i in indices]
+            if self.y is not None:
+                y = [self.y[i] for i in indices]
+            if self.xT is not None:
+                xt = [[line[i] for i in indices] for line in self.xT]
         return DataTuple(x, y, xt)
 
     @classmethod
