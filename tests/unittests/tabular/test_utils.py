@@ -26,7 +26,7 @@ class TestTabularUtils(unittest.TestCase):
         tolerance = 5
         ratios = [0.1, 0.1]
         task = TaskTypes.CLASSIFICATION
-        for power in range(3, 7):
+        for power in range(3, 6):
             n = int(10 ** power)
             n_cv, n_test = map(int, map(operator.mul, 2 * [n], ratios))
             x = np.random.random([n, 100]).astype(np_float_type)
