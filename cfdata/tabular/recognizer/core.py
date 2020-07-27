@@ -178,7 +178,15 @@ class Recognizer:
             )
         ):
             if not is_classification_label:
-                self._info = FeatureInfo(contains_nan, np_flat, nan_mask=nan_mask)
+                msg, is_valid = None, True
+                if self.force_valid is None and np_flat_valid.max() - np_flat_valid.min() <= 1e-8:
+                    is_valid = False
+                    msg = (f"all values in column {self.name}, which tends to be numerical column, "
+                           "are ALL CLOSE. It'll be excluded since it might be redundant")
+                self._info = FeatureInfo(
+                    contains_nan, np_flat,
+                    nan_mask=nan_mask, is_valid=is_valid, msg=msg
+                )
                 return self
         # deal with categorical column
         np_flat_categorical = np_flat_valid_int if all_int else np_flat_valid
