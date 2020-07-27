@@ -65,6 +65,7 @@ class TabularData(DataBase):
         self._label_idx = self._skip_first = self._delim = None
         self._raw = self._converted = self._processed = None
         self._recognizers = self._converters = self._processors = None
+        self._verbose_level = verbose_level
         self._init_logging(verbose_level, trigger=trigger_logging)
         self.excludes = set()
 
