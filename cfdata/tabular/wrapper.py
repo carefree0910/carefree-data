@@ -29,7 +29,7 @@ class TabularData(DataBase):
                  string_columns: List[int] = None,
                  numerical_columns: List[int] = None,
                  categorical_columns: List[int] = None,
-                 process_methods: Dict[int, str] = None,
+                 process_methods: Union[str, None, Dict[int, str]] = "auto",
                  default_numerical_process: str = "normalize",
                  default_categorical_process: str = "one_hot",
                  label_process_method: str = None,
@@ -266,8 +266,11 @@ class TabularData(DataBase):
                     idx += 1
                     continue
                 column_type = self._converters[idx].info.column_type
-                method = None
-                if self._process_methods is not None:
+                if self._process_methods is None:
+                    method = None
+                elif isinstance(self._process_methods, str):
+                    method = self._process_methods
+                else:
                     method = self._process_methods.get(idx, "auto")
                 if method is None:
                     method = "identical"
