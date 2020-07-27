@@ -142,8 +142,12 @@ class Recognizer:
         contains_nan = num_samples != num_valid_samples
         if not contains_nan:
             nan_mask = None
-        # check whether is_valid or not
-        if not self.force_valid and num_valid_samples == 0:
+        # check whether all nan or not
+        if num_valid_samples == 0:
+            if self.force_valid:
+                np_flat = np.zeros_like(np_flat)
+                self._info = FeatureInfo(contains_nan, np_flat, nan_mask=np.zeros_like(nan_mask))
+                return self
             msg = (f"all values in column {self.name}, which tends to be categorical column, "
                    "are NaN. It'll be excluded since it might be redundant")
             return self._make_invalid_info(msg, contains_nan, nan_mask)
