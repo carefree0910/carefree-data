@@ -21,9 +21,9 @@ class TabularData(DataBase):
                  *,
                  task_type: TaskTypes = None,
                  label_name: str = "label",
-                 string_label: bool = False,
-                 numerical_label: bool = False,
-                 categorical_label: bool = False,
+                 string_label: Union[bool, None] = None,
+                 numerical_label: Union[bool, None] = None,
+                 categorical_label: Union[bool, None] = None,
                  column_names: Dict[int, str] = None,
                  valid_columns: List[int] = None,
                  string_columns: List[int] = None,
@@ -149,9 +149,10 @@ class TabularData(DataBase):
         force_dict = getattr(self, force_dict_attr, None)
         if force_dict is None:
             force_columns = getattr(self, attr, None)
-            if force_columns is None:
-                force_columns = []
-            force_dict = {i: i in force_columns for i in range(self.raw_dim)}
+            force_dict = {
+                i: None if force_columns is None else i in force_columns
+                for i in range(self.raw_dim)
+            }
             setattr(self, force_dict_attr, force_dict)
         return force_dict
 

@@ -16,14 +16,23 @@ class Recognizer:
                  *,
                  is_label: bool = False,
                  task_type: TaskTypes = None,
-                 force_valid: bool = False,
-                 force_string: bool = False,
-                 force_numerical: bool = False,
-                 force_categorical: bool = False,
+                 force_valid: Union[bool, None] = None,
+                 force_string: Union[bool, None] = None,
+                 force_numerical: Union[bool, None] = None,
+                 force_categorical: Union[bool, None] = None,
                  numerical_threshold: float = 0.5):
+        # force_* : `None` means no information, `False` means 'force not to *', `True` means 'force to *'
         self.name = column_name
         self.is_label = is_label
         self.task_type = task_type
+        if force_string is False and force_numerical is False and force_categorical is False:
+            if force_valid is None:
+                force_valid = False
+            elif force_valid:
+                raise ValueError(
+                    f"column '{column_name}' is neither string, numerical nor categorical, "
+                    "but it is still set to be valid"
+                )
         self.force_valid = force_valid
         self.force_string = force_string
         self.force_numerical = force_numerical
@@ -70,7 +79,7 @@ class Recognizer:
 
     def _check_string_column(self,
                              flat_arr: flat_arr_type) -> Tuple[bool, Union[FeatureInfo, None]]:
-        if self.force_numerical or self.force_categorical:
+        if self.force_numerical or self.force_categorical or self.force_string is False:
             return False, None
         all_numeric = is_all_numeric(flat_arr)
         is_regression = self.task_type is TaskTypes.REGRESSION
@@ -124,6 +133,12 @@ class Recognizer:
 
     def fit(self,
             flat_arr: flat_arr_type) -> "Recognizer":
+        if self.force_valid is False:
+            self._info = FeatureInfo(
+                None, None, False,
+                msg=f"current column ({self.name}) is forced to be invalid"
+            )
+            return self
         is_string, info = self._check_string_column(flat_arr)
         if is_string:
             self._info = info
@@ -156,8 +171,11 @@ class Recognizer:
         is_classification_label = self.is_label and self.task_type is TaskTypes.CLASSIFICATION
         if (
             self.force_numerical
-            or self.is_label and self.task_type is TaskTypes.REGRESSION
-            or not self.force_categorical and not all_int
+            or self.force_numerical is None and (
+                self.force_categorical is False
+                or self.is_label and self.task_type is TaskTypes.REGRESSION
+                or self.force_categorical is None and not all_int
+            )
         ):
             if not is_classification_label:
                 self._info = FeatureInfo(contains_nan, np_flat, nan_mask=nan_mask)

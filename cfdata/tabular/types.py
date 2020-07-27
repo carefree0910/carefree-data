@@ -115,7 +115,7 @@ class TaskTypes(Enum):
 
 
 class FeatureInfo(NamedTuple):
-    contains_nan: bool
+    contains_nan: Union[bool, None]
     flat_arr: Union[flat_arr_type, None]
     is_valid: bool = True
     nan_mask: np.ndarray = None
