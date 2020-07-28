@@ -146,33 +146,33 @@ class TabularData(DataBase):
             self._column_names.setdefault(i, str(i))
         return self._column_names
 
-    def _get_dict(self, attr: str) -> Dict[int, bool]:
-        force_dict_attr = f"{attr}_dict"
-        force_dict = getattr(self, force_dict_attr, None)
-        if force_dict is None:
-            force_columns = getattr(self, attr, None)
-            force_dict = {
-                i: None if force_columns is None else i in force_columns
+    def _get_prior_dict(self, attr: str) -> Dict[int, Union[bool, None]]:
+        prior_dict_attr = f"{attr}_dict"
+        prior_dict = getattr(self, prior_dict_attr, None)
+        if prior_dict is None:
+            prior_columns = getattr(self, attr, None)
+            prior_dict = {
+                i: None if prior_columns is None else i in prior_columns
                 for i in range(self.raw_dim)
             }
-            setattr(self, force_dict_attr, force_dict)
-        return force_dict
+            setattr(self, prior_dict_attr, prior_dict)
+        return prior_dict
 
     @property
-    def force_valid_columns(self) -> Dict[int, bool]:
-        return self._get_dict("_valid_columns")
+    def prior_valid_columns(self) -> Dict[int, Union[bool, None]]:
+        return self._get_prior_dict("_valid_columns")
 
     @property
-    def force_string_columns(self) -> Dict[int, bool]:
-        return self._get_dict("_string_columns")
+    def prior_string_columns(self) -> Dict[int, Union[bool, None]]:
+        return self._get_prior_dict("_string_columns")
 
     @property
-    def force_numerical_columns(self) -> Dict[int, bool]:
-        return self._get_dict("_numerical_columns")
+    def prior_numerical_columns(self) -> Dict[int, Union[bool, None]]:
+        return self._get_prior_dict("_numerical_columns")
 
     @property
-    def force_categorical_columns(self) -> Dict[int, bool]:
-        return self._get_dict("_categorical_columns")
+    def prior_categorical_columns(self) -> Dict[int, Union[bool, None]]:
+        return self._get_prior_dict("_categorical_columns")
 
     @property
     def is_clf(self) -> bool:
@@ -210,10 +210,10 @@ class TabularData(DataBase):
             self._recognizers, self._converters = {}, {}
             for i, flat_arr in enumerate(features):
                 column_name = self.column_names[i]
-                force_valid = self.force_valid_columns[i]
-                force_string = self.force_string_columns[i]
-                force_numerical = self.force_numerical_columns[i]
-                force_categorical = self.force_categorical_columns[i]
+                is_valid = self.prior_valid_columns[i]
+                is_string = self.prior_string_columns[i]
+                is_numerical = self.prior_numerical_columns[i]
+                is_categorical = self.prior_categorical_columns[i]
                 if i == self.raw_dim - 1 == len(self.excludes):
                     if i > 0:
                         self.log_msg(
@@ -221,12 +221,12 @@ class TabularData(DataBase):
                             "because previous columns are all excluded", self.warning_prefix,
                             verbose_level=2, msg_level=logging.WARNING
                         )
-                    force_valid = True
+                    is_valid = True
                 kwargs = {
-                    "force_string": force_string,
-                    "force_numerical": force_numerical,
-                    "force_categorical": force_categorical,
-                    "force_valid": force_valid
+                    "is_valid": is_valid,
+                    "is_string": is_string,
+                    "is_numerical": is_numerical,
+                    "is_categorical": is_categorical,
                 }
                 if self._numerical_threshold is not None:
                     kwargs["numerical_threshold"] = self._numerical_threshold
@@ -248,10 +248,10 @@ class TabularData(DataBase):
                         self.label_name,
                         is_label=True,
                         task_type=self._task_type,
-                        force_valid=True,
-                        force_string=self.string_label,
-                        force_numerical=self.numerical_label,
-                        force_categorical=self.categorical_label,
+                        is_valid=True,
+                        is_string=self.string_label,
+                        is_numerical=self.numerical_label,
+                        is_categorical=self.categorical_label,
                         numerical_threshold=1.
                     ).fit(self._flatten(self._raw.y))
                 with timing_context(self, "fit converter"):

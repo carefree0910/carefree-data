@@ -16,28 +16,28 @@ class Recognizer:
                  *,
                  is_label: bool = False,
                  task_type: TaskTypes = None,
-                 force_valid: Union[bool, None] = None,
-                 force_string: Union[bool, None] = None,
-                 force_numerical: Union[bool, None] = None,
-                 force_categorical: Union[bool, None] = None,
+                 is_valid: Union[bool, None] = None,
+                 is_string: Union[bool, None] = None,
+                 is_numerical: Union[bool, None] = None,
+                 is_categorical: Union[bool, None] = None,
                  numerical_threshold: float = 0.5):
-        # force_* : `None` means no information, `False` means 'force not to *', `True` means 'force to *'
+        # is_* : `None` means no information, `False` means 'force not to *', `True` means 'force to *'
         self.name = column_name
         self.is_label = is_label
         self.task_type = task_type
-        if force_string is False and force_numerical is False and force_categorical is False:
-            if force_valid is None:
-                force_valid = False
-            elif force_valid:
+        if is_string is False and is_numerical is False and is_categorical is False:
+            if is_valid is None:
+                is_valid = False
+            elif is_valid:
                 raise ValueError(
                     f"column '{column_name}' is neither string, numerical nor categorical, "
                     "but it is still set to be valid"
                 )
-        self.force_valid = force_valid
-        # TODO : check how to use `force_string`
-        self.force_string = force_string
-        self.force_numerical = force_numerical
-        self.force_categorical = force_categorical
+        self.is_valid = is_valid
+        # TODO : check how to use `is_string`
+        self.is_string = is_string
+        self.is_numerical = is_numerical
+        self.is_categorical = is_categorical
         self.numerical_threshold = numerical_threshold
         self._info = self._counter = self._transform_dict = None
 
@@ -80,7 +80,7 @@ class Recognizer:
 
     def _check_string_column(self,
                              flat_arr: flat_arr_type) -> Tuple[bool, Union[FeatureInfo, None]]:
-        if self.force_numerical or self.force_categorical or self.force_string is False:
+        if self.is_numerical or self.is_categorical or self.is_string is False:
             return False, None
         all_numeric = is_all_numeric(flat_arr)
         is_regression = self.task_type is TaskTypes.REGRESSION
@@ -92,11 +92,11 @@ class Recognizer:
         unique_values = [elem[0] for elem in self._counter.most_common()]
         self._transform_dict = {v: i for i, v in enumerate(unique_values)}
         num_unique_values = len(self._transform_dict)
-        if not self.force_valid and num_unique_values == 1:
+        if not self.is_valid and num_unique_values == 1:
             msg = (f"all values in column {self.name}, which tends to be string column, "
                    "are the SAME. It'll be excluded since it might be redundant")
             return True, self._make_string_info(None, False, msg)
-        if not self.force_valid and num_unique_values == len(flat_arr):
+        if not self.is_valid and num_unique_values == len(flat_arr):
             msg = (f"all values in column {self.name}, which tends to be string column, "
                    "are DIFFERENT. It'll be excluded since it might be redundant")
             return True, self._make_string_info(None, False, msg)
@@ -108,15 +108,15 @@ class Recognizer:
     def _check_exclude_categorical(self,
                                    num_samples: int,
                                    num_unique_values: int) -> Tuple[str, Union[str, None]]:
-        if not self.force_valid and num_unique_values == 1:
+        if not self.is_valid and num_unique_values == 1:
             msg = (f"all values in column {self.name}, which tends to be categorical column, "
                    "are the SAME. It'll be excluded since it might be redundant")
             return "exclude", msg
-        if not self.force_valid and num_samples == num_unique_values:
+        if not self.is_valid and num_samples == num_unique_values:
             msg = (f"all values in column {self.name}, which tends to be categorical column, "
                    "are DIFFERENT. It'll be excluded since it might be redundant")
             return "exclude", msg
-        if not self.force_categorical and num_unique_values >= self.numerical_threshold * num_samples:
+        if not self.is_categorical and num_unique_values >= self.numerical_threshold * num_samples:
             msg = (
                 f"TOO MANY unique values occurred in column {self.name} ({num_unique_values:^12d}) "
                 "which tends to be categorical column, it'll cast to numerical column to save memory "
@@ -134,7 +134,7 @@ class Recognizer:
 
     def fit(self,
             flat_arr: flat_arr_type) -> "Recognizer":
-        if self.force_valid is False:
+        if self.is_valid is False:
             self._info = FeatureInfo(
                 None, None, False,
                 msg=f"current column ({self.name}) is forced to be invalid"
@@ -160,7 +160,7 @@ class Recognizer:
             nan_mask = None
         # check whether all nan or not
         if num_valid_samples == 0:
-            if self.force_valid:
+            if self.is_valid:
                 np_flat = np.zeros_like(np_flat)
                 self._info = FeatureInfo(contains_nan, np_flat, nan_mask=np.zeros_like(nan_mask))
                 return self
@@ -171,16 +171,16 @@ class Recognizer:
         all_int = np.allclose(np_flat_valid, np_flat_valid_int)
         is_classification_label = self.is_label and self.task_type is TaskTypes.CLASSIFICATION
         if (
-            self.force_numerical
-            or self.force_numerical is None and (
-                self.force_categorical is False
+            self.is_numerical
+            or self.is_numerical is None and (
+                self.is_categorical is False
                 or self.is_label and self.task_type is TaskTypes.REGRESSION
-                or self.force_categorical is None and not all_int
+                or self.is_categorical is None and not all_int
             )
         ):
             if not is_classification_label:
                 msg, is_valid = None, True
-                if self.force_valid is None and np_flat_valid.max() - np_flat_valid.min() <= 1e-8:
+                if self.is_valid is None and np_flat_valid.max() - np_flat_valid.min() <= 1e-8:
                     is_valid = False
                     msg = (f"all values in column {self.name}, which tends to be numerical column, "
                            "are ALL CLOSE. It'll be excluded since it might be redundant")
