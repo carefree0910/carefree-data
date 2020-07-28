@@ -2,7 +2,7 @@ import numpy
 from Cython.Build import cythonize
 from setuptools import setup, find_packages, Extension
 
-VERSION = "0.1.3"
+VERSION = "0.1.4"
 
 DESCRIPTION = "Data processing module implemented with numpy"
 with open("README.md") as f:
