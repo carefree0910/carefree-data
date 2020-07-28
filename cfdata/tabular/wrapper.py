@@ -16,6 +16,7 @@ from ..base import DataBase
 from ..types import np_int_type
 
 
+# TODO : Add outlier detection
 class TabularData(DataBase):
     def __init__(self,
                  *,

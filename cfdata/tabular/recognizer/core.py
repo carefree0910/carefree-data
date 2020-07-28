@@ -34,6 +34,7 @@ class Recognizer:
                     "but it is still set to be valid"
                 )
         self.force_valid = force_valid
+        # TODO : check how to use `force_string`
         self.force_string = force_string
         self.force_numerical = force_numerical
         self.force_categorical = force_categorical
