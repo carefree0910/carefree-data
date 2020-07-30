@@ -466,8 +466,6 @@ class KRandom:
                  num_test: Union[int, float],
                  dataset: TabularDataset,
                  **kwargs):
-        if k <= 1:
-            raise ValueError("k should be larger than 1 in KFold")
         self._cursor = None
         self.k, self.num_test = k, num_test
         self.splitter = DataSplitter(**kwargs).fit(dataset)
