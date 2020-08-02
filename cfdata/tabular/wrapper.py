@@ -316,7 +316,7 @@ class TabularData(DataBase):
     def _read_from_file(self,
                         file_path: str,
                         *,
-                        label_idx: int = -1,
+                        label_idx: int = None,
                         has_column_names: bool = None,
                         delim: str = None) -> "TabularData":
         self._is_file = True
@@ -405,11 +405,15 @@ class TabularData(DataBase):
                 column_names = f.readline().strip().split(delim)
                 self._column_names = {i: name for i, name in enumerate(column_names)}
             data = [["nan" if not elem else elem for elem in line.strip().split(delim)] for line in f]
-        if not contains_labels or self._label_idx is None:
+        if not contains_labels:
             if len(data[0]) != len(self._raw.x[0]):
                 raise ValueError("file contains labels but 'contains_labels=False' passed in")
             return data, None
-        if self._column_names is not None and self.label_name is not None:
+
+        if self._column_names is None or self.label_name is None:
+            if self._label_idx is None:
+                self._label_idx = -1
+        else:
             reverse_column_names = dict(map(reversed, self._column_names.items()))
             self._label_idx = reverse_column_names.get(self.label_name)
             if self._label_idx is None:
@@ -425,7 +429,7 @@ class TabularData(DataBase):
 
     def read(self,
              x: Union[str, data_type],
-             y: Union[int, data_type] = -1,
+             y: Union[int, data_type] = None,
              **kwargs) -> "TabularData":
         if isinstance(x, str):
             self._read_from_file(x, label_idx=y, **kwargs)
