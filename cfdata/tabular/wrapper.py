@@ -466,7 +466,7 @@ class TabularData(DataBase):
                 *,
                 contains_labels: bool = True) -> "TabularData":
         copied = copy.copy(self)
-        raw = copied._raw = self._get_raw(x, y)
+        raw = copied._raw = self._get_raw(x, y, contains_labels=contains_labels)
         copied._converted, copied._processed = self._transform(raw, True)
         return copied
 
