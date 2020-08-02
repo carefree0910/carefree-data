@@ -15,7 +15,7 @@ class StringConverter(Converter):
 
     def _convert(self,
                  flat_arr: flat_arr_type) -> np.ndarray:
-        return np.array([self._transform_dict[elem] for elem in flat_arr], np_float_type)
+        return np.array([self._transform_dict.get(elem, 0) for elem in flat_arr], np_float_type)
 
     def _recover(self,
                  flat_arr: flat_arr_type) -> np.ndarray:
