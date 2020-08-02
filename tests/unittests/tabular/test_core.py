@@ -185,6 +185,7 @@ class TestTabularData(unittest.TestCase):
     def test_quote(self):
         data_file = os.path.join(data_folder, "quote_test.csv")
         data = TabularData().read(data_file)
+        self.assertDictEqual(data.column_names, {0: "f1", 1: "f2", 2: "f3", 3: "f4", 4: "f5"})
         self.assertListEqual(data.raw.x[0], ["1", '"2, 3"', '4"', '"5'])
         self.assertListEqual(data.raw.y[0], ["6"])
 
