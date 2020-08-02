@@ -21,7 +21,7 @@ class TabularData(DataBase):
     def __init__(self,
                  *,
                  task_type: TaskTypes = None,
-                 label_name: str = "label",
+                 label_name: str = None,
                  string_label: Union[bool, None] = None,
                  numerical_label: Union[bool, None] = None,
                  categorical_label: Union[bool, None] = None,
@@ -63,7 +63,7 @@ class TabularData(DataBase):
         self._numerical_threshold = numerical_threshold
         self._is_file = self._is_arr = False
         self._num_classes = None
-        self._label_idx = self._skip_first = self._delim = None
+        self._label_idx = self._has_column_names = self._delim = None
         self._raw = self._converted = self._processed = None
         self._recognizers = self._converters = self._processors = None
         self._verbose_level = verbose_level
@@ -317,10 +317,10 @@ class TabularData(DataBase):
                         file_path: str,
                         *,
                         label_idx: int = -1,
-                        skip_first: bool = None,
+                        has_column_names: bool = None,
                         delim: str = None) -> "TabularData":
         self._is_file = True
-        self._label_idx, self._skip_first, self._delim = label_idx, skip_first, delim
+        self._label_idx, self._has_column_names, self._delim = label_idx, has_column_names, delim
         with timing_context(self, "_read_file"):
             x, y = self.read_file(file_path)
         self._raw = DataTuple.with_transpose(x, y)
@@ -393,19 +393,28 @@ class TabularData(DataBase):
         ext = os.path.splitext(file_path)[1][1:]
         set_default = lambda n, default: n if n is not None else default
         if ext == "txt":
-            skip_first, delim = map(set_default, [self._skip_first, self._delim], [False, " "])
+            has_column_names, delim = map(set_default, [self._has_column_names, self._delim], [False, " "])
         elif ext == "csv":
-            skip_first, delim = map(set_default, [self._skip_first, self._delim], [True, ","])
+            has_column_names, delim = map(set_default, [self._has_column_names, self._delim], [True, ","])
         else:
             raise NotImplementedError(f"file type '{ext}' not recognized")
         with open(file_path, "r") as f:
-            if skip_first:
-                f.readline()
+            if has_column_names:
+                column_names = f.readline().strip().split(delim)
+                self._column_names = {i: name for i, name in enumerate(column_names)}
             data = [["nan" if not elem else elem for elem in line.strip().split(delim)] for line in f]
         if self._label_idx is None:
             if len(data[0]) != len(self._raw.x[0]):
                 raise ValueError("file contains labels but 'contains_labels=False' passed in")
             return data, None
+        if self._column_names is not None and self.label_name is not None:
+            reverse_column_names = dict(map(reversed, self._column_names.items()))
+            self._label_idx = reverse_column_names.get(self.label_name)
+            if self._label_idx is None:
+                raise ValueError(
+                    f"'{self.label_name}' is not included in column names "
+                    f"({[self._column_names[i] for i in range(len(self._column_names))]})"
+                )
         if self._label_idx < 0:
             self._label_idx = len(data[0]) + self._label_idx
         x = [line[:self._label_idx] + line[self._label_idx+1:] for line in data]
