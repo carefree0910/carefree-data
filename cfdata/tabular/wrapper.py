@@ -63,7 +63,8 @@ class TabularData(DataBase):
         self._numerical_threshold = numerical_threshold
         self._is_file = self._is_arr = False
         self._num_classes = None
-        self._label_idx = self._has_column_names = self._delim = None
+        self._label_idx = self._has_column_names = None
+        self._delim = self._quote_char = None
         self._raw = self._converted = self._processed = None
         self._recognizers = self._converters = self._processors = None
         self._verbose_level = verbose_level
@@ -318,9 +319,11 @@ class TabularData(DataBase):
                         *,
                         label_idx: int = None,
                         has_column_names: bool = None,
+                        quote_char: str = None,
                         delim: str = None) -> "TabularData":
         self._is_file = True
-        self._label_idx, self._has_column_names, self._delim = label_idx, has_column_names, delim
+        self._label_idx, self._has_column_names = label_idx, has_column_names
+        self._delim, self._quote_char = delim, quote_char
         with timing_context(self, "_read_file"):
             x, y = self.read_file(file_path)
         self._raw = DataTuple.with_transpose(x, y)
@@ -397,16 +400,53 @@ class TabularData(DataBase):
         ext = os.path.splitext(file_path)[1][1:]
         set_default = lambda n, default: n if n is not None else default
         if ext == "txt":
-            has_column_names, delim = map(set_default, [self._has_column_names, self._delim], [False, " "])
+            has_column_names, delim, quote_char = map(
+                set_default,
+                [self._has_column_names, self._delim, self._quote_char],
+                [False, " ", None]
+            )
         elif ext == "csv":
-            has_column_names, delim = map(set_default, [self._has_column_names, self._delim], [True, ","])
+            has_column_names, delim, quote_char = map(
+                set_default,
+                [self._has_column_names, self._delim, self._quote_char],
+                [True, ",", '"']
+            )
         else:
             raise NotImplementedError(f"file type '{ext}' not recognized")
         with open(file_path, "r") as f:
+            first_row = None
             if has_column_names:
-                column_names = f.readline().strip().split(delim)
+                first_row = column_names = f.readline().strip().split(delim)
                 self._column_names = {i: name for i, name in enumerate(column_names)}
-            data = [["nan" if not elem else elem for elem in line.strip().split(delim)] for line in f]
+            data = []
+            for line in f:
+                line = ["nan" if not elem else elem for elem in line.strip().split(delim)]
+                if quote_char is not None:
+                    startswith_quote = [elem.startswith(quote_char) for elem in line]
+                    endswith_quote = [elem.endswith(quote_char) for elem in line]
+                    merge_start, merge_intervals = None, []
+                    for i, (startswith, endswith) in enumerate(zip(startswith_quote, endswith_quote)):
+                        if startswith and not endswith:
+                            merge_start = i
+                            continue
+                        if endswith and not startswith and merge_start is not None:
+                            merge_intervals.append((merge_start, i + 1))
+                            merge_start = None
+                            continue
+                    idx, new_line = 0, []
+                    for start, end in merge_intervals:
+                        if start > idx:
+                            new_line += line[idx:start]
+                        new_line.append(delim.join(line[start:end]))
+                        idx = end
+                    if idx < len(line):
+                        new_line += line[idx:len(line)]
+                    line = new_line
+                if first_row is None:
+                    first_row = line
+                else:
+                    assert len(first_row) == len(line), "num_features are not identical"
+                data.append(line)
         if not contains_labels:
             if len(data[0]) == len(self._raw.x[0]):
                 raise ValueError("file contains labels but 'contains_labels=False' passed in")
