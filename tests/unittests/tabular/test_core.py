@@ -10,6 +10,9 @@ from cfdata.types import *
 from cfdata.tabular import *
 from cfdata.tabular.types import *
 
+file_folder = os.path.dirname(__file__)
+data_folder = os.path.abspath(os.path.join(file_folder, os.pardir, "data"))
+
 
 class TestTabularData(unittest.TestCase):
     x = y = y_bundle = task_types = cannot_regressions = str_columns = cat_columns = None
@@ -111,8 +114,7 @@ class TestTabularData(unittest.TestCase):
 
     def test_save_and_load(self):
         task = "mnist_small"
-        file_folder = os.path.dirname(__file__)
-        task_file = os.path.abspath(os.path.join(file_folder, os.pardir, "data", f"{task}.txt"))
+        task_file = os.path.join(data_folder, f"{task}.txt")
         data = TabularData().read(task_file).save(task)
         loaded = TabularData.load(task)
         self.assertTrue(data == loaded)
@@ -179,6 +181,12 @@ class TestTabularData(unittest.TestCase):
         self.assertEqual(dt.split_with([7, 8, 9]).xT, [[7, 8, 9]])
         dt = DataTuple.with_transpose(npy[..., None], None)
         self.assertTrue(np.allclose(dt.split_with([7, 8, 9]).xT, [[7, 8, 9]]))
+
+    def test_quote(self):
+        data_file = os.path.join(data_folder, "quote_test.csv")
+        data = TabularData().read(data_file)
+        self.assertListEqual(data.raw.x[0], ["1", '"2, 3"', '4"', '"5'])
+        self.assertListEqual(data.raw.y[0], ["6"])
 
 
 if __name__ == '__main__':
