@@ -448,7 +448,7 @@ class TabularData(DataBase):
                     assert len(first_row) == len(line), "num_features are not identical"
                 data.append(line)
         if not contains_labels:
-            if len(data[0]) == len(self._raw.x[0]):
+            if len(data[0]) == len(self._raw.x[0]) + 1:
                 raise ValueError("file contains labels but 'contains_labels=False' passed in")
             return data, None
 
