@@ -389,7 +389,9 @@ class TabularData(DataBase):
     # API
 
     def read_file(self,
-                  file_path: str) -> Tuple[raw_data_type, raw_data_type]:
+                  file_path: str,
+                  *,
+                  contains_labels: bool = True) -> Tuple[raw_data_type, raw_data_type]:
         ext = os.path.splitext(file_path)[1][1:]
         set_default = lambda n, default: n if n is not None else default
         if ext == "txt":
@@ -403,7 +405,7 @@ class TabularData(DataBase):
                 column_names = f.readline().strip().split(delim)
                 self._column_names = {i: name for i, name in enumerate(column_names)}
             data = [["nan" if not elem else elem for elem in line.strip().split(delim)] for line in f]
-        if self._label_idx is None:
+        if not contains_labels or self._label_idx is None:
             if len(data[0]) != len(self._raw.x[0]):
                 raise ValueError("file contains labels but 'contains_labels=False' passed in")
             return data, None
