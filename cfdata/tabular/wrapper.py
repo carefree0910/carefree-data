@@ -408,7 +408,7 @@ class TabularData(DataBase):
                 self._column_names = {i: name for i, name in enumerate(column_names)}
             data = [["nan" if not elem else elem for elem in line.strip().split(delim)] for line in f]
         if not contains_labels:
-            if len(data[0]) != len(self._raw.x[0]):
+            if len(data[0]) == len(self._raw.x[0]):
                 raise ValueError("file contains labels but 'contains_labels=False' passed in")
             return data, None
 
