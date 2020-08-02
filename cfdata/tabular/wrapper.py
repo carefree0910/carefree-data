@@ -304,7 +304,7 @@ class TabularData(DataBase):
                     processor = self._processors[-1] = processor_dict[method]([]).fit(converted_labels)
                 with timing_context(self, "process with processor"):
                     processed_labels = processor.process(converted_labels)
-        if self.task_type is TaskTypes.CLASSIFICATION:
+        if self.task_type is TaskTypes.CLASSIFICATION and converted_labels is not None:
             converted_labels = converted_labels.astype(np_int_type)
             processed_labels = processed_labels.astype(np_int_type)
         self._converted = DataTuple(converted_x, converted_labels)
