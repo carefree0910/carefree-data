@@ -16,6 +16,13 @@ from ..base import DataBase
 from ..types import np_int_type
 
 
+class TabularSplit(NamedTuple):
+    split: "TabularData"
+    remained: "TabularData"
+    split_indices: np.ndarray
+    remained_indices: np.ndarray
+
+
 # TODO : Add outlier detection
 class TabularData(DataBase):
     def __init__(self,
@@ -483,7 +490,7 @@ class TabularData(DataBase):
         return self
 
     def split(self,
-              n: Union[int, float]) -> Tuple["TabularData", "TabularData"]:
+              n: Union[int, float]) -> TabularSplit:
         splitter = DataSplitter(shuffle=False).fit(self.to_dataset())
         split = splitter.split(n)
         split_indices = split.corresponding_indices
@@ -498,7 +505,7 @@ class TabularData(DataBase):
             DataTuple.split_with,
             [raw, converted, processed], [remained_indices] * 3
         )
-        return p1, p2
+        return TabularSplit(p1, p2, split_indices, remained_indices)
 
     def copy_to(self,
                 x: Union[str, data_type],
