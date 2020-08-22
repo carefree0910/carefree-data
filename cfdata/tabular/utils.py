@@ -646,11 +646,16 @@ class DataLoader:
                  sampler: ImbalancedSampler,
                  *,
                  n_siamese: int = 1,
+                 return_indices: bool = False,
                  label_collator: callable = None,
                  verbose_level: int = 2):
         self._indices_in_use = None
         self._verbose_level = verbose_level
         self.data = sampler.data
+        self.return_indices = return_indices
+        if return_indices and n_siamese > 1:
+            print(f"{LoggingMixin.warning_prefix}`return_indices` is set to False because siamese loader is used")
+            self.return_indices = False
         self._n_siamese, self._label_collator = n_siamese, label_collator
         self._n_samples, self.sampler = len(self.data), sampler
         self.batch_size = min(self._n_samples, batch_size)
@@ -705,8 +710,11 @@ class DataLoader:
                 self._indices_in_use = self.sampler.get_indices()
         start = (self._cursor - n_iter * self._siamese_cursor) * self.batch_size
         end = start + self.batch_size
-        batch = self.data[self._indices_in_use[start:end]]
-        return batch
+        indices = self._indices_in_use[start:end]
+        batch = self.data[indices]
+        if not self.return_indices:
+            return batch
+        return batch, indices
 
     def _check_full_batch(self, batch):
         if len(batch[0]) == self.batch_size:
