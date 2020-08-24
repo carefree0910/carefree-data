@@ -104,6 +104,18 @@ class TestTabularUtils(unittest.TestCase):
             k_random = KRandom(k, test_ratio, TabularDataset.from_xy(x, y, task))
             self._k_core(n, k_random)
 
+    def test_k_bootstrap(self):
+        k = 10
+        test_ratio = 0.1
+        n_class = 10
+        task = TaskTypes.CLASSIFICATION
+        for power in range(3, 6):
+            n = int(10 ** power)
+            x = np.random.random([n, 100]).astype(np_float_type)
+            y = np.random.randint(0, n_class, [n, 1])
+            k_bootstrap = KBootstrap(k, test_ratio, TabularDataset.from_xy(x, y, task))
+            self._k_core(n, k_bootstrap)
+
     def test_imbalance_sampler(self):
         counts = []
         tolerance = 0.01
