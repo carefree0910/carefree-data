@@ -327,9 +327,7 @@ class DataSplitter(SavingMixin):
             split_method = self._split_reg if self._is_regression else self._split_clf
         tgt_indices = split_method(n)
         assert len(tgt_indices) == n
-        x_split, y_split = self._x[tgt_indices], self._y[tgt_indices]
-        dataset_split = TabularDataset(x_split, y_split, *self._dataset[2:])
-        return SplitResult(dataset_split, tgt_indices, self._remained_indices)
+        return SplitResult(self._dataset.split_with(tgt_indices), tgt_indices, self._remained_indices)
 
     def split_multiple(self,
                        n_list: List[Union[int, float]],

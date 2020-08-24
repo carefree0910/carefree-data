@@ -179,6 +179,10 @@ class TabularDataset(NamedTuple):
         y = y.reshape([-1, 1]).astype(np_int_type if is_clf else np_float_type)
         return x, y
 
+    def split_with(self,
+                   indices: np.ndarray) -> "TabularDataset":
+        return TabularDataset(self.x[indices], self.y[indices], *self[2:])
+
     @classmethod
     def from_bunch(cls,
                    bunch: Bunch,
