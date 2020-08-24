@@ -11,7 +11,7 @@ from ..types import *
 class SplitResult(NamedTuple):
     dataset: TabularDataset
     corresponding_indices: np.ndarray
-    remaining_indices: np.ndarray
+    remaining_indices: Union[np.ndarray, None]
 
     @classmethod
     def concat(cls,
@@ -481,6 +481,76 @@ class KRandom:
         return train_result, test_result
 
 
+class KBootstrap:
+    """
+    Util class which can perform k-random data splitting with bootstrap:
+
+    1. X = {x1, x2, ..., xn} -> [X1, X2, ..., Xk] (Use bootstrap aggregation to collect datasets)
+    3. idx{X1} ≠ idx{X2} ≠ ... ≠ idx{Xk}, where idx{X} = {1, 2, ..., n}
+    4. X1 = X2 = ... = Xk = X
+
+    * Notice that only some of the special algorithms (e.g. bagging) need `KBootstrap`.
+
+    Parameters
+    ----------
+    k : int, number of folds
+    num_test : {int, float}
+    * if float and  < 1 : ratio of the test dataset
+    * if int   and  > 1 : exact number of test samples
+    dataset : TabularDataset, dataset which we want to split
+    **kwargs : used to initialize `DataSplitter` instance
+
+    Examples
+    ----------
+    >>> import numpy as np
+    >>>
+    >>> from cfdata.types import np_int_type
+    >>> from cfdata.tabular.types import TaskTypes
+    >>> from cfdata.tabular.wrapper import TabularDataset
+    >>> from cfdata.tabular.utils import KBootstrap
+    >>>
+    >>> x = np.arange(12).reshape([6, 2])
+    >>> # create an imbalance dataset
+    >>> y = np.zeros(6, np_int_type)
+    >>> y[[-1, -2]] = 1
+    >>> dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+    >>> k_bootstrap = KBootstrap(3, 2, dataset)
+    >>> for train_fold, test_fold in k_bootstrap:
+    >>>     print(np.vstack([train_fold.dataset.x, test_fold.dataset.x]))
+    >>>     print(np.vstack([train_fold.dataset.y, test_fold.dataset.y]))
+
+    """
+
+    def __init__(self,
+                 k: int,
+                 num_test: Union[int, float],
+                 dataset: TabularDataset,
+                 **kwargs):
+        self._cursor = None
+        self.dataset = dataset
+        self.num_samples = len(dataset)
+        if isinstance(num_test, float):
+            num_test = int(round(num_test * self.num_samples))
+        self.k, self.num_test = k, num_test
+        self.splitter = DataSplitter(**kwargs).fit(dataset)
+
+    def __iter__(self):
+        self._cursor = 0
+        return self
+
+    def __next__(self) -> Tuple[SplitResult, SplitResult]:
+        if self._cursor >= self.k:
+            raise StopIteration
+        self._cursor += 1
+        self.splitter.reset()
+        test_result, train_result = self.splitter.split_multiple([self.num_test], return_remained=True)
+        tr_indices = train_result.corresponding_indices
+        tr_indices = np.random.choice(tr_indices, len(tr_indices))
+        tr_set = self.dataset.split_with(tr_indices)
+        tr_split = SplitResult(tr_set, tr_indices, None)
+        return tr_split, test_result
+
+
 class ImbalancedSampler(LoggingMixin):
     """
     Util class which can sample imbalance dataset in a balanced way
@@ -730,6 +800,6 @@ class DataLoader:
 
 
 __all__ = [
-    "SplitResult", "DataSplitter", "KFold", "KRandom",
+    "SplitResult", "DataSplitter", "KFold", "KRandom", "KBootstrap",
     "ImbalancedSampler", "LabelCollators", "DataLoader"
 ]
