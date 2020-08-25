@@ -562,9 +562,19 @@ class TabularData(DataBase):
     @classmethod
     def from_dataset(cls,
                      dataset: TabularDataset,
-                     **kwargs):
+                     **kwargs) -> "TabularData":
         task_type = kwargs.pop("task_type", dataset.task_type)
         return cls(task_type=task_type, **kwargs).read(*dataset.xy)
+
+    @classmethod
+    def simple(cls,
+               task_type: TaskTypes) -> "TabularData":
+        return cls(
+            task_type=task_type,
+            default_numerical_process="identical",
+            default_categorical_process="identical",
+            verbose_level=6
+        )
 
 
 __all__ = ["TabularData"]
