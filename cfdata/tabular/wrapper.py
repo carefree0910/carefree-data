@@ -521,8 +521,9 @@ class TabularData(DataBase):
                   x: Union[str, data_type],
                   y: data_type = None,
                   *,
+                  contains_labels: bool = True,
                   return_converted: bool = False) -> Union[DataTuple, Tuple[DataTuple, DataTuple]]:
-        raw = self._get_raw(x, y)
+        raw = self._get_raw(x, y, contains_labels=contains_labels)
         return self._transform(raw, return_converted)
 
     def transform_labels(self,
