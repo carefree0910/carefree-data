@@ -569,12 +569,13 @@ class TabularData(DataBase):
 
     @classmethod
     def simple(cls,
-               task_type: TaskTypes) -> "TabularData":
+               task_type: TaskTypes,
+               **kwargs) -> "TabularData":
         return cls(
-            task_type=task_type,
             default_numerical_process="identical",
             default_categorical_process="identical",
-            verbose_level=6
+            task_type=task_type, verbose_level=0,
+            **kwargs
         )
 
 
