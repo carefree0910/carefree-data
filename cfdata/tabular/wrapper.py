@@ -490,11 +490,22 @@ class TabularData(DataBase):
         return self
 
     def split(self,
-              n: Union[int, float]) -> TabularSplit:
-        splitter = DataSplitter(shuffle=False).fit(self.to_dataset())
-        split = splitter.split(n)
-        split_indices = split.corresponding_indices
-        remained_indices = split.remaining_indices
+              n: Union[int, float],
+              *,
+              order: str = "auto") -> TabularSplit:
+        if order == "auto":
+            splitter = DataSplitter(shuffle=False).fit(self.to_dataset())
+            split = splitter.split(n)
+            split_indices = split.corresponding_indices
+            remained_indices = split.remaining_indices
+        else:
+            if order not in {"bottom_up", "top_down"}:
+                raise NotImplementedError(f"`order` should be either 'bottom_up' or 'top_down', {order} found")
+            base_indices = np.arange(self._raw.x.shape[0])
+            if order == "bottom_up":
+                split_indices, remained_indices = base_indices[-n:], base_indices[:-n]
+            else:
+                split_indices, remained_indices = base_indices[:n], base_indices[n:]
         raw, converted, processed = self._raw, self._converted, self._processed
         p1, p2 = map(copy.copy, [self] * 2)
         p1._raw, p1._converted, p1._processed = map(
