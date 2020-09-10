@@ -791,7 +791,7 @@ class ImbalancedSampler(LoggingMixin):
             self.aggregation = aggregation_dict[aggregation](data, aggregation_config, data._verbose_level)
             self._num_samples = len(self.aggregation.indices2id)
         label_recognizer = data.recognizers[-1]
-        if not self.shuffle or label_recognizer.info.column_type is ColumnTypes.NUMERICAL:
+        if not self.shuffle or data.is_reg:
             label_counts = self._label_ratios = self._sampler = None
         else:
             label_counter = label_recognizer.counter

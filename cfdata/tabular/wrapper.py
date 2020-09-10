@@ -219,11 +219,15 @@ class TabularData(DataBase):
 
     @property
     def is_clf(self) -> bool:
-        return self.task_type is TaskTypes.CLASSIFICATION
+        return not self.is_reg
 
     @property
     def is_reg(self) -> bool:
-        return self.task_type is TaskTypes.REGRESSION
+        if self.task_type is TaskTypes.REGRESSION:
+            return True
+        if self.is_ts and self.recognizers[-1].info.column_type is ColumnTypes.NUMERICAL:
+            return True
+        return False
 
     @property
     def is_ts(self) -> bool:
