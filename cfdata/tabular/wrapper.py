@@ -8,10 +8,10 @@ from typing import *
 from cftool.misc import timing_context, SavingMixin
 
 from .types import *
+from .utils import *
 from .recognizer import *
 from .converters import *
 from .processors import *
-from .utils import DataSplitter
 from ..base import DataBase
 from ..types import np_int_type
 
@@ -28,6 +28,7 @@ class TabularData(DataBase):
     def __init__(self,
                  *,
                  task_type: TaskTypes = None,
+                 time_series_config: TimeSeriesConfig = None,
                  label_name: str = None,
                  string_label: Union[bool, None] = None,
                  numerical_label: Union[bool, None] = None,
@@ -54,6 +55,7 @@ class TabularData(DataBase):
                 if categorical_label:
                     raise ValueError("categorical labels are invalid in REGRESSION tasks")
         self._task_type = task_type
+        self._time_series_config = time_series_config
         self.label_name = label_name
         self.string_label = string_label
         self.numerical_label = numerical_label
@@ -92,6 +94,32 @@ class TabularData(DataBase):
         if self.converted != other.converted:
             return False
         return self.processed == other.processed
+
+    @property
+    def ts_config(self) -> TimeSeriesConfig:
+        if self._time_series_config is None:
+            return
+        id_name = self._time_series_config.id_column_name
+        time_name = self._time_series_config.time_column_name
+        id_idx = self._time_series_config.id_column_idx
+        time_idx = self._time_series_config.time_column_idx
+        if id_idx is None:
+            if id_name is None:
+                raise ValueError("either `id_column_name` or `id_column` should be provided")
+            for k, v in self.column_names.items():
+                if v == id_name:
+                    id_idx = k
+                    break
+        if time_idx is None:
+            if time_name is None:
+                raise ValueError("either `time_column_name` or `time_column` should be provided")
+            for k, v in self.column_names.items():
+                if v == time_name:
+                    time_idx = k
+                    break
+        id_column = self.raw.xT[id_idx]
+        time_column = self.raw.xT[time_idx]
+        return TimeSeriesConfig(id_name, time_name, id_idx, time_idx, id_column, time_column)
 
     @property
     def cache_excludes(self):
@@ -143,7 +171,10 @@ class TabularData(DataBase):
             return self._task_type
         if self._recognizers[-1] is None:
             return
-        self._task_type = TaskTypes.from_column_type(self._recognizers[-1].info.column_type)
+        if self._time_series_config is not None:
+            self._task_type = TaskTypes.TIME_SERIES
+        else:
+            self._task_type = TaskTypes.from_column_type(self._recognizers[-1].info.column_type)
         return self._task_type
 
     @property
@@ -154,7 +185,7 @@ class TabularData(DataBase):
             self._column_names.setdefault(i, str(i))
         return self._column_names
 
-    def _get_prior_dict(self, attr: str) -> Dict[int, Union[bool, None]]:
+    def _get_prior_dict(self, attr: str, ts_value: bool) -> Dict[int, Union[bool, None]]:
         prior_dict_attr = f"{attr}_dict"
         prior_dict = getattr(self, prior_dict_attr, None)
         if prior_dict is None:
@@ -164,23 +195,27 @@ class TabularData(DataBase):
                 for i in range(self.raw_dim)
             }
             setattr(self, prior_dict_attr, prior_dict)
+        ts_config = self.ts_config
+        if ts_config is not None:
+            prior_dict[ts_config.id_column_idx] = ts_value
+            prior_dict[ts_config.time_column_idx] = ts_value
         return prior_dict
 
     @property
     def prior_valid_columns(self) -> Dict[int, Union[bool, None]]:
-        return self._get_prior_dict("_valid_columns")
+        return self._get_prior_dict("_valid_columns", True)
 
     @property
     def prior_string_columns(self) -> Dict[int, Union[bool, None]]:
-        return self._get_prior_dict("_string_columns")
+        return self._get_prior_dict("_string_columns", None)
 
     @property
     def prior_numerical_columns(self) -> Dict[int, Union[bool, None]]:
-        return self._get_prior_dict("_numerical_columns")
+        return self._get_prior_dict("_numerical_columns", False)
 
     @property
     def prior_categorical_columns(self) -> Dict[int, Union[bool, None]]:
-        return self._get_prior_dict("_categorical_columns")
+        return self._get_prior_dict("_categorical_columns", None)
 
     @property
     def is_clf(self) -> bool:
@@ -191,8 +226,17 @@ class TabularData(DataBase):
         return self.task_type is TaskTypes.REGRESSION
 
     @property
+    def is_ts(self) -> bool:
+        return self.task_type is TaskTypes.TIME_SERIES
+
+    @property
     def is_file(self) -> bool:
         return self._is_file
+
+    @property
+    def ts_indices(self) -> Set[int]:
+        ts_config = self.ts_config
+        return set() if ts_config is None else {ts_config.id_column_idx, ts_config.time_column_idx}
 
     @property
     def num_classes(self) -> int:
@@ -211,12 +255,15 @@ class TabularData(DataBase):
         return data.ravel()
 
     def _core_fit(self) -> "TabularData":
+        ts_indices = self.ts_indices
         with timing_context(self, "convert"):
             # convert features
             features = self._raw.xT
             converted_features = []
             self._recognizers, self._converters = {}, {}
             for i, flat_arr in enumerate(features):
+                if i in ts_indices:
+                    continue
                 column_name = self.column_names[i]
                 is_valid = self.prior_valid_columns[i]
                 is_string = self.prior_string_columns[i]
@@ -273,7 +320,7 @@ class TabularData(DataBase):
             previous_processors = []
             idx = 0
             while idx < self.raw_dim:
-                if idx in self.excludes:
+                if idx in self.excludes or idx in ts_indices:
                     idx += 1
                     continue
                 column_type = self._converters[idx].info.column_type
@@ -286,7 +333,9 @@ class TabularData(DataBase):
                 if method is None:
                     method = "identical"
                 elif method == "auto":
-                    if column_type is ColumnTypes.NUMERICAL:
+                    if idx in ts_indices:
+                        method = "identical"
+                    elif column_type is ColumnTypes.NUMERICAL:
                         method = self._default_numerical_process
                     else:
                         method = self._default_categorical_process
@@ -494,7 +543,8 @@ class TabularData(DataBase):
               *,
               order: str = "auto") -> TabularSplit:
         if order == "auto":
-            splitter = DataSplitter(shuffle=False).fit(self.to_dataset())
+            splitter = DataSplitter(time_series_config=self.ts_config, shuffle=False)
+            splitter.fit(self.to_dataset())
             split = splitter.split(n)
             split_indices = split.corresponding_indices
             remained_indices = split.remaining_indices

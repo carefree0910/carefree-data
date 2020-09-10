@@ -96,6 +96,7 @@ class ColumnTypes(Enum):
 class TaskTypes(Enum):
     REGRESSION = "reg"
     CLASSIFICATION = "clf"
+    TIME_SERIES = "ts"
 
     @classmethod
     def from_str(cls,
@@ -104,11 +105,14 @@ class TaskTypes(Enum):
             return cls.REGRESSION
         if task_type == "clf":
             return cls.CLASSIFICATION
+        if task_type == "ts":
+            return cls.TIME_SERIES
         raise ValueError(f"task_type '{task_type}' is not recognized")
 
     @classmethod
     def from_column_type(cls,
                          column_type: ColumnTypes) -> "TaskTypes":
+        # WARNING: This method will never return cls.TIME_SERIES
         if column_type is ColumnTypes.NUMERICAL:
             return cls.REGRESSION
         return cls.CLASSIFICATION
@@ -159,6 +163,10 @@ class TabularDataset(NamedTuple):
     @property
     def is_reg(self) -> bool:
         return self.task_type is TaskTypes.REGRESSION
+
+    @property
+    def is_ts(self) -> bool:
+        return self.task_type is TaskTypes.TIME_SERIES
 
     @property
     def num_features(self) -> int:

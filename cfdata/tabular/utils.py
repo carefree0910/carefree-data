@@ -66,6 +66,15 @@ class SplitResult(NamedTuple):
         )
 
 
+class TimeSeriesConfig(NamedTuple):
+    id_column_name: str = None
+    time_column_name: str = None
+    id_column_idx: int = None
+    time_column_idx: int = None
+    id_column: np.ndarray = None
+    time_column: np.ndarray = None
+
+
 class DataSplitter(SavingMixin):
     """
     Util class for dividing dataset based on task type
@@ -116,7 +125,7 @@ class DataSplitter(SavingMixin):
 
     def __init__(self,
                  *,
-                 time_series_config: dict = None,
+                 time_series_config: TimeSeriesConfig = None,
                  shuffle: bool = True,
                  replace: bool = False,
                  verbose_level: int = 2):
@@ -129,14 +138,14 @@ class DataSplitter(SavingMixin):
         if time_series_config is not None:
             if replace:
                 raise ValueError("`replace` cannot be True when splitting time series dataset")
-            self._id_column_setting = time_series_config.get("id_column")
-            self._time_column_setting = time_series_config.get("time_column")
-            if self._id_column_setting is None:
-                raise ValueError("id_column should be provided in time_series_config")
-            if self._time_column_setting is None:
-                raise ValueError("time_column should be provided in time_series_config")
-            self._id_column_is_int, self._time_column_is_int = map(
-                lambda column: isinstance(column, int), [self._id_column_setting, self._time_column_setting])
+            self._id_column = time_series_config.id_column
+            self._time_column = time_series_config.time_column
+            self._id_column_idx = time_series_config.id_column_idx
+            self._time_column_idx = time_series_config.time_column_idx
+            if self._id_column is None and self._id_column_idx is None:
+                raise ValueError("either `id_column` or `id_column_idx` should be provided")
+            if self._time_column is None and self._time_column_idx is None:
+                raise ValueError("either `time_column` or `time_column_idx` should be provided")
 
     @property
     def x(self) -> np.ndarray:
@@ -155,12 +164,8 @@ class DataSplitter(SavingMixin):
         return self._time_column
 
     @property
-    def is_time_series(self):
-        return self._time_series_config is not None
-
-    @property
     def sorting_indices(self):
-        if not self.is_time_series:
+        if not self._dataset.is_ts:
             raise ValueError("sorting_indices should not be called when it is not time series condition")
         return self._time_series_sorting_indices
 
@@ -201,14 +206,13 @@ class DataSplitter(SavingMixin):
     def _reset_time_series(self):
         if self._time_indices_list is None:
             self.log_msg(f"gathering time -> indices mapping", self.info_prefix, verbose_level=5)
-            self._unique_times, times_counts, self._time_indices_list = map(
-                lambda arr: arr[::-1],
-                get_unique_indices(self._time_column)
-            )
+            unique_indices = get_unique_indices(self._time_column)
+            self._unique_times = unique_indices.unique[::-1]
+            times_counts = unique_indices.unique_cnt[::-1]
+            self._time_indices_list = unique_indices.split_indices[::-1]
             self._times_counts_cumsum = np.cumsum(times_counts).astype(np_int_type)
             assert self._times_counts_cumsum[-1] == len(self._time_column)
             self._time_series_sorting_indices = np.hstack(self._time_indices_list[::-1]).astype(np_int_type)
-            self._unique_times = self._unique_times.astype(np_int_type)
             self._time_indices_list = list(map(partial(np.asarray, dtype=np_int_type), self._time_indices_list))
         self._reset_indices_list("time_indices_list")
         self._times_counts_cumsum_in_use = self._times_counts_cumsum.copy()
@@ -305,28 +309,19 @@ class DataSplitter(SavingMixin):
     def fit(self,
             dataset: TabularDataset) -> "DataSplitter":
         self._dataset = dataset
-        self._is_regression = dataset.is_reg
         self._x = dataset.x
         self._y = dataset.y
-        if not self.is_time_series:
+        if not self._dataset.is_ts:
             self._time_column = None
         else:
-            if not self._id_column_is_int and not self._time_column_is_int:
-                self._id_column, self._time_column = map(
-                    np.asarray, [self._id_column_setting, self._time_column_setting])
-            else:
-                id_column, time_column = self._id_column_setting, self._time_column_setting
-                error_msg_prefix = "id_column & time_column should both be int, but"
-                if not self._id_column_is_int:
-                    raise ValueError(f"{error_msg_prefix} id_column='{id_column}' found")
-                if not self._time_column_is_int:
-                    raise ValueError(f"{error_msg_prefix} time_column='{time_column}' found")
-                if id_column < time_column:
+            if self._id_column is None or self._time_column is None:
+                id_idx, time_idx = self._id_column_idx, self._time_column_idx
+                if self._id_column_idx < self._time_column_idx:
                     id_first = True
-                    split_list = [id_column, id_column + 1, time_column, time_column + 1]
+                    split_list = [id_idx, id_idx + 1, time_idx, time_idx + 1]
                 else:
                     id_first = False
-                    split_list = [time_column, time_column + 1, id_column, id_column + 1]
+                    split_list = [time_idx, time_idx + 1, id_idx, id_idx + 1]
                 columns = np.split(self._x, split_list, axis=1)
                 if id_first:
                     self._id_column, self._time_column = columns[1], columns[3]
@@ -337,9 +332,9 @@ class DataSplitter(SavingMixin):
         return self.reset()
 
     def reset(self) -> "DataSplitter":
-        if self._time_column is not None:
+        if self._dataset.is_ts:
             self._reset_time_series()
-        elif self._is_regression:
+        elif self._dataset.is_reg:
             self._reset_reg()
         else:
             self._reset_clf()
@@ -348,9 +343,11 @@ class DataSplitter(SavingMixin):
     def split(self,
               n: Union[int, float]) -> SplitResult:
         error_msg = "please call 'reset' method before calling 'split' method"
-        if self._is_regression and self._remained_indices is None:
+        if self._dataset.is_reg and self._remained_indices is None:
             raise ValueError(error_msg)
-        if not self._is_regression and self._label_indices_list_in_use is None:
+        if self._dataset.is_clf and self._label_indices_list_in_use is None:
+            raise ValueError(error_msg)
+        if self._dataset.is_ts and self._time_indices_list_in_use is None:
             raise ValueError(error_msg)
         if n >= len(self._remained_indices):
             remained_x, remained_y = self.remained_xy
@@ -360,10 +357,10 @@ class DataSplitter(SavingMixin):
             )
         if n < 1. or (n == 1. and isinstance(n, float)):
             n = int(round(len(self._x) * n))
-        if self.is_time_series:
+        if self._dataset.is_ts:
             split_method = self._split_time_series
         else:
-            split_method = self._split_reg if self._is_regression else self._split_clf
+            split_method = self._split_reg if self._dataset.is_reg else self._split_clf
         tgt_indices = split_method(n)
         assert len(tgt_indices) == n
         return SplitResult(self._dataset.split_with(tgt_indices), tgt_indices, self._remained_indices)
@@ -841,6 +838,6 @@ class DataLoader:
 
 __all__ = [
     "split_file",
-    "SplitResult", "DataSplitter", "KFold", "KRandom", "KBootstrap",
+    "SplitResult", "TimeSeriesConfig", "DataSplitter", "KFold", "KRandom", "KBootstrap",
     "ImbalancedSampler", "LabelCollators", "DataLoader"
 ]
