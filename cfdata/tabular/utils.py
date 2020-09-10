@@ -182,11 +182,11 @@ class DataSplitter(SavingMixin):
     # reset methods
 
     def _reset_reg(self):
-        n_data = len(self._x)
+        num_data = len(self._x)
         if not self._shuffle:
-            self._remained_indices = np.arange(n_data)
+            self._remained_indices = np.arange(num_data)
         else:
-            self._remained_indices = np.random.permutation(n_data)
+            self._remained_indices = np.random.permutation(num_data)
         self._remained_indices = self._remained_indices.astype(np_int_type)
 
     def _reset_clf(self):
@@ -195,10 +195,10 @@ class DataSplitter(SavingMixin):
             unique_indices = get_unique_indices(flattened_y)
             self._unique_labels, counts = unique_indices[:2]
             self._label_indices_list = unique_indices.split_indices
-            self._n_samples = len(flattened_y)
-            self._label_ratios = counts / self._n_samples
-            self._n_unique_labels = len(self._unique_labels)
-            if self._n_unique_labels == 1:
+            self._num_samples = len(flattened_y)
+            self._label_ratios = counts / self._num_samples
+            self._num_unique_labels = len(self._unique_labels)
+            if self._num_unique_labels == 1:
                 raise ValueError("only 1 unique label is detected, which is invalid in classification task")
             self._unique_labels = self._unique_labels.astype(np_int_type)
             self._label_indices_list = list(map(partial(np.asarray, dtype=np_int_type), self._label_indices_list))
@@ -238,38 +238,38 @@ class DataSplitter(SavingMixin):
         return tgt_indices
 
     def _split_clf(self, n: int):
-        if n < self._n_unique_labels:
+        if n < self._num_unique_labels:
             raise ValueError(
-                f"at least {self._n_unique_labels} samples are required because "
-                f"we have {self._n_unique_labels} unique labels"
+                f"at least {self._num_unique_labels} samples are required because "
+                f"we have {self._num_unique_labels} unique labels"
             )
         pop_indices_list, tgt_indices_list = [], []
-        n_samples_per_label = np.maximum(1, np.round(n * self._label_ratios).astype(np_int_type))
-        # -n_unique_labels <= n_samples_exceeded <= n_unique_labels
-        n_samples_exceeded = n_samples_per_label.sum() - n
+        num_samples_per_label = np.maximum(1, np.round(n * self._label_ratios).astype(np_int_type))
+        # -num_unique_labels <= num_samples_exceeded <= num_unique_labels
+        num_samples_exceeded = num_samples_per_label.sum() - n
         # adjust n_samples_per_label to make sure `n` samples are split out
-        if n_samples_exceeded != 0:
-            sign, n_samples_exceeded = np.sign(n_samples_exceeded), abs(n_samples_exceeded)
-            chosen_indices = np.arange(self._n_unique_labels)[n_samples_per_label != 1]
+        if num_samples_exceeded != 0:
+            sign, num_samples_exceeded = np.sign(num_samples_exceeded), abs(num_samples_exceeded)
+            chosen_indices = np.arange(self._num_unique_labels)[num_samples_per_label != 1]
             np.random.shuffle(chosen_indices)
-            n_chosen_indices = len(chosen_indices)
-            n_tile = int(np.ceil(n_samples_exceeded / n_chosen_indices))
-            n_proceeded = 0
-            for _ in range(n_tile - 1):
-                n_samples_per_label[chosen_indices] -= sign
-                n_proceeded += n_chosen_indices
-            for idx in chosen_indices[:n_samples_exceeded - n_proceeded]:
-                n_samples_per_label[idx] -= sign
-        assert n_samples_per_label.sum() == n
-        n_overlap = 0
-        for indices, n_sample_per_label in zip(self._label_indices_list_in_use, n_samples_per_label):
-            n_samples_in_use = len(indices)
-            tgt_indices_list.append(indices[-n_sample_per_label:])
-            if n_sample_per_label >= n_samples_in_use:
+            num_chosen_indices = len(chosen_indices)
+            num_tile = int(np.ceil(num_samples_exceeded / num_chosen_indices))
+            num_proceeded = 0
+            for _ in range(num_tile - 1):
+                num_samples_per_label[chosen_indices] -= sign
+                num_proceeded += num_chosen_indices
+            for idx in chosen_indices[:num_samples_exceeded - num_proceeded]:
+                num_samples_per_label[idx] -= sign
+        assert num_samples_per_label.sum() == n
+        num_overlap = 0
+        for indices, num_sample_per_label in zip(self._label_indices_list_in_use, num_samples_per_label):
+            num_samples_in_use = len(indices)
+            tgt_indices_list.append(indices[-num_sample_per_label:])
+            if num_sample_per_label >= num_samples_in_use:
                 pop_indices_list.append([])
-                n_overlap += n_sample_per_label
+                num_overlap += num_sample_per_label
             else:
-                pop_indices_list.append(np.arange(n_samples_in_use - n_sample_per_label, n_samples_in_use))
+                pop_indices_list.append(np.arange(num_samples_in_use - num_sample_per_label, num_samples_in_use))
         tgt_indices = np.hstack(tgt_indices_list)
         if self._replace:
             tuple(map(np.random.shuffle, self._label_indices_list_in_use))
@@ -280,26 +280,26 @@ class DataSplitter(SavingMixin):
                 self._label_indices_list_in_use, pop_indices_list
             ))
             remain_indices = np.hstack(self._label_indices_list_in_use)
-            base = np.zeros(self._n_samples)
+            base = np.zeros(self._num_samples)
             base[tgt_indices] += 1
             base[remain_indices] += 1
-            assert np.sum(base >= 2) <= n_overlap
+            assert np.sum(base >= 2) <= num_overlap
             self._remained_indices = remain_indices
         return tgt_indices
 
     def _split_time_series(self, n: int):
         split_arg = np.argmax(self._times_counts_cumsum_in_use >= n)
-        n_left = self._times_counts_cumsum_in_use[split_arg] - n
+        num_left = self._times_counts_cumsum_in_use[split_arg] - n
         if split_arg == 0:
-            n_res, selected_indices = n, []
+            num_res, selected_indices = n, []
         else:
-            n_res = n - self._times_counts_cumsum_in_use[split_arg - 1]
+            num_res = n - self._times_counts_cumsum_in_use[split_arg - 1]
             selected_indices = self._time_indices_list_in_use[:split_arg]
             self._time_indices_list_in_use = self._time_indices_list_in_use[split_arg:]
             self._times_counts_cumsum_in_use = self._times_counts_cumsum_in_use[split_arg:]
-        selected_indices.append(self._time_indices_list_in_use[0][:n_res])
-        if n_left > 0:
-            self._time_indices_list_in_use[0] = self._time_indices_list_in_use[0][n_res:]
+        selected_indices.append(self._time_indices_list_in_use[0][:num_res])
+        if num_left > 0:
+            self._time_indices_list_in_use[0] = self._time_indices_list_in_use[0][num_res:]
         else:
             self._time_indices_list_in_use = self._time_indices_list_in_use[1:]
             self._times_counts_cumsum_in_use = self._times_counts_cumsum_in_use[1:]

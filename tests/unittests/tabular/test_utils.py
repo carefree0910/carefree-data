@@ -83,36 +83,36 @@ class TestTabularUtils(unittest.TestCase):
 
     def test_k_fold(self):
         k = 10
-        n_class = 10
+        num_class = 10
         task = TaskTypes.CLASSIFICATION
         for power in range(3, 6):
             n = int(10 ** power)
             x = np.random.random([n, 100]).astype(np_float_type)
-            y = np.random.randint(0, n_class, [n, 1])
+            y = np.random.randint(0, num_class, [n, 1])
             k_fold = KFold(k, TabularDataset.from_xy(x, y, task))
             self._k_core(n, k_fold)
 
     def test_k_random(self):
         k = 10
         test_ratio = 0.1
-        n_class = 10
+        num_class = 10
         task = TaskTypes.CLASSIFICATION
         for power in range(3, 6):
             n = int(10 ** power)
             x = np.random.random([n, 100]).astype(np_float_type)
-            y = np.random.randint(0, n_class, [n, 1])
+            y = np.random.randint(0, num_class, [n, 1])
             k_random = KRandom(k, test_ratio, TabularDataset.from_xy(x, y, task))
             self._k_core(n, k_random)
 
     def test_k_bootstrap(self):
         k = 10
         test_ratio = 0.1
-        n_class = 10
+        num_class = 10
         task = TaskTypes.CLASSIFICATION
         for power in range(3, 6):
             n = int(10 ** power)
             x = np.random.random([n, 100]).astype(np_float_type)
-            y = np.random.randint(0, n_class, [n, 1])
+            y = np.random.randint(0, num_class, [n, 1])
             k_bootstrap = KBootstrap(k, test_ratio, TabularDataset.from_xy(x, y, task))
             self._k_core(n, k_bootstrap)
 
@@ -133,11 +133,11 @@ class TestTabularUtils(unittest.TestCase):
         self.assertLess(diff, tolerance)
 
     def test_data_loader(self):
-        n_class = 10
+        num_class = 10
         n = int(10 ** 5)
 
         x = np.random.random([n, 100]).astype(np_float_type)
-        y = np.random.randint(0, n_class, [n, 1])
+        y = np.random.randint(0, num_class, [n, 1])
         data = TabularData().read(x, y)
         sampler = ImbalancedSampler(data)
         loader = DataLoader(128, sampler)
