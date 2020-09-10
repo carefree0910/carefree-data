@@ -15,10 +15,27 @@ data_folder = os.path.abspath(os.path.join(file_folder, os.pardir, "data"))
 
 
 class TestTabularData(unittest.TestCase):
+    x_ts = y_ts = ts_config = None
     x = y = y_bundle = task_types = cannot_regressions = str_columns = cat_columns = None
 
     @classmethod
     def setUpClass(cls) -> None:
+        cls.x_ts = [
+            ["orange", "2020-01-01", 1.5],
+            ["apple", "2020-01-01", 2.5],
+            ["banana", "2020-01-01", 2.0],
+            ["pear", "2020-01-01", 1.0],
+            ["orange", "2020-01-03", 2.5],
+            ["apple", "2020-01-03", 1.5],
+            ["banana", "2020-01-03", 1.0],
+            ["pear", "2020-01-03", 2.0],
+            ["orange", "2020-01-02", 2.0],
+            ["apple", "2020-01-02", 2.0],
+            ["banana", "2020-01-02", 1.5],
+            ["pear", "2020-01-02", 1.5]
+        ]
+        cls.y_ts = np.atleast_2d([2.0, 2.0, 2.5, 1.5, 2.0, 2.0, 1.5, 2.5, 2.5, 2.5, 2.0, 2.0]).T
+        cls.ts_config = TimeSeriesConfig(id_column_idx=0, time_column_idx=1)
         cls.x = [
             [1, "1.0", "nan", math.nan, 0, math.nan, 1, "nan", "a", "0", 0.2, "aa", "1", "1", "aa"],
             [-1, "-1.0", "aaa", 1, 0.1, math.nan, 0, "nan", "b", "0.1", math.nan, "bb", "2", "1", "aa"],
@@ -60,6 +77,7 @@ class TestTabularData(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
+        del cls.x_ts, cls.y_ts, cls.ts_config
         del cls.x, cls.y_bundle, cls.task_types, cls.str_columns, cls.cat_columns, cls.cannot_regressions
 
     @property
@@ -188,6 +206,10 @@ class TestTabularData(unittest.TestCase):
         self.assertDictEqual(data.column_names, {0: "f1", 1: "f2", 2: "f3", 3: "f4", 4: "f5"})
         self.assertListEqual(data.raw.x[0], ["1", '"2, 3"', '4"', '"5'])
         self.assertListEqual(data.raw.y[0], ["6"])
+
+    def test_ts_split(self):
+        data = TabularData(time_series_config=self.ts_config).read(self.x_ts, self.y_ts)
+        self.assertListEqual(data.split(5).split.raw.xT[1], ["2020-01-02"] + ["2020-01-03"] * 4)
 
 
 if __name__ == '__main__':
