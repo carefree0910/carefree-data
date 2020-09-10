@@ -62,20 +62,22 @@ class DataTuple(NamedTuple):
 
     def split_with(self,
                    indices: Union[np.ndarray, List[int]]) -> "DataTuple":
-        x = y = xt = None
-        if isinstance(self.x, np.ndarray) or isinstance(self.y, np.ndarray):
-            if self.x is not None:
-                x = self.x[indices]
-            if self.y is not None:
-                y = self.y[indices]
-            if self.xT is not None:
+
+        def _fetch(arr):
+            if arr is None:
+                return
+            if isinstance(arr, np.ndarray):
+                return arr[indices]
+            assert isinstance(arr, list)
+            return [arr[i] for i in indices]
+
+        x, y = map(_fetch, [self.x, self.y])
+
+        xt = None
+        if self.xT is not None:
+            if isinstance(self.xT, np.ndarray):
                 xt = self.xT[..., indices]
-        else:
-            if self.x is not None:
-                x = [self.x[i] for i in indices]
-            if self.y is not None:
-                y = [self.y[i] for i in indices]
-            if self.xT is not None:
+            else:
                 xt = [[line[i] for i in indices] for line in self.xT]
         return DataTuple(x, y, xt)
 
