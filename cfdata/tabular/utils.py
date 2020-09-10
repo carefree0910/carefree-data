@@ -636,7 +636,7 @@ class ImbalancedSampler(LoggingMixin):
         self.data = data
         self.imbalance_threshold = imbalance_threshold
         self._sample_imbalance_flag = True
-        self.shuffle, self._n_samples = shuffle, len(data)
+        self.shuffle, self._num_samples = shuffle, len(data)
         if not self.shuffle or data.task_type is TaskTypes.REGRESSION:
             label_counts = self._label_ratios = self._sampler = None
         else:
@@ -645,12 +645,12 @@ class ImbalancedSampler(LoggingMixin):
             transform_dict = recognizer.transform_dict
             label_counter = {transform_dict[k]: v for k, v in label_counter.items()}
             label_counts = np.array([label_counter[k] for k in sorted(label_counter)], np_float_type)
-            self._label_ratios, max_label_count = label_counts / self._n_samples, label_counts.max()
+            self._label_ratios, max_label_count = label_counts / self._num_samples, label_counts.max()
             if label_counts.min() / max_label_count >= imbalance_threshold:
                 self._sampler = None
             else:
                 labels = data.processed.y.ravel()
-                sample_weights = np.zeros(self._n_samples, np_float_type)
+                sample_weights = np.zeros(self._num_samples, np_float_type)
                 for i, count in enumerate(label_counts):
                     sample_weights[labels == i] = max_label_count / count
                 sample_weights /= sample_weights.sum()
@@ -664,7 +664,7 @@ class ImbalancedSampler(LoggingMixin):
             )
 
     def __len__(self):
-        return self._n_samples
+        return self._num_samples
 
     @property
     def is_imbalance(self) -> bool:
@@ -683,9 +683,9 @@ class ImbalancedSampler(LoggingMixin):
 
     def get_indices(self) -> np.ndarray:
         if not self.shuffle or not self._sample_imbalance_flag or not self.is_imbalance:
-            indices = np.arange(self._n_samples).astype(np.int64)
+            indices = np.arange(self._num_samples).astype(np.int64)
         else:
-            indices = self._sampler.sample(self._n_samples)
+            indices = self._sampler.sample(self._num_samples)
         if self.shuffle:
             np.random.shuffle(indices)
         return indices
