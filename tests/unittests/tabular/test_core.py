@@ -31,8 +31,7 @@ class TestTabularData(unittest.TestCase):
             ["pear", "2020-01-03", 2.0],
             ["orange", "2020-01-02", 2.0],
             ["apple", "2020-01-02", 2.0],
-            ["banana", "2020-01-02", 1.5],
-            ["pear", "2020-01-02", 1.5]
+            ["banana", "2020-01-02", 1.5]
         ]
         cls.y_ts = np.atleast_2d([2.0, 2.0, 2.5, 1.5, 2.0, 2.0, 1.5, 2.5, 2.5, 2.5, 2.0, 2.0]).T
         cls.ts_config = TimeSeriesConfig(id_column_idx=0, time_column_idx=1)
@@ -210,6 +209,19 @@ class TestTabularData(unittest.TestCase):
     def test_ts_split(self):
         data = TabularData(time_series_config=self.ts_config).read(self.x_ts, self.y_ts)
         self.assertListEqual(data.split(5).split.raw.xT[1], ["2020-01-02"] + ["2020-01-03"] * 4)
+        for _ in range(100):
+            sampler = ImbalancedSampler(data, aggregation_config={"num_history": 2})
+            loader = DataLoader(2, sampler, return_indices=True)
+            for _, indices_batch in loader:
+                for indices in indices_batch:
+                    self.assertEqual(self.x_ts[indices[0]][0], self.x_ts[indices[1]][0])
+            sampler = ImbalancedSampler(data, aggregation_config={"num_history": 3})
+            loader = DataLoader(2, sampler, return_indices=True)
+            for _, indices_batch in loader:
+                for indices in indices_batch:
+                    self.assertNotEqual(self.x_ts[indices[0]][0], "pear")
+                    self.assertNotEqual(self.x_ts[indices[1]][0], "pear")
+                    self.assertEqual(self.x_ts[indices[0]][0], self.x_ts[indices[1]][0])
 
 
 if __name__ == '__main__':
