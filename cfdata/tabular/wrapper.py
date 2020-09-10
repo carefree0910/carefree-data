@@ -266,8 +266,6 @@ class TabularData(DataBase):
             converted_features = []
             self._recognizers, self._converters = {}, {}
             for i, flat_arr in enumerate(features):
-                if i in ts_indices:
-                    continue
                 column_name = self.column_names[i]
                 is_valid = self.prior_valid_columns[i]
                 is_string = self.prior_string_columns[i]
@@ -295,9 +293,10 @@ class TabularData(DataBase):
                     self.log_msg(recognizer.info.msg, self.warning_prefix, 2, logging.WARNING)
                     self.excludes.add(i)
                     continue
-                with timing_context(self, "fit converter"):
-                    converter = self._converters[i] = Converter.make_with(recognizer)
-                converted_features.append(converter.converted_input)
+                if i not in ts_indices:
+                    with timing_context(self, "fit converter"):
+                        converter = self._converters[i] = Converter.make_with(recognizer)
+                    converted_features.append(converter.converted_input)
             # convert labels
             if self._raw.y is None:
                 converted_labels = self._recognizers[-1] = self._converters[-1] = None
