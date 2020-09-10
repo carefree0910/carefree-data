@@ -96,7 +96,7 @@ class TabularData(DataBase):
         return self.processed == other.processed
 
     @property
-    def ts_config(self) -> TimeSeriesConfig:
+    def ts_config(self) -> Union[TimeSeriesConfig, None]:
         if self._time_series_config is None:
             return
         id_name = self._time_series_config.id_column_name
@@ -185,7 +185,7 @@ class TabularData(DataBase):
             self._column_names.setdefault(i, str(i))
         return self._column_names
 
-    def _get_prior_dict(self, attr: str, ts_value: bool) -> Dict[int, Union[bool, None]]:
+    def _get_prior_dict(self, attr: str, ts_value: Union[bool, None]) -> Dict[int, Union[bool, None]]:
         prior_dict_attr = f"{attr}_dict"
         prior_dict = getattr(self, prior_dict_attr, None)
         if prior_dict is None:
