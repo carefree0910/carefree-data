@@ -344,8 +344,9 @@ class DataSplitter(SavingMixin):
     def split(self,
               n: Union[int, float]) -> SplitResult:
         error_msg = "please call 'reset' method before calling 'split' method"
-        if self._dataset.is_ts and self._time_indices_list_in_use is None:
-            raise ValueError(error_msg)
+        if self._dataset.is_ts:
+            if self._time_indices_list_in_use is None:
+                raise ValueError(error_msg)
         else:
             if self._dataset.is_reg and self._remained_indices is None:
                 raise ValueError(error_msg)
