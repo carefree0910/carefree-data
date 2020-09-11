@@ -15,7 +15,7 @@ class Recognizer:
                  column_name: str,
                  *,
                  is_label: bool = False,
-                 task_type: TaskTypes = None,
+                 task_type: TaskTypes = TaskTypes.NONE,
                  is_valid: Union[bool, None] = None,
                  is_string: Union[bool, None] = None,
                  is_numerical: Union[bool, None] = None,
@@ -83,8 +83,7 @@ class Recognizer:
         if self.is_numerical or self.is_categorical or self.is_string is False:
             return False, None
         all_numeric = is_all_numeric(flat_arr)
-        is_regression = self.task_type is TaskTypes.REGRESSION
-        if self.is_label and is_regression and not all_numeric:
+        if self.is_label and self.task_type.is_reg and not all_numeric:
             raise ValueError("task_type is REGRESSION but labels are not all numeric")
         if all_numeric:
             return False, None
@@ -169,12 +168,12 @@ class Recognizer:
             return self._make_invalid_info(msg, contains_nan, nan_mask)
         # check whether it's a numerical column
         all_int = np.allclose(np_flat_valid, np_flat_valid_int)
-        is_classification_label = self.is_label and self.task_type is TaskTypes.CLASSIFICATION
+        is_classification_label = self.is_label and self.task_type.is_clf
         if (
             self.is_numerical
             or self.is_numerical is None and (
                 self.is_categorical is False
-                or self.is_label and self.task_type is TaskTypes.REGRESSION
+                or self.is_label and self.task_type.is_reg
                 or self.is_categorical is None and not all_int
             )
         ):

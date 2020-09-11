@@ -79,18 +79,15 @@ class TestTabularData(unittest.TestCase):
         del cls.x_ts, cls.y_ts, cls.ts_config
         del cls.x, cls.y_bundle, cls.task_types, cls.str_columns, cls.cat_columns, cls.cannot_regressions
 
-    @property
-    def y_np(self):
-        return np.array(self.y)
-
-    def _get_data(self, **kwargs):
-        data = TabularData(**kwargs).read(self.x, self.y)
+    def _get_data(self, y, **kwargs):
+        data = TabularData(**kwargs).read(self.x, y)
         return data
 
-    def _same_with_y_np(self, data):
+    @staticmethod
+    def _same_with_y(data, y):
         new_y = data.recover_labels(data.processed.y)
         new = DataTuple([[0]], new_y)
-        y_np = self.y_np
+        y_np = np.array(y)
         if data.recognizers[-1].info.column_type is not ColumnTypes.STRING:
             y_np = y_np.astype(np_float_type)
         original = DataTuple([[0]], y_np)
@@ -98,27 +95,25 @@ class TestTabularData(unittest.TestCase):
 
     def _test_core(self, data_config):
         for i, y in enumerate(self.y_bundle):
-            self.y = y
             preset_task_type = self.task_types[i]
-            for task_type in list(TaskTypes) + [None]:
+            for task_type in [TaskTypes.CLASSIFICATION, TaskTypes.REGRESSION]:
                 local_config = shallow_copy_dict(data_config)
                 local_config["task_type"] = task_type
                 if task_type is TaskTypes.REGRESSION and i in self.cannot_regressions:
                     with self.assertRaises(ValueError):
-                        self._get_data(**local_config)
+                        self._get_data(y, **local_config)
                 else:
-                    data = self._get_data(**local_config)
-                    if task_type is not None:
+                    data = self._get_data(y, **local_config)
+                    if not task_type.is_none:
                         self.assertTrue(data.task_type is task_type)
                     else:
                         self.assertTrue(data.task_type is preset_task_type)
-                    self.assertTrue(data.transform(self.x, self.y) == data.processed)
-                    self.assertTrue(self._same_with_y_np(data))
+                    self.assertTrue(data.transform(self.x, y) == data.processed)
+                    self.assertTrue(self._same_with_y(data, y))
 
     def test_read_features_only(self):
-        self.y = None
-        data = self._get_data()
-        self.assertTrue(data.transform(self.x, self.y) == data.processed)
+        data = self._get_data(None)
+        self.assertTrue(data.transform(self.x, None) == data.processed)
 
     def test_read_from_list_with_column_info(self):
         self._test_core({
@@ -181,8 +176,11 @@ class TestTabularData(unittest.TestCase):
         self._test_equal_core(TabularDataset.breast_cancer())
 
     def test_from_str(self):
+        self.assertTrue(TaskTypes.from_str("") is TaskTypes.NONE)
         self.assertTrue(TaskTypes.from_str("reg") is TaskTypes.REGRESSION)
         self.assertTrue(TaskTypes.from_str("clf") is TaskTypes.CLASSIFICATION)
+        self.assertTrue(TaskTypes.from_str("ts_clf") is TaskTypes.TIME_SERIES_CLF)
+        self.assertTrue(TaskTypes.from_str("ts_reg") is TaskTypes.TIME_SERIES_REG)
 
     def test_split_data_tuple_with_indices(self):
         lst, npy = list(range(10)), np.arange(10)

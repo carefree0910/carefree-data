@@ -27,7 +27,7 @@ class TabularSplit(NamedTuple):
 class TabularData(DataBase):
     def __init__(self,
                  *,
-                 task_type: TaskTypes = None,
+                 task_type: TaskTypes = TaskTypes.NONE,
                  time_series_config: TimeSeriesConfig = None,
                  label_name: str = None,
                  string_label: Union[bool, None] = None,
@@ -45,15 +45,14 @@ class TabularData(DataBase):
                  numerical_threshold: float = None,
                  trigger_logging: bool = False,
                  verbose_level: int = 1):
-        if task_type is not None:
-            if task_type is TaskTypes.CLASSIFICATION:
-                if numerical_label:
-                    raise ValueError("numerical labels are invalid in CLASSIFICATION tasks")
-            else:
-                if string_label:
-                    raise ValueError("string labels are invalid in REGRESSION tasks")
-                if categorical_label:
-                    raise ValueError("categorical labels are invalid in REGRESSION tasks")
+        if task_type.is_clf:
+            if numerical_label:
+                raise ValueError("numerical labels are invalid in CLASSIFICATION tasks")
+        elif task_type.is_reg:
+            if string_label:
+                raise ValueError("string labels are invalid in REGRESSION tasks")
+            if categorical_label:
+                raise ValueError("categorical labels are invalid in REGRESSION tasks")
         self._task_type = task_type
         self._time_series_config = time_series_config
         self.label_name = label_name
@@ -166,15 +165,15 @@ class TabularData(DataBase):
         return self._processed.x.shape[1]
 
     @property
-    def task_type(self) -> Union[TaskTypes, None]:
-        if self._task_type is not None:
+    def task_type(self) -> TaskTypes:
+        if not self._task_type.is_none:
             return self._task_type
         if self._recognizers[-1] is None:
-            return
-        if self._time_series_config is not None:
-            self._task_type = TaskTypes.TIME_SERIES
-        else:
-            self._task_type = TaskTypes.from_column_type(self._recognizers[-1].info.column_type)
+            return TaskTypes.NONE
+        self._task_type = TaskTypes.from_column_type(
+            self._recognizers[-1].info.column_type,
+            is_time_series=self.is_ts,
+        )
         return self._task_type
 
     @property
@@ -219,19 +218,15 @@ class TabularData(DataBase):
 
     @property
     def is_clf(self) -> bool:
-        return not self.is_reg
+        return self.task_type.is_clf
 
     @property
     def is_reg(self) -> bool:
-        if self.task_type is TaskTypes.REGRESSION:
-            return True
-        if self.is_ts and self.recognizers[-1].info.column_type is ColumnTypes.NUMERICAL:
-            return True
-        return False
+        return self.task_type.is_reg
 
     @property
     def is_ts(self) -> bool:
-        return self.task_type is TaskTypes.TIME_SERIES
+        return self.ts_config is not None
 
     @property
     def is_file(self) -> bool:
@@ -364,7 +359,7 @@ class TabularData(DataBase):
                     processor = self._processors[-1] = processor_dict[method]([]).fit(converted_labels)
                 with timing_context(self, "process with processor"):
                     processed_labels = processor.process(converted_labels)
-        if self.task_type is TaskTypes.CLASSIFICATION and converted_labels is not None:
+        if self.task_type.is_clf and converted_labels is not None:
             converted_labels = converted_labels.astype(np_int_type)
             processed_labels = processed_labels.astype(np_int_type)
         self._converted = DataTuple(converted_x, converted_labels)
@@ -402,7 +397,7 @@ class TabularData(DataBase):
         else:
             converted_labels = self._converters[-1].convert(self._flatten(raw.y))
             transformed_labels = self._processors[-1].process(converted_labels.reshape([-1, 1]))
-        if self.task_type is TaskTypes.CLASSIFICATION:
+        if self.task_type.is_clf:
             if converted_labels is not None:
                 converted_labels = converted_labels.astype(np_int_type)
                 transformed_labels = transformed_labels.astype(np_int_type)

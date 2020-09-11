@@ -96,28 +96,51 @@ class ColumnTypes(Enum):
 
 
 class TaskTypes(Enum):
+    NONE = ""
     REGRESSION = "reg"
     CLASSIFICATION = "clf"
-    TIME_SERIES = "ts"
+    TIME_SERIES_CLF = "ts_clf"
+    TIME_SERIES_REG = "ts_reg"
+
+    @property
+    def is_none(self) -> bool:
+        return self is TaskTypes.NONE
+
+    @property
+    def is_clf(self) -> bool:
+        return self is TaskTypes.CLASSIFICATION or self is TaskTypes.TIME_SERIES_CLF
+
+    @property
+    def is_reg(self) -> bool:
+        return self is TaskTypes.REGRESSION or self is TaskTypes.TIME_SERIES_REG
+
+    @property
+    def is_ts(self) -> bool:
+        return self is TaskTypes.TIME_SERIES_CLF or self is TaskTypes.TIME_SERIES_REG
 
     @classmethod
     def from_str(cls,
                  task_type: str) -> "TaskTypes":
+        if task_type == "":
+            return cls.NONE
         if task_type == "reg":
             return cls.REGRESSION
         if task_type == "clf":
             return cls.CLASSIFICATION
-        if task_type == "ts":
-            return cls.TIME_SERIES
+        if task_type == "ts_clf":
+            return cls.TIME_SERIES_CLF
+        if task_type == "ts_reg":
+            return cls.TIME_SERIES_REG
         raise ValueError(f"task_type '{task_type}' is not recognized")
 
     @classmethod
     def from_column_type(cls,
-                         column_type: ColumnTypes) -> "TaskTypes":
-        # WARNING: This method will never return cls.TIME_SERIES
+                         column_type: ColumnTypes,
+                         *,
+                         is_time_series: bool) -> "TaskTypes":
         if column_type is ColumnTypes.NUMERICAL:
-            return cls.REGRESSION
-        return cls.CLASSIFICATION
+            return cls.TIME_SERIES_REG if is_time_series else cls.REGRESSION
+        return cls.TIME_SERIES_CLF if is_time_series else cls.CLASSIFICATION
 
 
 class FeatureInfo(NamedTuple):
@@ -146,7 +169,7 @@ class FeatureInfo(NamedTuple):
 class TabularDataset(NamedTuple):
     x: np.ndarray
     y: np.ndarray
-    task_type: Union[None, TaskTypes] = None
+    task_type: TaskTypes = TaskTypes.NONE
     label_name: Union[None, str] = "label"
     label_names: Union[None, List[str]] = None
     feature_names: Union[None, List[str]] = None
@@ -160,15 +183,15 @@ class TabularDataset(NamedTuple):
 
     @property
     def is_clf(self) -> bool:
-        return self.task_type is TaskTypes.CLASSIFICATION
+        return self.task_type.is_clf
 
     @property
     def is_reg(self) -> bool:
-        return self.task_type is TaskTypes.REGRESSION
+        return self.task_type.is_reg
 
     @property
     def is_ts(self) -> bool:
-        return self.task_type is TaskTypes.TIME_SERIES
+        return self.task_type.is_ts
 
     @property
     def num_features(self) -> int:
@@ -185,8 +208,7 @@ class TabularDataset(NamedTuple):
                      y: np.ndarray,
                      task_type: TaskTypes) -> Tuple[np.ndarray, np.ndarray]:
         x = x.astype(np_float_type)
-        is_clf = task_type is TaskTypes.CLASSIFICATION
-        y = y.reshape([-1, 1]).astype(np_int_type if is_clf else np_float_type)
+        y = y.reshape([-1, 1]).astype(np_int_type if task_type.is_clf else np_float_type)
         return x, y
 
     def split_with(self,
@@ -302,7 +324,7 @@ class TabularDataset(NamedTuple):
 
     @staticmethod
     def _fetch_ys(affine_train, affine_test, task_type):
-        if task_type is TaskTypes.REGRESSION:
+        if task_type.is_reg:
             y_train, y_test = affine_train, affine_test
         else:
             y_train = (affine_train > 0).astype(np_int_type)
