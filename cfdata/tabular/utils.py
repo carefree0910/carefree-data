@@ -785,6 +785,8 @@ class ImbalancedSampler(LoggingMixin):
         self.shuffle = shuffle
         self.imbalance_threshold = imbalance_threshold
         self._sample_imbalance_flag = True
+        self._aggregation_name = aggregation
+        self._aggregation_config = aggregation_config
         if not data.is_ts:
             self.aggregation = None
             self._num_samples = len(data)
@@ -849,13 +851,18 @@ class ImbalancedSampler(LoggingMixin):
         return indices
 
     def copy(self) -> "ImbalancedSampler":
+        aggregation_config = None
+        if self._aggregation_config is not None:
+            aggregation_config = shallow_copy_dict(self._aggregation_config)
         return ImbalancedSampler(
             self.data,
             self.imbalance_threshold,
             shuffle=self.shuffle,
+            aggregation=self._aggregation_name,
+            aggregation_config=aggregation_config,
             sample_method=self._sample_method,
             verbose_level=self._verbose_level,
-            verbose_imbalance=False
+            verbose_imbalance=False,
         )
 
 
