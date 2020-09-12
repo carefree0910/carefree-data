@@ -303,8 +303,9 @@ class DataSplitter(SavingMixin):
         else:
             self._time_indices_list_in_use = self._time_indices_list_in_use[1:]
             self._times_counts_cumsum_in_use = self._times_counts_cumsum_in_use[1:]
-        tgt_indices, self._remained_indices = map(np.hstack, [selected_indices, self._time_indices_list_in_use])
+        tgt_indices, remained_indices = map(np.hstack, [selected_indices, self._time_indices_list_in_use])
         self._times_counts_cumsum_in_use -= n
+        self._remained_indices = remained_indices[::-1].copy()
         return tgt_indices[::-1].copy()
 
     def fit(self,
