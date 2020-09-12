@@ -997,7 +997,7 @@ class DataLoader:
             num_siamese=self._num_siamese,
             return_indices=self.return_indices,
             label_collator=self._label_collator,
-            verbose_level=self._verbose_level
+            verbose_level=self._verbose_level,
         )
 
 
