@@ -408,14 +408,16 @@ class TabularData(DataBase):
                    return_converted: bool) -> Union[DataTuple, Tuple[DataTuple, DataTuple]]:
         # transform features
         features = raw.xT
+        ts_indices = self.ts_indices
         converted_features = np.vstack([
             self._converters[i].convert(flat_arr)
-            for i, flat_arr in enumerate(features) if i not in self.excludes
+            for i, flat_arr in enumerate(features)
+            if i not in self.excludes and i not in ts_indices
         ])
         idx = 0
         processed = []
         while idx < self.raw_dim:
-            if idx in self.excludes:
+            if idx in self.excludes or idx in ts_indices:
                 idx += 1
                 continue
             processor = self._processors[idx]
