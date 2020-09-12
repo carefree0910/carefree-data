@@ -918,7 +918,7 @@ class DataLoader:
             print(f"{LoggingMixin.warning_prefix}`return_indices` is set to False because siamese loader is used")
             self.return_indices = False
         self._num_siamese, self._label_collator = num_siamese, label_collator
-        self._num_samples, self.sampler = len(self.data), sampler
+        self._num_samples, self.sampler = len(sampler), sampler
         self.batch_size = min(self._num_samples, batch_size)
         self._verbose_level = verbose_level
 
