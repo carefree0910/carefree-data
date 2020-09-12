@@ -906,7 +906,7 @@ class DataLoader:
                  batch_size: int,
                  sampler: ImbalancedSampler,
                  *,
-                 n_siamese: int = 1,
+                 num_siamese: int = 1,
                  return_indices: bool = False,
                  label_collator: callable = None,
                  verbose_level: int = 2):
@@ -914,17 +914,17 @@ class DataLoader:
         self._verbose_level = verbose_level
         self.data = sampler.data
         self.return_indices = return_indices
-        if return_indices and n_siamese > 1:
+        if return_indices and num_siamese > 1:
             print(f"{LoggingMixin.warning_prefix}`return_indices` is set to False because siamese loader is used")
             self.return_indices = False
-        self._n_siamese, self._label_collator = n_siamese, label_collator
-        self._n_samples, self.sampler = len(self.data), sampler
-        self.batch_size = min(self._n_samples, batch_size)
+        self._num_siamese, self._label_collator = num_siamese, label_collator
+        self._num_samples, self.sampler = len(self.data), sampler
+        self.batch_size = min(self._num_samples, batch_size)
         self._verbose_level = verbose_level
 
     def __len__(self):
-        n_iter = int(self._n_samples / self.batch_size)
-        return n_iter + int(n_iter * self.batch_size < self._n_samples)
+        n_iter = int(self._num_samples / self.batch_size)
+        return n_iter + int(n_iter * self.batch_size < self._num_samples)
 
     def __iter__(self):
         self._reset()
@@ -932,10 +932,10 @@ class DataLoader:
 
     def __next__(self):
         data_next = self._get_next_batch()
-        if self._n_siamese == 1:
+        if self._num_siamese == 1:
             return data_next
         all_data = [data_next] if self._check_full_batch(data_next) else []
-        while len(all_data) < self._n_siamese:
+        while len(all_data) < self._num_siamese:
             data_next = self._get_next_batch()
             if self._check_full_batch(data_next):
                 all_data.append(data_next)
@@ -962,9 +962,9 @@ class DataLoader:
 
     def _get_next_batch(self):
         n_iter, self._cursor = len(self), self._cursor + 1
-        if self._cursor == n_iter * self._n_siamese:
+        if self._cursor == n_iter * self._num_siamese:
             raise StopIteration
-        if self._n_siamese > 1:
+        if self._num_siamese > 1:
             new_siamese_cursor = int(self._cursor / n_iter)
             if new_siamese_cursor > self._siamese_cursor:
                 self._siamese_cursor = new_siamese_cursor
@@ -986,7 +986,7 @@ class DataLoader:
         return DataLoader(
             self.batch_size,
             self.sampler.copy(),
-            n_siamese=self._n_siamese,
+            num_siamese=self._num_siamese,
             return_indices=self.return_indices,
             label_collator=self._label_collator,
             verbose_level=self._verbose_level
