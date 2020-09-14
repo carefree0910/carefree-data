@@ -472,6 +472,7 @@ class TabularData(DataBase):
             )
         else:
             raise NotImplementedError(f"file type '{ext}' not recognized")
+        self._delim, self._quote_char = delim, quote_char
         with open(file_path, "r") as f:
             first_row = None
             if has_column_names:
