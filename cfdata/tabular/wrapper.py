@@ -577,6 +577,8 @@ class TabularData(DataBase):
             DataTuple.split_with,
             [raw, converted, processed], [remained_indices] * 3
         )
+        p1.ts_sorting_indices = np.arange(len(p1))
+        p2.ts_sorting_indices = np.arange(len(p2))
         return TabularSplit(p1, p2, split_indices, remained_indices)
 
     def copy_to(self,
