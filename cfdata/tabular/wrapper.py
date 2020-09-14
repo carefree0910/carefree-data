@@ -378,7 +378,7 @@ class TabularData(DataBase):
         self._is_file = True
         self._label_idx, self._has_column_names = label_idx, has_column_names
         self._delim, self._quote_char = delim, quote_char
-        with timing_context(self, "_read_file"):
+        with timing_context(self, "read_file"):
             x, y = self.read_file(file_path)
         self._raw = DataTuple.with_transpose(x, y)
         return self._core_fit()
