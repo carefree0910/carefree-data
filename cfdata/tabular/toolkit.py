@@ -488,7 +488,8 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         self.config, self._verbose_level = config, verbose_level
         self._num_history = config.setdefault("num_history", 1)
         id_column = data.raw.xT[data.ts_config.id_column_idx]
-        unique_indices = get_unique_indices(id_column)
+        sorted_id_column = [id_column[i] for i in data.ts_sorting_indices]
+        unique_indices = get_unique_indices(sorted_id_column)
         self._unique_id_arr, self._id2indices = unique_indices.unique, unique_indices.split_indices
         self._initialize()
 
@@ -590,7 +591,8 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         valid_indices = self._id2valid_indices_stack[indices]
         aggregated_valid_indices_mat = self._aggregate_core(valid_indices[..., None])
         aggregated = self._id2indices_stack[aggregated_valid_indices_mat.ravel()]
-        return aggregated.reshape([-1, self.num_aggregation])
+        reversed_aggregated = self.data.ts_sorting_indices[aggregated]
+        return reversed_aggregated.reshape([-1, self.num_aggregation])
 
     def get_last_indices(self, aggregated_flat_indices: np.ndarray):
         aggregated_indices_mat = aggregated_flat_indices.reshape([-1, self.num_aggregation])
