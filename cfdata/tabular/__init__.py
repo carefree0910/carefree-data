@@ -7,5 +7,5 @@ __all__ = [
     "TabularData", "TabularDataset",
     "TimeSeriesConfig", "TaskTypes", "ColumnTypes", "DataTuple",
     "SplitResult", "DataSplitter", "KFold", "KRandom", "KBootstrap",
-    "ImbalancedSampler", "LabelCollators", "DataLoader"
+    "ImbalancedSampler", "LabelCollators", "DataLoader",
 ]
