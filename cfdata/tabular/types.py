@@ -14,6 +14,10 @@ raw_data_type = Union[List[List[Union[str, float]]], None]
 data_type = Union[raw_data_type, np.ndarray]
 
 
+def transpose(x: data_type):
+    return x.T if isinstance(x, np.ndarray) else list(map(list, zip(*x)))
+
+
 class DataTuple(NamedTuple):
     x: data_type
     y: data_type
@@ -85,8 +89,7 @@ class DataTuple(NamedTuple):
     def with_transpose(cls,
                        x: data_type,
                        y: data_type):
-        xt = x.T if not isinstance(x, list) else list(map(list, zip(*x)))
-        return DataTuple(x, y, xt)
+        return DataTuple(x, y, transpose(x))
 
 
 class ColumnTypes(Enum):
