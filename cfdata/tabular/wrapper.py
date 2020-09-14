@@ -372,7 +372,9 @@ class TabularData(DataBase):
         self._converted = DataTuple(converted_x, converted_labels)
         self._processed = DataTuple(np.hstack(processed_features), processed_labels)
         self._valid_columns = [col for col in range(self.raw_dim) if col not in self.excludes]
-        self._valid_columns_dict = None
+        self._valid_columns_dict = self.ts_sorting_indices = None
+        if self.is_ts:
+            self.ts_sorting_indices = np.hstack(self.splitter._time_indices_list_in_use)[::-1].copy()
         return self
 
     def _read_from_file(self,
