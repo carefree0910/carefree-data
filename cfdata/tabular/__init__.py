@@ -5,7 +5,7 @@ from .wrapper import TabularData
 
 __all__ = [
     "TabularData", "TabularDataset",
-    "TimeSeriesConfig", "TaskTypes", "ColumnTypes", "DataTuple",
+    "TimeSeriesConfig", "TimeSeriesModifier", "TaskTypes", "ColumnTypes", "DataTuple",
     "SplitResult", "DataSplitter", "KFold", "KRandom", "KBootstrap",
     "ImbalancedSampler", "LabelCollators", "DataLoader",
 ]

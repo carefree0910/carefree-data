@@ -474,6 +474,107 @@ class DataLoader:
 
 # time series
 
+class TimeSeriesModifier:
+    id_name = "id"
+    time_name = "timestamp"
+    label_name = "label"
+
+    def __init__(self,
+                 file_path: str,
+                 task_type: TaskTypes,
+                 *,
+                 delim: str = None,
+                 ts_config: TimeSeriesConfig = None,
+                 contains_labels: bool = False):
+        if not task_type.is_ts:
+            raise ValueError("task_type should be either TIME_SERIES_CLF or TIME_SERIES_REG")
+        self._file_path = file_path
+        self._task_type = task_type
+        self._ts_config = ts_config
+        self._contains_labels = contains_labels
+        self.data = TabularData.simple(task_type, time_series_config=ts_config)
+        self.data.read(file_path, contains_labels=contains_labels)
+        if delim is None:
+            delim = self.data._delim
+        self.delim = delim
+        column_names = [self.data._column_names[i] for i in sorted(self.data._column_names)]
+        self.header = None if column_names is None else self.delim.join(column_names)
+        self._num_samples = len(self.data.raw.x)
+        self.xt = self.data.raw.xT
+        self._modified = False
+
+    def pad_id(self) -> "TimeSeriesModifier":
+        if self.header is not None:
+            self.header = f"{self.id_name}{self.delim}{self.header}"
+        self.xt.insert(0, ["0"] * self._num_samples)
+        self._modified = True
+        return self
+
+    def pad_date(self) -> "TimeSeriesModifier":
+        if self.header is not None:
+            self.header = f"{self.time_name}{self.delim}{self.header}"
+        self.xt.insert(0, list(map(str, range(self._num_samples))))
+        self._modified = True
+        return self
+
+    def pad_id_and_date(self) -> "TimeSeriesModifier":
+        self.pad_date().pad_id()
+        return self
+
+    def pad_labels(self,
+                   fn: Callable[[np.ndarray], np.ndarray],
+                   *,
+                   offset: int,
+                   batch_size: int = 32,
+                   ts_config: TimeSeriesConfig = None,
+                   aggregation_config: Dict[str, Any] = None,
+                   aggregation: str = "continuous") -> "TimeSeriesModifier":
+        if self._contains_labels:
+            raise ValueError("labels already exist")
+        if not self._modified:
+            data = self.data
+            if not data.is_ts:
+                raise ValueError("time_series_config is not provided for the original data")
+        else:
+            column_names = None
+            if self.header is not None:
+                column_names = self.header.split(self.delim)
+            if ts_config is None:
+                raise ValueError("columns are modified but new time_series_config is not provided")
+            data = TabularData.simple(
+                self._task_type,
+                time_series_config=ts_config,
+                column_names={i: name for i, name in enumerate(column_names)},
+            )
+            data.read(transpose(self.xt), contains_labels=self._contains_labels)
+        if aggregation_config is None:
+            aggregation_config = {}
+        aggregation_config["num_history"] = offset + 1
+        sampler = ImbalancedSampler(
+            data,
+            shuffle=False,
+            aggregation=aggregation,
+            aggregation_config=aggregation_config,
+        )
+        labels = []
+        for x_batch, _ in DataLoader(batch_size, sampler):
+            labels.append(fn(x_batch))
+        labels = np.vstack(labels).ravel()
+        sorted_labels = np.zeros(len(data), np_float_type)
+        sorted_labels[sampler.get_indices()[..., 0]] = labels
+        self.header = f"{self.header}{self.delim}{self.label_name}"
+        self.xt.append(sorted_labels.astype(np.str))
+        return self
+
+    def export_to(self,
+                  export_path: str) -> "TimeSeriesModifier":
+        with open(export_path, "w") as f:
+            if self.header is not None:
+                f.write(f"{self.header}\n")
+            f.write("\n".join(self.delim.join(line) for line in transpose(self.xt)))
+        return self
+
+
 aggregation_dict: Dict[str, Type["AggregationBase"]] = {}
 
 
@@ -621,5 +722,5 @@ class ContinuousAggregation(AggregationBase):
 __all__ = [
     "KFold", "KRandom", "KBootstrap",
     "ImbalancedSampler", "LabelCollators", "DataLoader",
-    "aggregation_dict", "AggregationBase",
+    "TimeSeriesModifier", "aggregation_dict", "AggregationBase",
 ]
