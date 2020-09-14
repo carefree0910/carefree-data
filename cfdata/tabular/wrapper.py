@@ -232,6 +232,11 @@ class TabularData(DataBase):
         return self._is_file
 
     @property
+    def splitter(self) -> DataSplitter:
+        splitter = DataSplitter(time_series_config=self.ts_config, shuffle=False)
+        return splitter.fit(self.to_dataset())
+
+    @property
     def ts_indices(self) -> Set[int]:
         ts_config = self.ts_config
         return set() if ts_config is None else {ts_config.id_column_idx, ts_config.time_column_idx}
@@ -549,9 +554,7 @@ class TabularData(DataBase):
               *,
               order: str = "auto") -> TabularSplit:
         if order == "auto":
-            splitter = DataSplitter(time_series_config=self.ts_config, shuffle=False)
-            splitter.fit(self.to_dataset())
-            split = splitter.split(n)
+            split = self.splitter.split(n)
             split_indices = split.corresponding_indices
             remained_indices = split.remaining_indices
         else:
