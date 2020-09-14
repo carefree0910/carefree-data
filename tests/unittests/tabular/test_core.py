@@ -221,6 +221,18 @@ class TestTabularData(unittest.TestCase):
                     self.assertNotEqual(self.x_ts[indices[1]][0], "pear")
                     self.assertEqual(self.x_ts[indices[0]][0], self.x_ts[indices[1]][0])
 
+    def test_ts_sorting_indices(self):
+        shuffled_indices = np.random.permutation(len(self.x_ts))
+        x_ts = [self.x_ts[i] for i in shuffled_indices]
+        y_ts = [self.y_ts[i] for i in shuffled_indices]
+        data = TabularData(time_series_config=self.ts_config).read(x_ts, y_ts)
+        gt = [
+            "2020-01-01", "2020-01-01", "2020-01-01", "2020-01-01",
+            "2020-01-02", "2020-01-02", "2020-01-02",
+            "2020-01-03", "2020-01-03", "2020-01-03", "2020-01-03",
+        ]
+        self.assertListEqual([x_ts[i][1] for i in data.ts_sorting_indices], gt)
+
 
 if __name__ == '__main__':
     unittest.main()
