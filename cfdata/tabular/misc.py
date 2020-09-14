@@ -433,7 +433,7 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         """ indices should be a column vector """
 
     def _initialize(self):
-        self._num_samples_per_id = np.array(list(map(len, self._id2indices)), np.int64)
+        self._num_samples_per_id = np.array(list(map(len, self._id2indices)), np_int_type)
         self.log_msg("generating valid aggregation info", self.info_prefix, 5)
         valid_mask = self._num_samples_per_id >= self._num_history
         if not valid_mask.any():
@@ -475,8 +475,8 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         # TODO : support nan_fill here
         nan_fill, nan_ratio = map(self.config.setdefault, ["nan_fill", "nan_ratio"], ["past", 0.])
         self._id2valid_indices = [
-            np.array([], np.int64) if len(indices) < self._num_history else
-            np.arange(cumsum, cumsum + len(indices) - self._num_history + 1).astype(np.int64)
+            np.array([], np_int_type) if len(indices) < self._num_history else
+            np.arange(cumsum, cumsum + len(indices) - self._num_history + 1).astype(np_int_type)
             for cumsum, indices in zip(self._num_samples_per_id_cumsum, self._id2indices)
         ]
         self._get_valid_samples_info()
@@ -885,7 +885,7 @@ class DataSplitter(SavingMixin):
             remained_x, remained_y = self.remained_xy
             return SplitResult(
                 TabularDataset.from_xy(remained_x, remained_y, self._dataset.task_type),
-                self._remained_indices, np.array([], np.int)
+                self._remained_indices, np.array([], np_int_type)
             )
         if n < 1. or (n == 1. and isinstance(n, float)):
             n = int(round(len(self._x) * n))

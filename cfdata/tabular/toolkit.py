@@ -312,7 +312,7 @@ class ImbalancedSampler(LoggingMixin):
 
     def get_indices(self) -> np.ndarray:
         if not self.shuffle or not self._sample_imbalance_flag or not self.is_imbalance:
-            indices = np.arange(self._num_samples).astype(np.int64)
+            indices = np.arange(self._num_samples).astype(np_int_type)
         else:
             indices = self._sampler.sample(self._num_samples)
         if self.shuffle:
