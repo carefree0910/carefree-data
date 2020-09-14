@@ -249,9 +249,12 @@ class TabularData(DataBase):
 
     @staticmethod
     def _flatten(data: data_type) -> data_type:
-        if isinstance(data, list):
-            return sum(data, [])
-        return data.ravel()
+        if isinstance(data, np.ndarray):
+            return data.ravel()
+        flattened = []
+        for elem in data:
+            flattened.extend(elem)
+        return flattened
 
     def _core_fit(self) -> "TabularData":
         ts_indices = self.ts_indices
