@@ -553,7 +553,7 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         feature_dim = self.data.processed_dim
         for i, valid_indices in enumerate(self._id2valid_indices):
             cumsum = self._num_valid_samples_per_id_cumsum[i]
-            aggregated_flat_indices = self.aggregate(np.arange(cumsum, cumsum + len(valid_indices)))
+            aggregated_flat_indices = self.aggregate(np.arange(cumsum, cumsum + len(valid_indices))).ravel()
             aggregated_x = x[aggregated_flat_indices].reshape([-1, self.num_aggregation, feature_dim])
             aggregated_x_nan_mask = np.isnan(aggregated_x)
             if y is None:
@@ -584,8 +584,7 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
 
         Returns
         -------
-        indices : np.ndarray, aggregated & flattened 'original' indices, it should be available to
-        reshape to [ -1, self.n_aggregation ]
+        indices : np.ndarray, aggregated 'original' indices
 
         """
         valid_indices = self._id2valid_indices_stack[indices]
