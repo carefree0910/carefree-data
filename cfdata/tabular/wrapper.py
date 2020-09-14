@@ -7,8 +7,7 @@ import numpy as np
 from typing import *
 from cftool.misc import timing_context, SavingMixin
 
-from .types import *
-from .utils import *
+from .misc import *
 from .recognizer import *
 from .converters import *
 from .processors import *

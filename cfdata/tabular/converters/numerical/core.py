@@ -2,7 +2,7 @@ import numpy as np
 
 from typing import *
 
-from ...types import *
+from ...misc import *
 from ....types import *
 from ..base import Converter
 

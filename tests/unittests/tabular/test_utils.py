@@ -5,7 +5,7 @@ import numpy as np
 
 from cfdata.types import *
 from cfdata.tabular import *
-from cfdata.tabular.types import *
+from cfdata.tabular.misc import *
 
 
 class TestTabularUtils(unittest.TestCase):

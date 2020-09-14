@@ -1,6 +1,6 @@
 import numpy as np
 
-from ...types import *
+from ...misc import *
 from ....types import *
 from ..base import Converter
 

@@ -8,7 +8,7 @@ from cftool.misc import shallow_copy_dict
 
 from cfdata.types import *
 from cfdata.tabular import *
-from cfdata.tabular.types import *
+from cfdata.tabular.misc import *
 
 file_folder = os.path.dirname(__file__)
 data_folder = os.path.abspath(os.path.join(file_folder, os.pardir, "data"))

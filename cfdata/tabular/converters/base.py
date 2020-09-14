@@ -3,7 +3,7 @@ import numpy as np
 from typing import *
 from abc import ABC, abstractmethod
 
-from ..types import *
+from ..misc import *
 from ..recognizer import Recognizer
 from cftool.misc import register_core
 
