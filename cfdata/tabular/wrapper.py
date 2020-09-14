@@ -375,6 +375,7 @@ class TabularData(DataBase):
                         file_path: str,
                         *,
                         label_idx: int = None,
+                        contains_labels: bool = True,
                         has_column_names: bool = None,
                         quote_char: str = None,
                         delim: str = None) -> "TabularData":
@@ -382,7 +383,7 @@ class TabularData(DataBase):
         self._label_idx, self._has_column_names = label_idx, has_column_names
         self._delim, self._quote_char = delim, quote_char
         with timing_context(self, "read_file"):
-            x, y = self.read_file(file_path)
+            x, y = self.read_file(file_path, contains_labels=contains_labels)
         self._raw = DataTuple.with_transpose(x, y)
         return self._core_fit()
 
@@ -531,9 +532,11 @@ class TabularData(DataBase):
     def read(self,
              x: Union[str, data_type],
              y: Union[int, data_type] = None,
+             *,
+             contains_labels: bool = True,
              **kwargs) -> "TabularData":
         if isinstance(x, str):
-            self._read_from_file(x, label_idx=y, **kwargs)
+            self._read_from_file(x, label_idx=y, contains_labels=contains_labels, **kwargs)
         else:
             if isinstance(y, int):
                 y = None
