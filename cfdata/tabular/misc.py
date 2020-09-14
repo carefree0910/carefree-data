@@ -467,6 +467,7 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         # so we should only care 'valid' indices here
         self._num_valid_samples_per_id = [len(indices) for indices in self._id2valid_indices]
         self._num_valid_samples_per_id_cumsum = np.hstack([[0], np.cumsum(self._num_valid_samples_per_id[:-1])])
+        self._num_valid_samples_per_id_cumsum = self._num_valid_samples_per_id_cumsum.astype(np_int_type)
         self.indices2id = np.repeat(np.arange(len(self._unique_id_arr)), self._num_valid_samples_per_id)
         self._id2valid_indices_stack = np.hstack(self._id2valid_indices)
 
