@@ -6,10 +6,10 @@ import numpy as np
 from typing import *
 from cftool.misc import *
 from functools import partial
-from abc import ABCMeta, abstractmethod
 
-from .types import *
 from ..types import *
+from ...types import *
+from .time_series import *
 
 
 def split_file(file: str,
@@ -67,15 +67,6 @@ class SplitResult(NamedTuple):
         )
 
 
-class TimeSeriesConfig(NamedTuple):
-    id_column_name: str = None
-    time_column_name: str = None
-    id_column_idx: int = None
-    time_column_idx: int = None
-    id_column: np.ndarray = None
-    time_column: np.ndarray = None
-
-
 class DataSplitter(SavingMixin):
     """
     Util class for dividing dataset based on task type
@@ -90,7 +81,7 @@ class DataSplitter(SavingMixin):
     >>> from cfdata.types import np_int_type
     >>> from cfdata.tabular.types import TaskTypes
     >>> from cfdata.tabular.wrapper import TabularDataset
-    >>> from cfdata.tabular.utils import DataSplitter
+    >>> from cfdata.tabular.utils.misc import DataSplitter
     >>>
     >>> x = np.arange(12).reshape([6, 2])
     >>> # create an imbalance dataset
@@ -420,7 +411,7 @@ class KFold:
     >>> from cfdata.types import np_int_type
     >>> from cfdata.tabular.types import TaskTypes
     >>> from cfdata.tabular.wrapper import TabularDataset
-    >>> from cfdata.tabular.utils import KFold
+    >>> from cfdata.tabular.utils.misc import KFold
     >>>
     >>> x = np.arange(12).reshape([6, 2])
     >>> # create an imbalance dataset
@@ -485,7 +476,7 @@ class KRandom:
     >>> from cfdata.types import np_int_type
     >>> from cfdata.tabular.types import TaskTypes
     >>> from cfdata.tabular.wrapper import TabularDataset
-    >>> from cfdata.tabular.utils import KRandom
+    >>> from cfdata.tabular.utils.misc import KRandom
     >>>
     >>> x = np.arange(12).reshape([6, 2])
     >>> # create an imbalance dataset
@@ -547,7 +538,7 @@ class KBootstrap:
     >>> from cfdata.types import np_int_type
     >>> from cfdata.tabular.types import TaskTypes
     >>> from cfdata.tabular.wrapper import TabularDataset
-    >>> from cfdata.tabular.utils import KBootstrap
+    >>> from cfdata.tabular.utils.misc import KBootstrap
     >>>
     >>> x = np.arange(12).reshape([6, 2])
     >>> # create an imbalance dataset
@@ -591,148 +582,6 @@ class KBootstrap:
         return tr_split, test_result
 
 
-aggregation_dict: Dict[str, Type["AggregationBase"]] = {}
-
-
-class AggregationBase(LoggingMixin, metaclass=ABCMeta):
-    def __init__(self,
-                 data,
-                 config: Dict[str, Any],
-                 verbose_level: int):
-        if not data.is_ts:
-            raise ValueError("time series data is required")
-        self.data = data
-        self.config, self._verbose_level = config, verbose_level
-        self._num_history = config.setdefault("num_history", 1)
-        id_column = data.raw.xT[data.ts_config.id_column_idx]
-        unique_indices = get_unique_indices(id_column)
-        self._unique_id_arr, self._id2indices = unique_indices.unique, unique_indices.split_indices
-        self._initialize()
-
-    @property
-    @abstractmethod
-    def num_aggregation(self):
-        pass
-
-    @abstractmethod
-    def _aggregate_core(self, indices: np.ndarray) -> np.ndarray:
-        """ indices should be a column vector """
-
-    def _initialize(self):
-        self._num_samples_per_id = np.array(list(map(len, self._id2indices)), np.int64)
-        self.log_msg("generating valid aggregation info", self.info_prefix, 5)
-        valid_mask = self._num_samples_per_id >= self._num_history
-        if not valid_mask.any():
-            raise ValueError(
-                "current settings lead to empty valid dataset, increasing raw dataset size or "
-                f"decreasing n_history (current: {self._num_history}) might help"
-            )
-        if not valid_mask.all():
-            invalid_mask = ~valid_mask
-            n_invalid_id = invalid_mask.sum()
-            n_invalid_samples = self._num_samples_per_id[invalid_mask].sum()
-            self.log_msg(
-                f"{n_invalid_id} id (with {n_invalid_samples} samples) will be dropped "
-                f"(n_history={self._num_history})", self.info_prefix, verbose_level=2
-            )
-            self.log_msg(
-                f"dropped id : {', '.join(map(str, self._unique_id_arr[invalid_mask].tolist()))}",
-                self.info_prefix, verbose_level=4
-            )
-        self._num_samples_per_id_cumsum = np.hstack([[0], np.cumsum(self._num_samples_per_id[:-1])])
-        # self._id2indices need to contain 'redundant' indices here because
-        # aggregation need to aggregate those 'invalid' samples
-        self._id2indices_stack = np.hstack(self._id2indices)
-        self.log_msg("generating aggregation attributes", self.info_prefix, verbose_level=5)
-        self._get_id2valid_indices()
-        self._get_valid_samples_info()
-
-    def _get_valid_samples_info(self):
-        # 'indices' in self.indices2id here doesn't refer to indices of original dataset
-        # (e.g. 'indices' in self._id2indices), but refers to indices generated by sampler,
-        # so we should only care 'valid' indices here
-        self._num_valid_samples_per_id = [len(indices) for indices in self._id2valid_indices]
-        self._num_valid_samples_per_id_cumsum = np.hstack([[0], np.cumsum(self._num_valid_samples_per_id[:-1])])
-        self.indices2id = np.repeat(np.arange(len(self._unique_id_arr)), self._num_valid_samples_per_id)
-        self._id2valid_indices_stack = np.hstack(self._id2valid_indices)
-
-    def _get_id2valid_indices(self):
-        # TODO : support nan_fill here
-        nan_fill, nan_ratio = map(self.config.setdefault, ["nan_fill", "nan_ratio"], ["past", 0.])
-        self._id2valid_indices = [
-            np.array([], np.int64) if len(indices) < self._num_history else
-            np.arange(cumsum, cumsum + len(indices) - self._num_history + 1).astype(np.int64)
-            for cumsum, indices in zip(self._num_samples_per_id_cumsum, self._id2indices)
-        ]
-        self._get_valid_samples_info()
-        x, y = self.data.processed.xy
-        feature_dim = self.data.processed_dim
-        for i, valid_indices in enumerate(self._id2valid_indices):
-            cumsum = self._num_valid_samples_per_id_cumsum[i]
-            aggregated_flat_indices = self.aggregate(np.arange(cumsum, cumsum + len(valid_indices)))
-            aggregated_x = x[aggregated_flat_indices].reshape([-1, self.num_aggregation, feature_dim])
-            aggregated_x_nan_mask = np.isnan(aggregated_x)
-            if y is None:
-                aggregated_y_valid_mask = None
-            else:
-                aggregated_y = y[self.get_last_indices(aggregated_flat_indices)]
-                aggregated_y_valid_mask = ~np.isnan(aggregated_y)
-            aggregated_nan_ratio = aggregated_x_nan_mask.mean((1, 2))
-            valid_mask = aggregated_nan_ratio <= nan_ratio
-            if aggregated_y_valid_mask is not None:
-                valid_mask &= aggregated_y_valid_mask.ravel()
-            new_valid_indices = valid_indices[valid_mask]
-            self._id2valid_indices[i] = new_valid_indices
-
-    def aggregate(self, indices: np.ndarray) -> np.ndarray:
-        """
-        We've maintained two groups of indices in `_initialize` method:
-        * the 'original' indices, which points to indices of original dataset
-        * the 'valid' indices, which is 'virtual' should points to indices of the 'original' indices
-
-        So we need to translate sampler indices to 'valid' indices, add offsets to the 'valid' indices,
-        and then fetch the 'original' indices to fetch the corresponding data
-        * _aggregate_core method will add offsets for us
-
-        Parameters
-        ----------
-        indices : np.ndarray, indices come from sampler
-
-        Returns
-        -------
-        indices : np.ndarray, aggregated & flattened 'original' indices, it should be available to
-        reshape to [ -1, self.n_aggregation ]
-
-        """
-        valid_indices = self._id2valid_indices_stack[indices]
-        aggregated_valid_indices_mat = self._aggregate_core(valid_indices[..., None])
-        aggregated = self._id2indices_stack[aggregated_valid_indices_mat.ravel()]
-        return aggregated.reshape([-1, self.num_aggregation])
-
-    def get_last_indices(self, aggregated_flat_indices: np.ndarray):
-        aggregated_indices_mat = aggregated_flat_indices.reshape([-1, self.num_aggregation])
-        return aggregated_indices_mat[..., -1]
-
-    @classmethod
-    def register(cls, name: str):
-        global aggregation_dict
-        return register_core(name, aggregation_dict)
-
-
-@AggregationBase.register("continuous")
-class ContinuousAggregation(AggregationBase):
-    def _initialize(self):
-        self._history_arange = np.arange(self._num_history)
-        super()._initialize()
-
-    @property
-    def num_aggregation(self):
-        return self._num_history
-
-    def _aggregate_core(self, indices: np.ndarray) -> np.ndarray:
-        return indices + self._history_arange
-
-
 class ImbalancedSampler(LoggingMixin):
     """
     Util class which can sample imbalance dataset in a balanced way
@@ -754,7 +603,7 @@ class ImbalancedSampler(LoggingMixin):
     >>>
     >>> from cfdata.types import np_int_type
     >>> from cfdata.tabular import TabularData
-    >>> from cfdata.tabular.utils import ImbalancedSampler
+    >>> from cfdata.tabular.utils.misc import ImbalancedSampler
     >>> from cftool.misc import get_counter_from_arr
     >>>
     >>> n = 20
@@ -888,8 +737,8 @@ class DataLoader:
     >>>
     >>> from cfdata.types import np_int_type
     >>> from cfdata.tabular import TabularData
-    >>> from cfdata.tabular.utils import DataLoader
-    >>> from cfdata.tabular.utils import ImbalancedSampler
+    >>> from cfdata.tabular.utils.misc import DataLoader
+    >>> from cfdata.tabular.utils.misc import ImbalancedSampler
     >>> from cftool.misc import get_counter_from_arr
     >>>
     >>> n = 20
@@ -1003,6 +852,6 @@ class DataLoader:
 
 __all__ = [
     "split_file",
-    "SplitResult", "TimeSeriesConfig", "DataSplitter", "KFold", "KRandom", "KBootstrap",
-    "ImbalancedSampler", "LabelCollators", "DataLoader"
+    "SplitResult", "DataSplitter", "KFold", "KRandom", "KBootstrap",
+    "ImbalancedSampler", "LabelCollators", "DataLoader",
 ]
