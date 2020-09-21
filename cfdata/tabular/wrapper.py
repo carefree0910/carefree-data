@@ -260,6 +260,9 @@ class TabularData(DataBase):
             flattened.extend(elem)
         return flattened
 
+    def _get_ts_sorting_indices(self):
+        self.ts_sorting_indices = np.hstack(self.splitter._time_indices_list_in_use)[::-1].copy()
+
     def _core_fit(self) -> "TabularData":
         ts_indices = self.ts_indices
         with timing_context(self, "convert"):
@@ -374,7 +377,7 @@ class TabularData(DataBase):
         self._valid_columns = [col for col in range(self.raw_dim) if col not in self.excludes]
         self._valid_columns_dict = self.ts_sorting_indices = None
         if self.is_ts:
-            self.ts_sorting_indices = np.hstack(self.splitter._time_indices_list_in_use)[::-1].copy()
+            self._get_ts_sorting_indices()
         return self
 
     def _read_from_file(self,
@@ -589,6 +592,8 @@ class TabularData(DataBase):
         copied = copy.copy(self)
         raw = copied._raw = self._get_raw(x, y, contains_labels=contains_labels)
         copied._converted, copied._processed = self._transform(raw, True)
+        if copied.is_ts:
+            copied._get_ts_sorting_indices()
         return copied
 
     def transform(self,
