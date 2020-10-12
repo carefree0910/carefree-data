@@ -34,7 +34,6 @@ class Recognizer:
                     "but it is still set to be valid"
                 )
         self.is_valid = is_valid
-        # TODO : check how to use `is_string`
         self.is_string = is_string
         self.is_numerical = is_numerical
         self.is_categorical = is_categorical
@@ -82,11 +81,16 @@ class Recognizer:
                              flat_arr: flat_arr_type) -> Tuple[bool, Union[FeatureInfo, None]]:
         if self.is_numerical or self.is_categorical or self.is_string is False:
             return False, None
-        all_numeric = is_all_numeric(flat_arr)
-        if self.is_label and self.task_type.is_reg and not all_numeric:
-            raise ValueError("task_type is REGRESSION but labels are not all numeric")
-        if all_numeric:
-            return False, None
+        is_reg_label = self.is_label and self.task_type.is_reg
+        if self.is_string:
+            if is_reg_label:
+                raise ValueError("task_type is REGRESSION but labels are set to string")
+        else:
+            all_numeric = is_all_numeric(flat_arr)
+            if is_reg_label and not all_numeric:
+                raise ValueError("task_type is REGRESSION but labels are not all numeric")
+            if all_numeric:
+                return False, None
         self._counter = get_counter_from_arr(flat_arr)
         unique_values = [elem[0] for elem in self._counter.most_common()]
         self._transform_dict = {v: i for i, v in enumerate(unique_values)}
