@@ -399,6 +399,7 @@ def split_file(file: str,
                export_folder: str,
                *,
                has_header: bool = None,
+               indices_pair: Tuple[Iterable[int], Iterable[int]] = None,
                split: Union[int, float] = 0.1) -> Tuple[str, str]:
     os.makedirs(export_folder, exist_ok=True)
     with open(file, "r") as f:
@@ -412,11 +413,13 @@ def split_file(file: str,
     split1 = os.path.join(export_folder, f"split1{ext}")
     split2 = os.path.join(export_folder, f"split2{ext}")
 
-    num_data = len(data)
-    indices = list(range(num_data))
-    if split < 1. or split == 1. and isinstance(split, float):
-        split = int(num_data * split)
-    random.shuffle(indices)
+    if indices_pair is None:
+        num_data = len(data)
+        indices = list(range(num_data))
+        if split < 1. or split == 1. and isinstance(split, float):
+            split = int(num_data * split)
+        random.shuffle(indices)
+        indices_pair = (indices[:split], indices[split:])
 
     def _split(file_, indices_):
         with open(file_, "w") as f:
@@ -425,8 +428,8 @@ def split_file(file: str,
             for idx in indices_:
                 f.write(data[idx])
 
-    _split(split1, indices[:split])
-    _split(split2, indices[split:])
+    _split(split1, indices_pair[0])
+    _split(split2, indices_pair[1])
 
     return split1, split2
 
