@@ -42,6 +42,7 @@ class TabularData(DataBase):
                  default_categorical_process: str = "one_hot",
                  label_process_method: str = None,
                  numerical_threshold: float = None,
+                 use_timing_context: bool = True,
                  trigger_logging: bool = False,
                  verbose_level: int = 1):
         if task_type.is_clf:
@@ -74,6 +75,7 @@ class TabularData(DataBase):
         self._delim = self._quote_char = None
         self._raw = self._converted = self._processed = None
         self._recognizers = self._converters = self._processors = None
+        self._timing = use_timing_context
         self._verbose_level = verbose_level
         self._init_logging(verbose_level, trigger=trigger_logging)
         self.excludes = set()
@@ -265,7 +267,7 @@ class TabularData(DataBase):
 
     def _core_fit(self) -> "TabularData":
         ts_indices = self.ts_indices
-        with timing_context(self, "convert"):
+        with timing_context(self, "convert", enable=self._timing):
             # convert features
             features = self._raw.xT
             converted_features = []
@@ -292,21 +294,21 @@ class TabularData(DataBase):
                 }
                 if self._numerical_threshold is not None:
                     kwargs["numerical_threshold"] = self._numerical_threshold
-                with timing_context(self, "fit recognizer"):
+                with timing_context(self, "fit recognizer", enable=self._timing):
                     recognizer = self._recognizers[i] = Recognizer(column_name, **kwargs).fit(flat_arr)
                 if not recognizer.info.is_valid:
                     self.log_msg(recognizer.info.msg, self.warning_prefix, 2, logging.WARNING)
                     self.excludes.add(i)
                     continue
                 if i not in ts_indices:
-                    with timing_context(self, "fit converter"):
+                    with timing_context(self, "fit converter", enable=self._timing):
                         converter = self._converters[i] = Converter.make_with(recognizer)
                     converted_features.append(converter.converted_input)
             # convert labels
             if self._raw.y is None:
                 converted_labels = self._recognizers[-1] = self._converters[-1] = None
             else:
-                with timing_context(self, "fit recognizer"):
+                with timing_context(self, "fit recognizer", enable=self._timing):
                     recognizer = self._recognizers[-1] = Recognizer(
                         self.label_name,
                         is_label=True,
@@ -317,11 +319,11 @@ class TabularData(DataBase):
                         is_categorical=self.categorical_label,
                         numerical_threshold=1.
                     ).fit(self._flatten(self._raw.y))
-                with timing_context(self, "fit converter"):
+                with timing_context(self, "fit converter", enable=self._timing):
                     converter = self._converters[-1] = Converter.make_with(recognizer)
                 converted_labels = converter.converted_input.reshape([-1, 1])
         converted_x = np.vstack(converted_features).T
-        with timing_context(self, "process"):
+        with timing_context(self, "process", enable=self._timing):
             # process features
             self._processors = {}
             processed_features = []
@@ -350,9 +352,9 @@ class TabularData(DataBase):
                 processor = self._processors[idx] = processor_dict[method](previous_processors.copy())
                 previous_processors.append(processor)
                 columns = converted_x[..., processor.input_indices]
-                with timing_context(self, "fit processor"):
+                with timing_context(self, "fit processor", enable=self._timing):
                     processor.fit(columns)
-                with timing_context(self, "process with processor"):
+                with timing_context(self, "process with processor", enable=self._timing):
                     processed_features.append(processor.process(columns))
                 idx += processor.input_dim
             # process labels
@@ -365,9 +367,9 @@ class TabularData(DataBase):
                     method = self._label_process_method
                 if method is None:
                     method = "normalize" if column_type is ColumnTypes.NUMERICAL else "identical"
-                with timing_context(self, "fit processor"):
+                with timing_context(self, "fit processor", enable=self._timing):
                     processor = self._processors[-1] = processor_dict[method]([]).fit(converted_labels)
-                with timing_context(self, "process with processor"):
+                with timing_context(self, "process with processor", enable=self._timing):
                     processed_labels = processor.process(converted_labels)
         if self.task_type.is_clf and converted_labels is not None:
             converted_labels = converted_labels.astype(np_int_type)
@@ -391,7 +393,7 @@ class TabularData(DataBase):
         self._is_file = True
         self._label_idx, self._has_column_names = label_idx, has_column_names
         self._delim, self._quote_char = delim, quote_char
-        with timing_context(self, "read_file"):
+        with timing_context(self, "read_file", enable=self._timing):
             x, y = self.read_file(file_path, contains_labels=contains_labels)
         self._raw = DataTuple.with_transpose(x, y)
         return self._core_fit()
