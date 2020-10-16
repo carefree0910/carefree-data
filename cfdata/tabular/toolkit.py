@@ -387,17 +387,22 @@ class DataLoader:
                  *,
                  num_siamese: int = 1,
                  return_indices: bool = False,
-                 label_collator: callable = None,
+                 label_collator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
                  verbose_level: int = 2):
         self._indices_in_use = None
         self._verbose_level = verbose_level
         self.data = sampler.data
+        self.sampler = sampler
         self.return_indices = return_indices
+        self._label_collator = label_collator
         if return_indices and num_siamese > 1:
-            print(f"{LoggingMixin.warning_prefix}`return_indices` is set to False because siamese loader is used")
+            print(
+                f"{LoggingMixin.warning_prefix}`return_indices` "
+                "is set to False because siamese loader is used"
+            )
             self.return_indices = False
-        self._num_siamese, self._label_collator = num_siamese, label_collator
-        self._num_samples, self.sampler = len(sampler), sampler
+        self._num_siamese = num_siamese
+        self._num_samples = len(sampler)
         self.batch_size = min(self._num_samples, batch_size)
         self._verbose_level = verbose_level
 
