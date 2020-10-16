@@ -405,7 +405,17 @@ class DataLoader:
     def __next__(self):
         data_next = self._get_next_batch()
         if self._num_siamese == 1:
-            return data_next
+            if self.return_indices:
+                (x_batch, y_batch), indices = data_next
+            else:
+                indices = None
+                x_batch, y_batch = data_next
+            if self._label_collator is not None:
+                y_batch = self._label_collator(y_batch)
+            batch = x_batch, y_batch
+            if not self.return_indices:
+                return batch
+            return batch, indices
         all_data = [data_next] if self._check_full_batch(data_next) else []
         while len(all_data) < self._num_siamese:
             data_next = self._get_next_batch()
