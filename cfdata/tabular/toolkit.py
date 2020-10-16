@@ -338,18 +338,6 @@ class ImbalancedSampler(LoggingMixin):
         )
 
 
-class LabelCollators:
-    @staticmethod
-    def reg_default(y_batch):
-        assert len(y_batch) == 2
-        return y_batch[1] - y_batch[0]
-
-    @staticmethod
-    def clf_default(y_batch):
-        assert len(y_batch) == 2
-        return y_batch[1] == y_batch[0]
-
-
 class DataLoader:
     """
     Util class which can generated batches from `ImbalancedSampler`
@@ -726,6 +714,6 @@ class ContinuousAggregation(AggregationBase):
 
 __all__ = [
     "KFold", "KRandom", "KBootstrap",
-    "ImbalancedSampler", "LabelCollators", "DataLoader",
+    "ImbalancedSampler", "DataLoader",
     "TimeSeriesModifier", "aggregation_dict", "AggregationBase",
 ]
