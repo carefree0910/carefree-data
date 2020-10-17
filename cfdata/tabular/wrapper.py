@@ -572,6 +572,11 @@ class TabularData(DataBase):
                 split_indices, remained_indices = base_indices[-n:], base_indices[:-n]
             else:
                 split_indices, remained_indices = base_indices[:n], base_indices[n:]
+        return self.split_with_indices(split_indices, remained_indices)
+
+    def split_with_indices(self,
+                           split_indices: np.ndarray,
+                           remained_indices: np.ndarray) -> TabularSplit:
         raw, converted, processed = self._raw, self._converted, self._processed
         p1, p2 = map(copy.copy, [self] * 2)
         p1._raw, p1._converted, p1._processed = map(
