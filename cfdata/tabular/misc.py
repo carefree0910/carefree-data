@@ -17,7 +17,7 @@ from ..types import *
 # types
 
 flat_arr_type = Union[list, np.ndarray]
-raw_data_type = Union[List[List[Union[str, float]]], None]
+raw_data_type = Optional[List[List[Union[str, float]]]]
 data_type = Union[raw_data_type, np.ndarray]
 
 
@@ -154,8 +154,8 @@ class TaskTypes(Enum):
 
 
 class FeatureInfo(NamedTuple):
-    contains_nan: Union[bool, None]
-    flat_arr: Union[flat_arr_type, None]
+    contains_nan: Optional[bool]
+    flat_arr: Optional[flat_arr_type]
     is_valid: bool = True
     nan_mask: np.ndarray = None
     need_transform: bool = None
@@ -437,7 +437,7 @@ def split_file(file: str,
 class SplitResult(NamedTuple):
     dataset: TabularDataset
     corresponding_indices: np.ndarray
-    remaining_indices: Union[np.ndarray, None]
+    remaining_indices: Optional[np.ndarray]
 
     @classmethod
     def concat(cls,

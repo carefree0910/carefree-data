@@ -10,7 +10,7 @@ from ..base import Converter
 @Converter.register("numerical")
 class NumericalConverter(Converter):
     @property
-    def nan_fill(self) -> Union[float, None]:
+    def nan_fill(self) -> Optional[float]:
         return None if self._nan_fill is None else self._feature_statistics[self._nan_fill]
 
     @property
