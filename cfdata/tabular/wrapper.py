@@ -1,5 +1,6 @@
 import os
 import copy
+import dill
 import logging
 
 import numpy as np
@@ -662,9 +663,7 @@ class TabularData(DataBase):
         return convert_recovered.reshape([-1, 1])
 
     core_folder = "__core__"
-    recognizer_folder = "recognizer"
-    converter_folder = "converter"
-    processor_folder = "processor"
+    data_structures_file = "data_structures"
 
     def save(self,
              folder: str,
@@ -677,31 +676,25 @@ class TabularData(DataBase):
         core_folder = os.path.join(abs_folder, self.core_folder)
         super().save(core_folder, compress=False)
         with lock_manager(base_folder, [folder]):
-            recognizer_folder = os.path.join(abs_folder, self.recognizer_folder)
+            recognizer_bytes = {}
             for idx, recognizer in self.recognizers.items():
                 if idx in self.converters:
                     continue
-                sub_folder = os.path.join(recognizer_folder, str(idx))
-                recognizer.dump(
-                    sub_folder,
-                    compress=False,
-                    remove_original=remove_original,
-                )
-            converter_folder = os.path.join(abs_folder, self.converter_folder)
+                recognizer_bytes[idx] = recognizer.dumps()
+            converter_bytes = {}
             for idx, converter in self.converters.items():
-                sub_folder = os.path.join(converter_folder, str(idx))
-                converter.dump(
-                    sub_folder,
-                    compress=False,
-                    remove_original=remove_original,
-                )
-            processor_folder = os.path.join(abs_folder, self.processor_folder)
+                converter_bytes[idx] = converter.dumps()
+            processor_bytes = {}
             for idx, processor in self.processors.items():
-                sub_folder = os.path.join(processor_folder, str(idx))
-                processor.dump(
-                    sub_folder,
-                    compress=False,
-                    remove_original=remove_original,
+                processor_bytes[idx] = processor.dumps()
+            with open(os.path.join(abs_folder, self.data_structures_file), "wb") as f:
+                dill.dump(
+                    {
+                        "recognizers": recognizer_bytes,
+                        "converters": converter_bytes,
+                        "processors": processor_bytes,
+                    },
+                    f,
                 )
             if compress:
                 Saving.compress(abs_folder, remove_original=remove_original)
@@ -727,54 +720,33 @@ class TabularData(DataBase):
                 core_folder = os.path.join(abs_folder, cls.core_folder)
                 with data._data_tuple_context(is_saving=False):
                     Saving.load_instance(data, core_folder, log_method=data.log_msg)
+                # data structures
+                with open(os.path.join(abs_folder, cls.data_structures_file), "rb") as f:
+                    data_structures = dill.load(f)
                 # converters & corresponding recognizers
-                converter_folder = os.path.join(abs_folder, cls.converter_folder)
-                recognizers = {}
-                converters = {}
-                for stuff in os.listdir(converter_folder):
-                    if stuff.endswith(".zip"):
-                        stuff = os.path.splitext(stuff)[0]
-                    idx = int(stuff)
-                    sub_folder = os.path.join(converter_folder, stuff)
-                    converter = Converter.load(folder=sub_folder, compress=False)
-                    converters[idx] = converter
+                recognizers, converters = {}, {}
+                converters_bytes = data_structures["converters"]
+                for idx, converter_bytes in converters_bytes.items():
+                    converter = converters[idx] = Converter.load(data=converter_bytes)
                     recognizers[idx] = converter._recognizer
                 # other recognizers
-                recognizer_folder = os.path.join(abs_folder, cls.recognizer_folder)
-                if os.path.isdir(recognizer_folder):
-                    for stuff in os.listdir(recognizer_folder):
-                        if stuff.endswith(".zip"):
-                            stuff = os.path.splitext(stuff)[0]
-                        idx = int(stuff)
-                        if idx in converters:
-                            continue
-                        sub_folder = os.path.join(recognizer_folder, stuff)
-                        recognizers[idx] = Recognizer.load(folder=sub_folder, compress=False)
+                recognizers_bytes = data_structures["recognizers"]
+                for idx, recognizer_bytes in recognizers_bytes.items():
+                    recognizers[idx] = Recognizer.load(data=recognizer_bytes)
                 # processors
                 processors = {}
-                processor_indices = []
-                processor_folder = os.path.join(abs_folder, cls.processor_folder)
-                for stuff in os.listdir(processor_folder):
-                    if stuff.endswith(".zip"):
-                        stuff = os.path.splitext(stuff)[0]
-                    idx = int(stuff)
-                    if idx != -1:
-                        processor_indices.append(idx)
-                        continue
-                    sub_folder = os.path.join(processor_folder, stuff)
-                    processors[-1] = Processor.load(
-                        folder=sub_folder,
-                        previous_processors=[],
-                        compress=False,
-                    )
                 previous_processors = []
-                for idx in sorted(processor_indices):
-                    sub_folder = os.path.join(processor_folder, str(idx))
-                    processors[idx] = Processor.load(
-                        folder=sub_folder,
-                        previous_processors=previous_processors,
-                        compress=False,
+                processors_bytes = data_structures["processors"]
+                processors[-1] = Processor.load(
+                    data=processors_bytes.pop(-1),
+                    previous_processors=[],
+                )
+                for idx in sorted(processors_bytes):
+                    processor = processors[idx] = Processor.load(
+                        data=processors_bytes[idx],
+                        previous_processors=previous_processors.copy(),
                     )
+                    previous_processors.append(processor)
                 # assign
                 data._recognizers = recognizers
                 data._converters = converters
