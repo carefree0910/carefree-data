@@ -665,29 +665,28 @@ class TabularData(DataBase):
              *,
              compress: bool = True,
              remove_original: bool = True) -> "TabularData":
-        # TODO : optimize condition when there are too many converters
         abs_folder = os.path.abspath(folder)
         base_folder = os.path.dirname(abs_folder)
         core_folder = os.path.join(abs_folder, self.core_folder)
         super().save(core_folder, compress=False)
         with lock_manager(base_folder, [folder]):
-            recognizer_bytes = {}
+            recognizer_dicts = {}
             for idx, recognizer in self.recognizers.items():
                 if idx in self.converters:
                     continue
-                recognizer_bytes[idx] = recognizer.dumps()
-            converter_bytes = {}
+                recognizer_dicts[idx] = recognizer.dumps_()
+            converter_dicts = {}
             for idx, converter in self.converters.items():
-                converter_bytes[idx] = converter.dumps()
-            processor_bytes = {}
+                converter_dicts[idx] = converter.dumps_()
+            processor_dicts = {}
             for idx, processor in self.processors.items():
-                processor_bytes[idx] = processor.dumps()
+                processor_dicts[idx] = processor.dumps_()
             with open(os.path.join(abs_folder, self.data_structures_file), "wb") as f:
                 dill.dump(
                     {
-                        "recognizers": recognizer_bytes,
-                        "converters": converter_bytes,
-                        "processors": processor_bytes,
+                        "recognizers": recognizer_dicts,
+                        "converters": converter_dicts,
+                        "processors": processor_dicts,
                     },
                     f,
                 )
@@ -720,25 +719,25 @@ class TabularData(DataBase):
                     data_structures = dill.load(f)
                 # converters & corresponding recognizers
                 recognizers, converters = {}, {}
-                converters_bytes = data_structures["converters"]
-                for idx, converter_bytes in converters_bytes.items():
-                    converter = converters[idx] = Converter.load(data=converter_bytes)
+                converters_dicts = data_structures["converters"]
+                for idx, converter_dict_ in converters_dicts.items():
+                    converter = converters[idx] = Converter.loads(converter_dict_)
                     recognizers[idx] = converter._recognizer
                 # other recognizers
-                recognizers_bytes = data_structures["recognizers"]
-                for idx, recognizer_bytes in recognizers_bytes.items():
-                    recognizers[idx] = Recognizer.load(data=recognizer_bytes)
+                recognizers_dicts = data_structures["recognizers"]
+                for idx, recognizer_dict_ in recognizers_dicts.items():
+                    recognizers[idx] = Recognizer.loads(recognizer_dict_)
                 # processors
                 processors = {}
                 previous_processors = []
-                processors_bytes = data_structures["processors"]
-                processors[-1] = Processor.load(
-                    data=processors_bytes.pop(-1),
+                processors_dicts = data_structures["processors"]
+                processors[-1] = Processor.loads(
+                    processors_dicts.pop(-1),
                     previous_processors=[],
                 )
-                for idx in sorted(processors_bytes):
-                    processor = processors[idx] = Processor.load(
-                        data=processors_bytes[idx],
+                for idx in sorted(processors_dicts):
+                    processor = processors[idx] = Processor.loads(
+                        processors_dicts[idx],
                         previous_processors=previous_processors.copy(),
                     )
                     previous_processors.append(processor)
