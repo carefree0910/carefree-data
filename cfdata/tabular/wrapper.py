@@ -683,7 +683,7 @@ class TabularData(DataBase):
                 sub_folder = os.path.join(recognizer_folder, str(idx))
                 recognizer.save(
                     sub_folder,
-                    compress=True,
+                    compress=False,
                     remove_original=remove_original,
                 )
             converter_folder = os.path.join(abs_folder, self.converter_folder)
@@ -691,7 +691,7 @@ class TabularData(DataBase):
                 sub_folder = os.path.join(converter_folder, str(idx))
                 converter.save(
                     sub_folder,
-                    compress=True,
+                    compress=False,
                     remove_original=remove_original,
                 )
             processor_folder = os.path.join(abs_folder, self.processor_folder)
@@ -699,7 +699,7 @@ class TabularData(DataBase):
                 sub_folder = os.path.join(processor_folder, str(idx))
                 processor.save(
                     sub_folder,
-                    compress=True,
+                    compress=False,
                     remove_original=remove_original,
                 )
             if compress:
@@ -735,7 +735,8 @@ class TabularData(DataBase):
                         stuff = os.path.splitext(stuff)[0]
                     idx = int(stuff)
                     sub_folder = os.path.join(converter_folder, stuff)
-                    converter = converters[idx] = Converter.load(sub_folder)
+                    converter = Converter.load(sub_folder, compress=False)
+                    converters[idx] = converter
                     recognizers[idx] = converter._recognizer
                 # other recognizers
                 recognizer_folder = os.path.join(abs_folder, cls.recognizer_folder)
@@ -747,7 +748,7 @@ class TabularData(DataBase):
                         if idx in converters:
                             continue
                         sub_folder = os.path.join(recognizer_folder, stuff)
-                        recognizers[idx] = Recognizer.load(sub_folder)
+                        recognizers[idx] = Recognizer.load(sub_folder, compress=False)
                 # processors
                 processors = {}
                 processor_indices = []
@@ -760,13 +761,18 @@ class TabularData(DataBase):
                         processor_indices.append(idx)
                         continue
                     sub_folder = os.path.join(processor_folder, stuff)
-                    processors[-1] = Processor.load(sub_folder, previous_processors=[])
+                    processors[-1] = Processor.load(
+                        sub_folder,
+                        previous_processors=[],
+                        compress=False,
+                    )
                 previous_processors = []
                 for idx in sorted(processor_indices):
                     sub_folder = os.path.join(processor_folder, str(idx))
                     processors[idx] = Processor.load(
                         sub_folder,
                         previous_processors=previous_processors,
+                        compress=False,
                     )
                 # assign
                 data._recognizers = recognizers
