@@ -1,4 +1,5 @@
 import os
+import dill
 import math
 import random
 
@@ -403,6 +404,10 @@ class DataStructure(LoggingMixin, metaclass=ABCMeta):
     def dumps(self) -> bytes:
         pass
 
+    @abstractmethod
+    def loads(self, instance_dict: Dict[str, Any]) -> "SavingMixin":
+        pass
+
     def dump(self,
              folder: str,
              *,
@@ -416,6 +421,27 @@ class DataStructure(LoggingMixin, metaclass=ABCMeta):
                 f.write(self.dumps())
             if compress:
                 Saving.compress(abs_folder, remove_original=remove_original)
+
+    @classmethod
+    def load(cls,
+             *,
+             data: Optional[bytes] = None,
+             folder: Optional[str] = None,
+             compress: bool = True) -> "SavingMixin":
+        if data is not None:
+            instance_dict = dill.loads(data)
+            return cls.loads(instance_dict)
+        if folder is None:
+            raise ValueError("either `folder` or `data` should be provided")
+        base_folder = os.path.dirname(os.path.abspath(folder))
+        with lock_manager(base_folder, [folder]):
+            with Saving.compress_loader(
+                    folder,
+                    compress,
+                    remove_extracted=True,
+            ):
+                with open(os.path.join(folder, cls.core_file), "rb") as f:
+                    return cls.loads(dill.load(f))
 
 
 def split_file(file: str,

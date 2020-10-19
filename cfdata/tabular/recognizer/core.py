@@ -8,8 +8,6 @@ from typing import *
 from collections import Counter
 from cftool.misc import shallow_copy_dict
 from cftool.misc import get_counter_from_arr
-from cftool.misc import lock_manager
-from cftool.misc import Saving
 
 from ..misc import *
 from ...types import *
@@ -257,27 +255,6 @@ class Recognizer(DataStructure):
         recognizer = cls("")
         recognizer.__dict__.update(instance_dict)
         return recognizer
-
-    @classmethod
-    def load(cls,
-             *,
-             data: Optional[bytes] = None,
-             folder: Optional[str] = None,
-             compress: bool = True) -> "Recognizer":
-        if data is not None:
-            instance_dict = dill.loads(data)
-            return cls.loads(instance_dict)
-        if folder is None:
-            raise ValueError("either `folder` or `data` should be provided")
-        base_folder = os.path.dirname(os.path.abspath(folder))
-        with lock_manager(base_folder, [folder]):
-            with Saving.compress_loader(
-                folder,
-                compress,
-                remove_extracted=True,
-            ):
-                with open(os.path.join(folder, cls.core_file), "rb") as f:
-                    return cls.loads(dill.load(f))
 
 
 __all__ = ["Recognizer"]
