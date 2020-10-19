@@ -1,16 +1,22 @@
+import os
+import dill
 import math
+
 import numpy as np
 
 from typing import *
 from collections import Counter
 from cftool.misc import get_counter_from_arr
+from cftool.misc import lock_manager
+from cftool.misc import Saving
+from cftool.misc import SavingMixin
 
 from ..misc import *
 from ...types import *
 from ...misc.c import *
 
 
-class Recognizer:
+class Recognizer(SavingMixin):
     def __init__(self,
                  column_name: str,
                  *,
@@ -62,6 +68,18 @@ class Recognizer:
         if self._info.is_numerical:
             return math.inf
         return len(self._transform_dict)
+
+    @property
+    def data_tuple_base(self) -> Optional[Type[NamedTuple]]:
+        return
+
+    @property
+    def data_tuple_attributes(self) -> Optional[List[str]]:
+        return
+
+    @property
+    def cache_excludes(self):
+        return {"_info"}
 
     def _make_invalid_info(self,
                            msg: str,
@@ -231,6 +249,51 @@ class Recognizer:
         )
         self._generate_categorical_transform_dict()
         return self
+
+    info_file = "info.pkl"
+
+    def save(self,
+             folder: str,
+             *,
+             compress: bool = True,
+             remove_original: bool = True):
+        super().save(folder, compress=False)
+        abs_folder = os.path.abspath(folder)
+        base_folder = os.path.dirname(abs_folder)
+        with lock_manager(base_folder, [folder]):
+            simplified_info = FeatureInfo(
+                self.info.contains_nan,
+                None,
+                self.info.is_valid,
+                None,
+                self.info.need_transform,
+                self.info.column_type,
+                self.info.unique_values_sorted_by_counts,
+                self.info.msg
+            )
+            with open(os.path.join(abs_folder, self.info_file), "wb") as f:
+                dill.dump(simplified_info, f)
+            if compress:
+                Saving.compress(abs_folder, remove_original=remove_original)
+
+    @classmethod
+    def load(cls,
+             folder: str,
+             *,
+             compress: bool = True):
+        recognizer = cls("")
+        base_folder = os.path.dirname(os.path.abspath(folder))
+        with lock_manager(base_folder, [folder]):
+            with Saving.compress_loader(
+                folder,
+                compress,
+                remove_extracted=True,
+                logging_mixin=recognizer,
+            ):
+                Saving.load_instance(recognizer, folder, verbose=False)
+                with open(os.path.join(folder, cls.info_file), "rb") as f:
+                    recognizer._info = dill.load(f)
+        return recognizer
 
 
 __all__ = ["Recognizer"]
