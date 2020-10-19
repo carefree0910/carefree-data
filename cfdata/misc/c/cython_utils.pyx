@@ -4,7 +4,6 @@ cimport numpy as np
 import unicodedata
 import numpy as np
 from libc.math cimport isnan
-from collections import defaultdict
 
 
 ctypedef fused arr:

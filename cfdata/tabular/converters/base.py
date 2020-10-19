@@ -1,4 +1,3 @@
-import os
 import dill
 
 import numpy as np
@@ -7,8 +6,6 @@ from typing import *
 from abc import ABCMeta, abstractmethod
 from cftool.misc import register_core
 from cftool.misc import shallow_copy_dict
-from cftool.misc import lock_manager
-from cftool.misc import Saving
 
 from ..misc import *
 from ..recognizer import Recognizer
