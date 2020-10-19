@@ -16,10 +16,9 @@ class Converter(ABC):
                  *,
                  inplace: bool = False,
                  **kwargs):
+        self._config = kwargs
         self._inplace = inplace
         self._recognizer = recognizer
-        self._initialize(**kwargs)
-        self._fit()
 
     def __str__(self):
         return f"Converter({self.info.column_type})"
@@ -53,6 +52,10 @@ class Converter(ABC):
     def _initialize(self, **kwargs) -> None:
         pass
 
+    def initialize(self):
+        self._initialize(**self._config)
+        self._fit()
+
     def convert(self,
                 flat_arr: flat_arr_type) -> np.ndarray:
         if not self._inplace:
@@ -74,7 +77,9 @@ class Converter(ABC):
                   inplace: bool = False,
                   **kwargs) -> "Converter":
         key = recognizer.info.column_type.value
-        return converter_dict[key](recognizer, inplace=inplace, **kwargs)
+        converter = converter_dict[key](recognizer, inplace=inplace, **kwargs)
+        converter.initialize()
+        return converter
 
     @classmethod
     def register(cls, name):
