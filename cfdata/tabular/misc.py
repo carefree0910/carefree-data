@@ -157,11 +157,11 @@ class FeatureInfo(NamedTuple):
     contains_nan: Optional[bool]
     flat_arr: Optional[flat_arr_type]
     is_valid: bool = True
-    nan_mask: np.ndarray = None
-    need_transform: bool = None
+    nan_mask: Optional[np.ndarray] = None
+    need_transform: Optional[bool] = None
     column_type: ColumnTypes = ColumnTypes.NUMERICAL
-    unique_values_sorted_by_counts: np.ndarray = None
-    msg: str = None
+    unique_values_sorted_by_counts: Optional[np.ndarray] = None
+    msg: Optional[str] = None
 
     @property
     def is_string(self) -> bool:
@@ -502,16 +502,16 @@ class DataSplitter(SavingMixin):
     """
 
     @property
-    def data_tuple_base(self) -> Union[None, Type[NamedTuple]]:
+    def data_tuple_base(self) -> Optional[Type[NamedTuple]]:
         return
 
     @property
-    def data_tuple_attributes(self) -> Union[None, List[str]]:
+    def data_tuple_attributes(self) -> Optional[List[str]]:
         return
 
     def __init__(self,
                  *,
-                 time_series_config: TimeSeriesConfig = None,
+                 time_series_config: Optional[TimeSeriesConfig] = None,
                  shuffle: bool = True,
                  replace: bool = False,
                  verbose_level: int = 2):

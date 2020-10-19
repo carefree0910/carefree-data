@@ -126,11 +126,11 @@ class TabularData(DataBase):
         return {"_recognizers", "_converters", "_processors"}
 
     @property
-    def data_tuple_base(self) -> Type[NamedTuple]:
+    def data_tuple_base(self) -> Optional[Type[NamedTuple]]:
         return DataTuple
 
     @property
-    def data_tuple_attributes(self) -> List[str]:
+    def data_tuple_attributes(self) -> Optional[List[str]]:
         return ["_raw", "_converted", "_processed"]
 
     @property

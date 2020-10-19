@@ -16,10 +16,10 @@ class Recognizer:
                  *,
                  is_label: bool = False,
                  task_type: TaskTypes = TaskTypes.NONE,
-                 is_valid: Union[bool, None] = None,
-                 is_string: Union[bool, None] = None,
-                 is_numerical: Union[bool, None] = None,
-                 is_categorical: Union[bool, None] = None,
+                 is_valid: Optional[bool] = None,
+                 is_string: Optional[bool] = None,
+                 is_numerical: Optional[bool] = None,
+                 is_categorical: Optional[bool] = None,
                  numerical_threshold: float = 0.5):
         # is_* : `None` means no information, `False` means 'force not to *', `True` means 'force to *'
         self.name = column_name
