@@ -5,7 +5,9 @@ import logging
 import numpy as np
 
 from typing import *
-from cftool.misc import timing_context, SavingMixin
+from cftool.misc import lock_manager
+from cftool.misc import timing_context
+from cftool.misc import Saving
 
 from .misc import *
 from .recognizer import *
@@ -123,7 +125,12 @@ class TabularData(DataBase):
 
     @property
     def cache_excludes(self):
-        return {"_recognizers", "_converters", "_processors"}
+        return {
+            "_recognizers",
+            "_converters",
+            "_processors",
+            "_converted",
+        }
 
     @property
     def data_tuple_base(self) -> Optional[Type[NamedTuple]]:
@@ -131,7 +138,7 @@ class TabularData(DataBase):
 
     @property
     def data_tuple_attributes(self) -> Optional[List[str]]:
-        return ["_raw", "_converted", "_processed"]
+        return ["_raw", "_processed"]
 
     @property
     def raw(self) -> DataTuple:
@@ -643,6 +650,51 @@ class TabularData(DataBase):
         convert_recovered = self.converters[-1].recover(process_recovered.ravel(), inplace=inplace)
         return convert_recovered.reshape([-1, 1])
 
+    core_folder = "__core__"
+    recognizer_folder = "recognizer"
+    converter_folder = "converter"
+    processor_folder = "processor"
+
+    def save(self,
+             folder: str,
+             *,
+             compress: bool = True,
+             remove_original: bool = True) -> "TabularData":
+        abs_folder = os.path.abspath(folder)
+        base_folder = os.path.dirname(abs_folder)
+        core_folder = os.path.join(abs_folder, self.core_folder)
+        super().save(core_folder, compress=False)
+        with lock_manager(base_folder, [folder]):
+            recognizer_folder = os.path.join(abs_folder, self.recognizer_folder)
+            for idx, recognizer in self.recognizers.items():
+                if idx in self.converters:
+                    continue
+                sub_folder = os.path.join(recognizer_folder, str(idx))
+                recognizer.save(
+                    sub_folder,
+                    compress=True,
+                    remove_original=remove_original,
+                )
+            converter_folder = os.path.join(abs_folder, self.converter_folder)
+            for idx, converter in self.converters.items():
+                sub_folder = os.path.join(converter_folder, str(idx))
+                converter.save(
+                    sub_folder,
+                    compress=True,
+                    remove_original=remove_original,
+                )
+            processor_folder = os.path.join(abs_folder, self.processor_folder)
+            for idx, processor in self.processors.items():
+                sub_folder = os.path.join(processor_folder, str(idx))
+                processor.save(
+                    sub_folder,
+                    compress=True,
+                    remove_original=remove_original,
+                )
+            if compress:
+                Saving.compress(abs_folder, remove_original=remove_original)
+        return self
+
     @classmethod
     def load(cls,
              folder: str,
@@ -650,10 +702,74 @@ class TabularData(DataBase):
              compress: bool = True,
              verbose_level: int = 0) -> "TabularData":
         data = cls(verbose_level=verbose_level)
-        SavingMixin.load(data, folder, compress=compress)
-        is_file, is_arr = data._is_file, data._is_arr
-        data.read(*data._raw[:2])
-        data._is_file, data._is_arr = is_file, is_arr
+        abs_folder = os.path.abspath(folder)
+        base_folder = os.path.dirname(abs_folder)
+        with lock_manager(base_folder, [folder]):
+            with Saving.compress_loader(
+                folder,
+                compress,
+                remove_extracted=True,
+                logging_mixin=data,
+            ):
+                # core
+                core_folder = os.path.join(abs_folder, cls.core_folder)
+                with data._data_tuple_context(is_saving=False):
+                    Saving.load_instance(data, core_folder, log_method=data.log_msg)
+                # converters & corresponding recognizers
+                converter_folder = os.path.join(abs_folder, cls.converter_folder)
+                recognizers = {}
+                converters = {}
+                for stuff in os.listdir(converter_folder):
+                    if stuff.endswith(".zip"):
+                        stuff = os.path.splitext(stuff)[0]
+                    idx = int(stuff)
+                    sub_folder = os.path.join(converter_folder, stuff)
+                    converter = converters[idx] = Converter.load(sub_folder)
+                    recognizers[idx] = converter._recognizer
+                # other recognizers
+                recognizer_folder = os.path.join(abs_folder, cls.recognizer_folder)
+                if os.path.isdir(recognizer_folder):
+                    for stuff in os.listdir(recognizer_folder):
+                        if stuff.endswith(".zip"):
+                            stuff = os.path.splitext(stuff)[0]
+                        idx = int(stuff)
+                        if idx in converters:
+                            continue
+                        sub_folder = os.path.join(recognizer_folder, stuff)
+                        recognizers[idx] = Recognizer.load(sub_folder)
+                # processors
+                processors = {}
+                processor_indices = []
+                processor_folder = os.path.join(abs_folder, cls.processor_folder)
+                for stuff in os.listdir(processor_folder):
+                    if stuff.endswith(".zip"):
+                        stuff = os.path.splitext(stuff)[0]
+                    idx = int(stuff)
+                    if idx != -1:
+                        processor_indices.append(idx)
+                        continue
+                    sub_folder = os.path.join(processor_folder, stuff)
+                    processors[-1] = Processor.load(sub_folder, previous_processors=[])
+                previous_processors = []
+                for idx in sorted(processor_indices):
+                    sub_folder = os.path.join(processor_folder, str(idx))
+                    processors[idx] = Processor.load(
+                        sub_folder,
+                        previous_processors=previous_processors,
+                    )
+                # assign
+                data._recognizers = recognizers
+                data._converters = converters
+                data._processors = processors
+                # data
+                converted_xt = np.vstack(
+                    [
+                        converters[i].converted_input
+                        for i in sorted(converters) if i != -1
+                    ]
+                )
+                converted_y = converters[-1].converted_input.reshape([-1, 1])
+                data._converted = DataTuple(converted_xt.T, converted_y, converted_xt)
         return data
 
     def to_dataset(self) -> TabularDataset:
