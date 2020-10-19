@@ -14,11 +14,11 @@ class Processor(ABC):
                  inplace: bool = False,
                  **kwargs):
         self._caches = {}
+        self._config = kwargs
         self._inplace = inplace
         self._previous_processors = previous_processors
         start_idx = sum([processor.input_dim for processor in self._previous_processors])
         self._col_indices = [start_idx + i for i in range(self.input_dim)]
-        self._initialize(**kwargs)
 
     def __str__(self):
         return f"{type(self).__name__}()"
@@ -59,7 +59,7 @@ class Processor(ABC):
         previous_dimensions = sum([method.output_dim for method in self._previous_processors])
         return list(range(previous_dimensions, previous_dimensions + self.output_dim))
 
-    def _initialize(self, **kwargs) -> None:
+    def initialize(self) -> None:
         pass
 
     def process(self,
@@ -75,6 +75,16 @@ class Processor(ABC):
         if not inplace:
             columns = columns.copy()
         return self._recover(columns)
+
+    @classmethod
+    def make_with(cls,
+                  previous_processors: List["Processor"],
+                  *,
+                  inplace: bool = False,
+                  **kwargs) -> "Processor":
+        instance = cls(previous_processors, inplace=inplace, **kwargs)
+        instance.initialize()
+        return instance
 
     @classmethod
     def register(cls, name):

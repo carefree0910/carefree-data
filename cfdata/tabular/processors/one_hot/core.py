@@ -8,8 +8,8 @@ from ....types import np_float_type
 
 @Processor.register("one_hot")
 class OneHot(Processor):
-    def _initialize(self, **kwargs) -> None:
-        self._categories = kwargs.get("categories", "auto")
+    def initialize(self) -> None:
+        self._categories = self._config.get("categories", "auto")
 
     @property
     def input_dim(self) -> int:

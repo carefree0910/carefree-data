@@ -5,11 +5,11 @@ from ..base import Processor
 
 @Processor.register("lambda")
 class Lambda(Processor):
-    def _initialize(self, **kwargs):
-        self._process = kwargs["process"]
-        self._recover = kwargs["recover"]
-        self._input_dim = kwargs["input_dim"]
-        self._output_dim = kwargs["output_dim"]
+    def initialize(self):
+        self._process = self._config["process"]
+        self._recover = self._config["recover"]
+        self._input_dim = self._config["input_dim"]
+        self._output_dim = self._config["output_dim"]
 
     @property
     def input_dim(self) -> int:

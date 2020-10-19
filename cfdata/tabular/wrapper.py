@@ -349,8 +349,9 @@ class TabularData(DataBase):
                         method = self._default_numerical_process
                     else:
                         method = self._default_categorical_process
-                processor = self._processors[idx] = processor_dict[method](previous_processors.copy())
+                processor = processor_dict[method].make_with(previous_processors.copy())
                 previous_processors.append(processor)
+                self._processors[idx] = processor
                 columns = converted_x[..., processor.input_indices]
                 with timing_context(self, "fit processor", enable=self._timing):
                     processor.fit(columns)
@@ -368,7 +369,8 @@ class TabularData(DataBase):
                 if method is None:
                     method = "normalize" if column_type is ColumnTypes.NUMERICAL else "identical"
                 with timing_context(self, "fit processor", enable=self._timing):
-                    processor = self._processors[-1] = processor_dict[method]([]).fit(converted_labels)
+                    processor = processor_dict[method].make_with([])
+                    self._processors[-1] = processor.fit(converted_labels)
                 with timing_context(self, "process with processor", enable=self._timing):
                     processed_labels = processor.process(converted_labels)
         if self.task_type.is_clf and converted_labels is not None:
