@@ -749,7 +749,7 @@ class TabularData(DataBase):
                         if idx in converters:
                             continue
                         sub_folder = os.path.join(recognizer_folder, stuff)
-                        recognizers[idx] = Recognizer.load(sub_folder, compress=False)
+                        recognizers[idx] = Recognizer.load(folder=sub_folder, compress=False)
                 # processors
                 processors = {}
                 processor_indices = []

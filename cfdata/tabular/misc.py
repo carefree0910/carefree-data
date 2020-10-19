@@ -428,7 +428,7 @@ class DataStructure(LoggingMixin, metaclass=ABCMeta):
              data: Optional[bytes] = None,
              folder: Optional[str] = None,
              compress: bool = True,
-             **kwargs: Any) -> "SavingMixin":
+             **kwargs: Any) -> "DataStructure":
         if data is not None:
             instance_dict = dill.loads(data)
             return cls.loads(instance_dict)
