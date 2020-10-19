@@ -431,7 +431,7 @@ class DataStructure(LoggingMixin, metaclass=ABCMeta):
              **kwargs: Any) -> "DataStructure":
         if data is not None:
             instance_dict = dill.loads(data)
-            return cls.loads(instance_dict)
+            return cls.loads(instance_dict, **kwargs)
         if folder is None:
             raise ValueError("either `folder` or `data` should be provided")
         base_folder = os.path.dirname(os.path.abspath(folder))
