@@ -620,10 +620,9 @@ class TabularData(DataBase):
             for idx, converter in self.converters.items()
         }
         copied_converters[-1]._converted_features = converted.y
-        for idx, converter in copied_converters.items():
-            if idx == -1:
-                continue
-            converter._converted_features = converted.x[..., idx]
+        converter_indices = [idx for idx in sorted(copied_converters) if idx != -1]
+        for i, idx in enumerate(converter_indices):
+            copied_converters[idx]._converted_features = converted.x[..., i]
         copied._converters = copied_converters
         copied._converted = converted
         if copied.is_ts:
