@@ -224,7 +224,7 @@ class TestTabularData(unittest.TestCase):
     def test_ts_sorting_indices(self):
         shuffled_indices = np.random.permutation(len(self.x_ts))
         x_ts = [self.x_ts[i] for i in shuffled_indices]
-        y_ts = [self.y_ts[i] for i in shuffled_indices]
+        y_ts = [self.y_ts[i].tolist() for i in shuffled_indices]
         data = TabularData(time_series_config=self.ts_config).read(x_ts, y_ts)
         gt = [
             "2020-01-01", "2020-01-01", "2020-01-01", "2020-01-01",
