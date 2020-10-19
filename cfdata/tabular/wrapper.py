@@ -400,10 +400,21 @@ class TabularData(DataBase):
         self._raw = DataTuple.with_transpose(x, y)
         return self._core_fit()
 
+    @staticmethod
+    def _check_2d_y(y: data_type) -> None:
+        failed = False
+        if isinstance(y, list):
+            failed = not isinstance(y[0], list)
+        elif isinstance(y, np.ndarray):
+            failed = len(y.shape) != 2
+        if failed:
+            raise ValueError("input labels should be 2d")
+
     def _read_from_arr(self,
                        x: data_type,
                        y: data_type) -> "TabularData":
         self._is_arr = True
+        self._check_2d_y(y)
         self._raw = DataTuple.with_transpose(x, y)
         return self._core_fit()
 
