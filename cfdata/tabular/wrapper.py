@@ -410,7 +410,7 @@ class TabularData(DataBase):
         if raw.y is None:
             converted_labels = transformed_labels = None
         else:
-            converted_labels = self._converters[-1].convert(self._flatten(raw.y))
+            converted_labels = self._converters[-1].convert(self._flatten(raw.y)).reshape([-1, 1])
             transformed_labels = self._processors[-1].process(converted_labels.reshape([-1, 1]))
         if self.task_type.is_clf:
             if converted_labels is not None:
