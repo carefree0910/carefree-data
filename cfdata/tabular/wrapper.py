@@ -126,12 +126,7 @@ class TabularData(DataBase):
 
     @property
     def cache_excludes(self):
-        return {
-            "_recognizers",
-            "_converters",
-            "_processors",
-            "_converted",
-        }
+        return {"_recognizers", "_converters", "_processors"}
 
     @property
     def data_tuple_base(self) -> Optional[Type[NamedTuple]]:
@@ -139,7 +134,7 @@ class TabularData(DataBase):
 
     @property
     def data_tuple_attributes(self) -> Optional[List[str]]:
-        return ["_raw", "_processed"]
+        return ["_raw", "_converted", "_processed"]
 
     @property
     def raw(self) -> DataTuple:
@@ -752,14 +747,12 @@ class TabularData(DataBase):
                 data._converters = converters
                 data._processors = processors
                 # data
-                converted_xt = np.vstack(
-                    [
-                        converters[i].converted_input
-                        for i in sorted(converters) if i != -1
-                    ]
-                )
-                converted_y = converters[-1].converted_input.reshape([-1, 1])
-                data._converted = DataTuple(converted_xt.T, converted_y, converted_xt)
+                converted_features = data._converted.x
+                for i in sorted(converters):
+                    if i == -1:
+                        continue
+                    converters[i]._converted_features = converted_features[..., i]
+                converters[-1]._converted_features = data._converted.y.flatten()
         return data
 
     def to_dataset(self) -> TabularDataset:
