@@ -690,7 +690,7 @@ class TabularData(DataBase):
             converter_folder = os.path.join(abs_folder, self.converter_folder)
             for idx, converter in self.converters.items():
                 sub_folder = os.path.join(converter_folder, str(idx))
-                converter.save(
+                converter.dump(
                     sub_folder,
                     compress=False,
                     remove_original=remove_original,
@@ -736,7 +736,7 @@ class TabularData(DataBase):
                         stuff = os.path.splitext(stuff)[0]
                     idx = int(stuff)
                     sub_folder = os.path.join(converter_folder, stuff)
-                    converter = Converter.load(sub_folder, compress=False)
+                    converter = Converter.load(folder=sub_folder, compress=False)
                     converters[idx] = converter
                     recognizers[idx] = converter._recognizer
                 # other recognizers

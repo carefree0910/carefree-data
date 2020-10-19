@@ -1,13 +1,14 @@
 import os
+import dill
 
 import numpy as np
 
 from typing import *
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from cftool.misc import register_core
+from cftool.misc import shallow_copy_dict
 from cftool.misc import lock_manager
 from cftool.misc import Saving
-from cftool.misc import SavingMixin
 
 from ..misc import *
 from ..recognizer import Recognizer
@@ -15,7 +16,7 @@ from ..recognizer import Recognizer
 converter_dict: Dict[str, Type["Converter"]] = {}
 
 
-class Converter(SavingMixin, ABC):
+class Converter(DataStructure, metaclass=ABCMeta):
     def __init__(self,
                  recognizer: Recognizer,
                  *,
@@ -54,18 +55,6 @@ class Converter(SavingMixin, ABC):
             self._converted_features = self.convert(self.info.flat_arr)
         return self._converted_features
 
-    @property
-    def cache_excludes(self):
-        return {"_recognizer"}
-
-    @property
-    def data_tuple_base(self) -> Optional[Type[NamedTuple]]:
-        return
-
-    @property
-    def data_tuple_attributes(self) -> Optional[List[str]]:
-        return
-
     def _initialize(self, **kwargs) -> None:
         pass
 
@@ -87,46 +76,23 @@ class Converter(SavingMixin, ABC):
             flat_arr = flat_arr.copy()
         return self._recover(flat_arr)
 
-    identifier_file = "identifier.txt"
-    recognizer_file = "__recognizer.pkl"
+    recognizer_key = "__recognizer__"
+    identifier_key = "__identifier__"
 
-    def save(self,
-             folder: str,
-             *,
-             compress: bool = True,
-             remove_original: bool = True):
-        super().save(folder, compress=False)
-        abs_folder = os.path.abspath(folder)
-        base_folder = os.path.dirname(abs_folder)
-        with lock_manager(base_folder, [folder]):
-            with open(os.path.join(abs_folder, self.identifier_file), "w") as f:
-                f.write(self.__identifier__)
-            recognizer_file = os.path.join(abs_folder, self.recognizer_file)
-            with open(recognizer_file, "wb") as f:
-                f.write(self._recognizer.dumps())
-            if compress:
-                Saving.compress(abs_folder, remove_original=remove_original)
+    def dumps(self) -> bytes:
+        instance_dict = shallow_copy_dict(self.__dict__)
+        instance_dict.pop("_recognizer")
+        instance_dict[self.identifier_key] = self.__identifier__
+        instance_dict[self.recognizer_key] = self._recognizer.dumps()
+        return dill.dumps(instance_dict)
 
     @classmethod
-    def load(cls,
-             folder: str,
-             *,
-             compress: bool = True):
-        abs_folder = os.path.abspath(folder)
-        base_folder = os.path.dirname(abs_folder)
-        with lock_manager(base_folder, [folder]):
-            with Saving.compress_loader(
-                folder,
-                compress,
-                remove_extracted=True,
-            ):
-                with open(os.path.join(abs_folder, cls.identifier_file), "r") as f:
-                    identifier = f.read().strip()
-                recognizer_file = os.path.join(abs_folder, cls.recognizer_file)
-                with open(recognizer_file, "rb") as f:
-                    recognizer = Recognizer.load(data=f.read())
-                converter = converter_dict[identifier](recognizer)
-                Saving.load_instance(converter, folder, log_method=converter.log_msg)
+    def loads(cls, instance_dict: Dict[str, Any]) -> "Converter":
+        recognizer_data = instance_dict.pop(cls.recognizer_key)
+        recognizer = Recognizer.load(data=recognizer_data)
+        identifier = instance_dict.pop(cls.identifier_key)
+        converter = converter_dict[identifier](recognizer)
+        converter.__dict__.update(instance_dict)
         return converter
 
     @classmethod
