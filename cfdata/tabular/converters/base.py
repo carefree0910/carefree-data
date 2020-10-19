@@ -88,7 +88,7 @@ class Converter(SavingMixin, ABC):
         return self._recover(flat_arr)
 
     identifier_file = "identifier.txt"
-    recognizer_folder = "__recognizer"
+    recognizer_file = "__recognizer.pkl"
 
     def save(self,
              folder: str,
@@ -101,12 +101,9 @@ class Converter(SavingMixin, ABC):
         with lock_manager(base_folder, [folder]):
             with open(os.path.join(abs_folder, self.identifier_file), "w") as f:
                 f.write(self.__identifier__)
-            recognizer_folder = os.path.join(abs_folder, self.recognizer_folder)
-            self._recognizer.save(
-                recognizer_folder,
-                compress=compress,
-                remove_original=remove_original,
-            )
+            recognizer_file = os.path.join(abs_folder, self.recognizer_file)
+            with open(recognizer_file, "wb") as f:
+                f.write(self._recognizer.dumps())
             if compress:
                 Saving.compress(abs_folder, remove_original=remove_original)
 
@@ -125,8 +122,9 @@ class Converter(SavingMixin, ABC):
             ):
                 with open(os.path.join(abs_folder, cls.identifier_file), "r") as f:
                     identifier = f.read().strip()
-                recognizer_folder = os.path.join(abs_folder, cls.recognizer_folder)
-                recognizer = Recognizer.load(recognizer_folder, compress=compress)
+                recognizer_file = os.path.join(abs_folder, cls.recognizer_file)
+                with open(recognizer_file, "rb") as f:
+                    recognizer = Recognizer.load(data=f.read())
                 converter = converter_dict[identifier](recognizer)
                 Saving.load_instance(converter, folder, log_method=converter.log_msg)
         return converter

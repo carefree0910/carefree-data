@@ -6,17 +6,17 @@ import numpy as np
 
 from typing import *
 from collections import Counter
+from cftool.misc import shallow_copy_dict
 from cftool.misc import get_counter_from_arr
 from cftool.misc import lock_manager
 from cftool.misc import Saving
-from cftool.misc import SavingMixin
 
 from ..misc import *
 from ...types import *
 from ...misc.c import *
 
 
-class Recognizer(SavingMixin):
+class Recognizer:
     def __init__(self,
                  column_name: str,
                  *,
@@ -68,18 +68,6 @@ class Recognizer(SavingMixin):
         if self._info.is_numerical:
             return math.inf
         return len(self._transform_dict)
-
-    @property
-    def data_tuple_base(self) -> Optional[Type[NamedTuple]]:
-        return
-
-    @property
-    def data_tuple_attributes(self) -> Optional[List[str]]:
-        return
-
-    @property
-    def cache_excludes(self):
-        return {"_info"}
 
     def _make_invalid_info(self,
                            msg: str,
@@ -250,38 +238,49 @@ class Recognizer(SavingMixin):
         self._generate_categorical_transform_dict()
         return self
 
-    info_file = "info.pkl"
+    core_file = "core.pkl"
 
-    def save(self,
+    def dumps(self) -> bytes:
+        instance_dict = shallow_copy_dict(self.__dict__)
+        instance_dict["_info"] = FeatureInfo(
+            self.info.contains_nan,
+            None,
+            self.info.is_valid,
+            None,
+            self.info.need_transform,
+            self.info.column_type,
+            self.info.unique_values_sorted_by_counts,
+            self.info.msg
+        )
+        return dill.dumps(instance_dict)
+
+    def dump(self,
              folder: str,
              *,
              compress: bool = True,
-             remove_original: bool = True):
-        super().save(folder, compress=False)
+             remove_original: bool = True) -> None:
         abs_folder = os.path.abspath(folder)
         base_folder = os.path.dirname(abs_folder)
         with lock_manager(base_folder, [folder]):
-            simplified_info = FeatureInfo(
-                self.info.contains_nan,
-                None,
-                self.info.is_valid,
-                None,
-                self.info.need_transform,
-                self.info.column_type,
-                self.info.unique_values_sorted_by_counts,
-                self.info.msg
-            )
-            with open(os.path.join(abs_folder, self.info_file), "wb") as f:
-                dill.dump(simplified_info, f)
+            Saving.prepare_folder(self, abs_folder)
+            with open(os.path.join(abs_folder, self.core_file), "wb") as f:
+                f.write(self.dumps())
             if compress:
                 Saving.compress(abs_folder, remove_original=remove_original)
 
     @classmethod
     def load(cls,
-             folder: str,
              *,
-             compress: bool = True):
+             data: Optional[bytes] = None,
+             folder: Optional[str] = None,
+             compress: bool = True) -> "Recognizer":
         recognizer = cls("")
+        if data is not None:
+            instance_dict = dill.loads(data)
+            recognizer.__dict__.update(instance_dict)
+            return recognizer
+        if folder is None:
+            raise ValueError("either `folder` or `data` should be provided")
         base_folder = os.path.dirname(os.path.abspath(folder))
         with lock_manager(base_folder, [folder]):
             with Saving.compress_loader(
@@ -290,9 +289,8 @@ class Recognizer(SavingMixin):
                 remove_extracted=True,
                 logging_mixin=recognizer,
             ):
-                Saving.load_instance(recognizer, folder, verbose=False)
-                with open(os.path.join(folder, cls.info_file), "rb") as f:
-                    recognizer._info = dill.load(f)
+                with open(os.path.join(folder, cls.core_file), "rb") as f:
+                    recognizer.__dict__.update(dill.load(f))
         return recognizer
 
 

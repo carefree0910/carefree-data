@@ -671,6 +671,7 @@ class TabularData(DataBase):
              *,
              compress: bool = True,
              remove_original: bool = True) -> "TabularData":
+        # TODO : optimize condition when there are too many converters
         abs_folder = os.path.abspath(folder)
         base_folder = os.path.dirname(abs_folder)
         core_folder = os.path.join(abs_folder, self.core_folder)
@@ -681,7 +682,7 @@ class TabularData(DataBase):
                 if idx in self.converters:
                     continue
                 sub_folder = os.path.join(recognizer_folder, str(idx))
-                recognizer.save(
+                recognizer.dump(
                     sub_folder,
                     compress=False,
                     remove_original=remove_original,
