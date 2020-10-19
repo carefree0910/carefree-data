@@ -16,7 +16,7 @@ from ...types import *
 from ...misc.c import *
 
 
-class Recognizer(SavingMixin):
+class Recognizer(DataStructure):
     def __init__(self,
                  column_name: str,
                  *,

@@ -396,7 +396,7 @@ class TabularDataset(NamedTuple):
 
 # utils
 
-class SavingMixin(LoggingMixin, metaclass=ABCMeta):
+class DataStructure(LoggingMixin, metaclass=ABCMeta):
     core_file = "core.pkl"
 
     @abstractmethod
@@ -807,5 +807,5 @@ __all__ = [
     "flat_arr_type", "raw_data_type", "data_type",
     "transpose", "DataTuple", "ColumnTypes", "TaskTypes", "FeatureInfo", "TabularDataset",
     "split_file", "SplitResult", "TimeSeriesConfig", "DataSplitter",
-    "SavingMixin",
+    "DataStructure",
 ]
