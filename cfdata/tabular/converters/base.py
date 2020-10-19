@@ -76,13 +76,13 @@ class Converter(DataStructure, metaclass=ABCMeta):
     recognizer_key = "__recognizer__"
     identifier_key = "__identifier__"
 
-    def dumps(self) -> bytes:
+    def dumps_(self) -> Any:
         instance_dict = shallow_copy_dict(self.__dict__)
         instance_dict.pop("_recognizer")
         instance_dict.pop("_converted_features")
         instance_dict[self.identifier_key] = self.__identifier__
         instance_dict[self.recognizer_key] = self._recognizer.dumps()
-        return dill.dumps(instance_dict)
+        return instance_dict
 
     @classmethod
     def loads(cls, instance_dict: Dict[str, Any], **kwargs: Any) -> "Converter":

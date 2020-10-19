@@ -401,12 +401,18 @@ class DataStructure(LoggingMixin, metaclass=ABCMeta):
     core_file = "core.pkl"
 
     @abstractmethod
-    def dumps(self) -> bytes:
+    def dumps_(self) -> Any:
         pass
 
     @abstractmethod
     def loads(self, instance_dict: Dict[str, Any], **kwargs: Any) -> "SavingMixin":
         pass
+
+    def dumps(self, *, to_bytes: bool = True) -> Union[bytes, Any]:
+        data = self.dumps_()
+        if to_bytes:
+            data = dill.dumps(data)
+        return data
 
     def dump(self,
              folder: str,

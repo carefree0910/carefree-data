@@ -235,7 +235,7 @@ class Recognizer(DataStructure):
         self._generate_categorical_transform_dict()
         return self
 
-    def dumps(self) -> bytes:
+    def dumps_(self) -> Any:
         instance_dict = shallow_copy_dict(self.__dict__)
         instance_dict["_info"] = FeatureInfo(
             self.info.contains_nan,
@@ -247,7 +247,7 @@ class Recognizer(DataStructure):
             self.info.unique_values_sorted_by_counts,
             self.info.msg
         )
-        return dill.dumps(instance_dict)
+        return instance_dict
 
     @classmethod
     def loads(cls, instance_dict: Dict[str, Any], **kwargs: Any) -> "Recognizer":

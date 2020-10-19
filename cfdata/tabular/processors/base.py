@@ -97,10 +97,10 @@ class Processor(DataStructure, metaclass=ABCMeta):
 
     identifier_key = "__identifier__"
 
-    def dumps(self) -> bytes:
+    def dumps_(self) -> Any:
         instance_dict = shallow_copy_dict(self.__dict__)
         instance_dict[self.identifier_key] = self.__identifier__
-        return dill.dumps(instance_dict)
+        return instance_dict
 
     @classmethod
     def loads(cls, instance_dict: Dict[str, Any], **kwargs) -> "Processor":
