@@ -1,18 +1,20 @@
-import os
+import dill
 
 import numpy as np
 
 from typing import *
-from abc import ABC, abstractmethod
+from abc import abstractmethod
+from abc import ABCMeta
 from cftool.misc import register_core
-from cftool.misc import lock_manager
-from cftool.misc import Saving
-from cftool.misc import SavingMixin
+from cftool.misc import shallow_copy_dict
+
+from ..misc import DataStructure
+
 
 processor_dict: Dict[str, Type["Processor"]] = {}
 
 
-class Processor(SavingMixin, ABC):
+class Processor(DataStructure, metaclass=ABCMeta):
     def __init__(self,
                  previous_processors: List["Processor"],
                  *,
@@ -93,43 +95,21 @@ class Processor(SavingMixin, ABC):
             columns = columns.copy()
         return self._recover(columns)
 
-    identifier_file = "identifier.txt"
+    identifier_key = "__identifier__"
 
-    def save(self,
-             folder: str,
-             *,
-             compress: bool = True,
-             remove_original: bool = True):
-        super().save(folder, compress=False)
-        abs_folder = os.path.abspath(folder)
-        base_folder = os.path.dirname(abs_folder)
-        with lock_manager(base_folder, [folder]):
-            with open(os.path.join(abs_folder, self.identifier_file), "w") as f:
-                f.write(self.__identifier__)
-            if compress:
-                Saving.compress(abs_folder, remove_original=remove_original)
+    def dumps(self) -> bytes:
+        instance_dict = shallow_copy_dict(self.__dict__)
+        instance_dict[self.identifier_key] = self.__identifier__
+        return dill.dumps(instance_dict)
 
     @classmethod
-    def load(cls,
-             folder: str,
-             *,
-             previous_processors: List["Processor"] = None,
-             compress: bool = True):
+    def loads(cls, instance_dict: Dict[str, Any], **kwargs) -> "Processor":
+        previous_processors = kwargs.get("previous_processors")
         if previous_processors is None:
             raise ValueError("`previous_processors` must be provided")
-        abs_folder = os.path.abspath(folder)
-        base_folder = os.path.dirname(abs_folder)
-        with lock_manager(base_folder, [folder]):
-            with Saving.compress_loader(
-                folder,
-                compress,
-                remove_extracted=True,
-            ):
-                with open(os.path.join(abs_folder, cls.identifier_file), "r") as f:
-                    identifier = f.read().strip()
-                processor = processor_dict[identifier]([])
-                Saving.load_instance(processor, folder, log_method=processor.log_msg)
-                processor._previous_processors = previous_processors
+        identifier = instance_dict.pop(cls.identifier_key)
+        processor = processor_dict[identifier](previous_processors)
+        processor.__dict__.update(instance_dict)
         return processor
 
     @classmethod

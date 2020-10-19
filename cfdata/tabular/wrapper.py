@@ -698,7 +698,7 @@ class TabularData(DataBase):
             processor_folder = os.path.join(abs_folder, self.processor_folder)
             for idx, processor in self.processors.items():
                 sub_folder = os.path.join(processor_folder, str(idx))
-                processor.save(
+                processor.dump(
                     sub_folder,
                     compress=False,
                     remove_original=remove_original,
@@ -763,7 +763,7 @@ class TabularData(DataBase):
                         continue
                     sub_folder = os.path.join(processor_folder, stuff)
                     processors[-1] = Processor.load(
-                        sub_folder,
+                        folder=sub_folder,
                         previous_processors=[],
                         compress=False,
                     )
@@ -771,7 +771,7 @@ class TabularData(DataBase):
                 for idx in sorted(processor_indices):
                     sub_folder = os.path.join(processor_folder, str(idx))
                     processors[idx] = Processor.load(
-                        sub_folder,
+                        folder=sub_folder,
                         previous_processors=previous_processors,
                         compress=False,
                     )
