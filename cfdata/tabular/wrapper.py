@@ -618,7 +618,18 @@ class TabularData(DataBase):
                 contains_labels: bool = True) -> "TabularData":
         copied = copy.copy(self)
         raw = copied._raw = self._get_raw(x, y, contains_labels=contains_labels)
-        copied._converted, copied._processed = self._transform(raw, True)
+        converted, copied._processed = self._transform(raw, True)
+        copied_converters = {
+            idx: copy.copy(converter)
+            for idx, converter in self.converters.items()
+        }
+        copied_converters[-1]._converted_features = converted.y
+        for idx, converter in copied_converters.items():
+            if idx == -1:
+                continue
+            converter._converted_features = converted.x[..., idx]
+        copied._converters = copied_converters
+        copied._converted = converted
         if copied.is_ts:
             copied._get_ts_sorting_indices()
         return copied
