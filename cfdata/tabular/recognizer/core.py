@@ -16,7 +16,7 @@ from ...types import *
 from ...misc.c import *
 
 
-class Recognizer:
+class Recognizer(SavingMixin):
     def __init__(self,
                  column_name: str,
                  *,
@@ -238,8 +238,6 @@ class Recognizer:
         self._generate_categorical_transform_dict()
         return self
 
-    core_file = "core.pkl"
-
     def dumps(self) -> bytes:
         instance_dict = shallow_copy_dict(self.__dict__)
         instance_dict["_info"] = FeatureInfo(
@@ -253,20 +251,6 @@ class Recognizer:
             self.info.msg
         )
         return dill.dumps(instance_dict)
-
-    def dump(self,
-             folder: str,
-             *,
-             compress: bool = True,
-             remove_original: bool = True) -> None:
-        abs_folder = os.path.abspath(folder)
-        base_folder = os.path.dirname(abs_folder)
-        with lock_manager(base_folder, [folder]):
-            Saving.prepare_folder(self, abs_folder)
-            with open(os.path.join(abs_folder, self.core_file), "wb") as f:
-                f.write(self.dumps())
-            if compress:
-                Saving.compress(abs_folder, remove_original=remove_original)
 
     @classmethod
     def load(cls,

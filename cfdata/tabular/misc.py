@@ -8,6 +8,7 @@ from typing import *
 from cftool.misc import *
 from sklearn.datasets import *
 from enum import Enum
+from abc import abstractmethod, ABCMeta
 from functools import partial
 from sklearn.utils import Bunch
 
@@ -394,6 +395,28 @@ class TabularDataset(NamedTuple):
 
 
 # utils
+
+class SavingMixin(LoggingMixin, metaclass=ABCMeta):
+    core_file = "core.pkl"
+
+    @abstractmethod
+    def dumps(self) -> bytes:
+        pass
+
+    def dump(self,
+             folder: str,
+             *,
+             compress: bool = True,
+             remove_original: bool = True) -> None:
+        abs_folder = os.path.abspath(folder)
+        base_folder = os.path.dirname(abs_folder)
+        with lock_manager(base_folder, [folder]):
+            Saving.prepare_folder(self, abs_folder)
+            with open(os.path.join(abs_folder, self.core_file), "wb") as f:
+                f.write(self.dumps())
+            if compress:
+                Saving.compress(abs_folder, remove_original=remove_original)
+
 
 def split_file(file: str,
                export_folder: str,
@@ -784,4 +807,5 @@ __all__ = [
     "flat_arr_type", "raw_data_type", "data_type",
     "transpose", "DataTuple", "ColumnTypes", "TaskTypes", "FeatureInfo", "TabularDataset",
     "split_file", "SplitResult", "TimeSeriesConfig", "DataSplitter",
+    "SavingMixin",
 ]
