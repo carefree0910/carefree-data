@@ -128,6 +128,8 @@ class TestTabularData(unittest.TestCase):
         task = "mnist_small"
         task_file = os.path.join(data_folder, f"{task}.txt")
         data = TabularData().read(task_file).save(task)
+        copied = data.copy_to(task_file)
+        self.assertTrue(data == copied)
         loaded = TabularData.load(task)
         self.assertTrue(data == loaded)
         self.assertTrue(loaded.transform(task_file) == data.processed)
