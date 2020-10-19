@@ -748,10 +748,9 @@ class TabularData(DataBase):
                 data._processors = processors
                 # data
                 converted_features = data._converted.x
-                for i in sorted(converters):
-                    if i == -1:
-                        continue
-                    converters[i]._converted_features = converted_features[..., i]
+                converter_indices = [idx for idx in sorted(converters) if idx != -1]
+                for i, idx in enumerate(converter_indices):
+                    converters[idx]._converted_features = converted_features[..., i]
                 converters[-1]._converted_features = data._converted.y.flatten()
         return data
 
