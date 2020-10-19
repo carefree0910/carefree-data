@@ -251,7 +251,7 @@ class Recognizer(DataStructure):
         return dill.dumps(instance_dict)
 
     @classmethod
-    def loads(cls, instance_dict: Dict[str, Any]) -> "Recognizer":
+    def loads(cls, instance_dict: Dict[str, Any], **kwargs: Any) -> "Recognizer":
         recognizer = cls("")
         recognizer.__dict__.update(instance_dict)
         return recognizer

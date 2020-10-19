@@ -405,7 +405,7 @@ class DataStructure(LoggingMixin, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def loads(self, instance_dict: Dict[str, Any]) -> "SavingMixin":
+    def loads(self, instance_dict: Dict[str, Any], **kwargs: Any) -> "SavingMixin":
         pass
 
     def dump(self,
@@ -427,7 +427,8 @@ class DataStructure(LoggingMixin, metaclass=ABCMeta):
              *,
              data: Optional[bytes] = None,
              folder: Optional[str] = None,
-             compress: bool = True) -> "SavingMixin":
+             compress: bool = True,
+             **kwargs: Any) -> "SavingMixin":
         if data is not None:
             instance_dict = dill.loads(data)
             return cls.loads(instance_dict)
@@ -436,12 +437,12 @@ class DataStructure(LoggingMixin, metaclass=ABCMeta):
         base_folder = os.path.dirname(os.path.abspath(folder))
         with lock_manager(base_folder, [folder]):
             with Saving.compress_loader(
-                    folder,
-                    compress,
-                    remove_extracted=True,
+                folder,
+                compress,
+                remove_extracted=True,
             ):
                 with open(os.path.join(folder, cls.core_file), "rb") as f:
-                    return cls.loads(dill.load(f))
+                    return cls.loads(dill.load(f), **kwargs)
 
 
 def split_file(file: str,

@@ -87,7 +87,7 @@ class Converter(DataStructure, metaclass=ABCMeta):
         return dill.dumps(instance_dict)
 
     @classmethod
-    def loads(cls, instance_dict: Dict[str, Any]) -> "Converter":
+    def loads(cls, instance_dict: Dict[str, Any], **kwargs: Any) -> "Converter":
         recognizer_data = instance_dict.pop(cls.recognizer_key)
         recognizer = Recognizer.load(data=recognizer_data)
         identifier = instance_dict.pop(cls.identifier_key)
