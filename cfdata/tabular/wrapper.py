@@ -414,73 +414,64 @@ class TabularData(DataBase):
                 with timing_context(self, "convert", enable=self._timing):
                     converted_labels = converter.converted_input.reshape([-1, 1])
             converted_x = np.vstack(converted_features).T
-            with timing_context(self, "process", enable=self._timing):
-                # process features
-                self._processors = {}
-                processed_features = []
-                previous_processors: List[Processor] = []
-                idx = 0
-                while idx < self.raw_dim:
-                    if idx in self.excludes or idx in ts_indices:
-                        idx += 1
-                        continue
-                    local_converter = self._converters[idx]
-                    assert local_converter is not None
-                    column_type = local_converter.info.column_type
-                    if self._process_methods is None:
-                        method = None
-                    elif isinstance(self._process_methods, str):
-                        method = self._process_methods
-                    else:
-                        method = self._process_methods.get(idx, "auto")
-                    if method is None:
-                        method = "identical"
-                    elif method == "auto":
-                        if idx in ts_indices:
-                            method = "identical"
-                        elif column_type is ColumnTypes.NUMERICAL:
-                            method = self._default_numerical_process
-                        else:
-                            method = self._default_categorical_process
-                    base = processor_dict[method]
-                    processor = base.make_with(previous_processors.copy())
-                    previous_processors.append(processor)
-                    self._processors[idx] = processor
-                    columns = converted_x[..., processor.input_indices]
-                    with timing_context(self, "fit processor", enable=self._timing):
-                        processor.fit(columns)
-                    with timing_context(
-                        self,
-                        "process with processor",
-                        enable=self._timing,
-                    ):
-                        processed_features.append(processor.process(columns))
-                    idx += processor.input_dim
-                # process labels
-                if converted_labels is None:
-                    processed_labels = self._processors[-1] = None
-                else:
-                    label_converter = self._converters[-1]
-                    assert label_converter is not None
-                    column_type = label_converter.info.column_type
+            # process features
+            self._processors = {}
+            processed_features = []
+            previous_processors: List[Processor] = []
+            idx = 0
+            while idx < self.raw_dim:
+                if idx in self.excludes or idx in ts_indices:
+                    idx += 1
+                    continue
+                local_converter = self._converters[idx]
+                assert local_converter is not None
+                column_type = local_converter.info.column_type
+                if self._process_methods is None:
                     method = None
-                    if self._label_process_method is not None:
-                        method = self._label_process_method
-                    if method is None:
-                        method = (
-                            "normalize"
-                            if column_type is ColumnTypes.NUMERICAL
-                            else "identical"
-                        )
-                    with timing_context(self, "fit processor", enable=self._timing):
-                        processor = processor_dict[method].make_with([])
-                        self._processors[-1] = processor.fit(converted_labels)
-                    with timing_context(
-                        self,
-                        "process with processor",
-                        enable=self._timing,
-                    ):
-                        processed_labels = processor.process(converted_labels)
+                elif isinstance(self._process_methods, str):
+                    method = self._process_methods
+                else:
+                    method = self._process_methods.get(idx, "auto")
+                if method is None:
+                    method = "identical"
+                elif method == "auto":
+                    if idx in ts_indices:
+                        method = "identical"
+                    elif column_type is ColumnTypes.NUMERICAL:
+                        method = self._default_numerical_process
+                    else:
+                        method = self._default_categorical_process
+                base = processor_dict[method]
+                processor = base.make_with(previous_processors.copy())
+                previous_processors.append(processor)
+                self._processors[idx] = processor
+                columns = converted_x[..., processor.input_indices]
+                with timing_context(self, "fit processor", enable=self._timing):
+                    processor.fit(columns)
+                with timing_context(self, "process", enable=self._timing):
+                    processed_features.append(processor.process(columns))
+                idx += processor.input_dim
+            # process labels
+            if converted_labels is None:
+                processed_labels = self._processors[-1] = None
+            else:
+                label_converter = self._converters[-1]
+                assert label_converter is not None
+                column_type = label_converter.info.column_type
+                method = None
+                if self._label_process_method is not None:
+                    method = self._label_process_method
+                if method is None:
+                    method = (
+                        "normalize"
+                        if column_type is ColumnTypes.NUMERICAL
+                        else "identical"
+                    )
+                with timing_context(self, "fit processor", enable=self._timing):
+                    processor = processor_dict[method].make_with([])
+                    self._processors[-1] = processor.fit(converted_labels)
+                with timing_context(self, "process", enable=self._timing):
+                    processed_labels = processor.process(converted_labels)
             has_converted_labels = converted_labels is not None
             has_processed_labels = processed_labels is not None
             if self.task_type.is_clf and has_converted_labels and has_processed_labels:
