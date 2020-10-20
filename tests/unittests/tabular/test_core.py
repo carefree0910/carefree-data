@@ -384,7 +384,8 @@ class TestTabularData(unittest.TestCase):
         export_name = "test_data"
         simplified_export_name = f"{export_name}_simple"
         d = TabularData().read(x, y)
-        d1 = TabularData.simple(TaskTypes.CLASSIFICATION).read(x, y)
+        d1 = TabularData.simple(TaskTypes.CLASSIFICATION, simplify=True)
+        d1.read(x, y)
         d.save(export_name)
         d2 = TabularData.load(export_name)
         self.assertTrue(d == d2)
