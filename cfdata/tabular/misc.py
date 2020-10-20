@@ -43,7 +43,7 @@ def transpose(x: data_type) -> Union[List[List[Any]], np.ndarray]:
 class DataTuple(NamedTuple):
     x: data_type
     y: data_type
-    xT: data_type = None
+    xT: Optional[data_type] = None
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, DataTuple):
@@ -198,9 +198,9 @@ class TabularDataset(NamedTuple):
     x: np.ndarray
     y: np.ndarray
     task_type: TaskTypes = TaskTypes.NONE
-    label_name: Union[None, str] = "label"
-    label_names: Union[None, List[str]] = None
-    feature_names: Union[None, List[str]] = None
+    label_name: Optional[str] = "label"
+    label_names: Optional[List[str]] = None
+    feature_names: Optional[List[str]] = None
 
     def __len__(self) -> int:
         return self.x.shape[0]
@@ -503,8 +503,8 @@ def split_file(
     file: str,
     export_folder: str,
     *,
-    has_header: bool = None,
-    indices_pair: Tuple[Iterable[int], Iterable[int]] = None,
+    has_header: Optional[bool] = None,
+    indices_pair: Optional[Tuple[Iterable[int], Iterable[int]]] = None,
     split: Union[int, float] = 0.1,
 ) -> Tuple[str, str]:
     os.makedirs(export_folder, exist_ok=True)

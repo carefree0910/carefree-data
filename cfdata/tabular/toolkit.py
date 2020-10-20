@@ -273,7 +273,7 @@ class ImbalancedSampler(LoggingMixin):
         *,
         shuffle: bool = True,
         aggregation: str = "continuous",
-        aggregation_config: Dict[str, Any] = None,
+        aggregation_config: Optional[Dict[str, Any]] = None,
         sample_method: str = "multinomial",
         verbose_imbalance: bool = True,
         verbose_level: int = 2,
@@ -347,7 +347,7 @@ class ImbalancedSampler(LoggingMixin):
         return self._sample_imbalance_flag
 
     @property
-    def label_ratios(self) -> Union[None, np.ndarray]:
+    def label_ratios(self) -> Optional[np.ndarray]:
         return self._label_ratios
 
     def switch_imbalance_status(self, flag: bool) -> None:
@@ -539,8 +539,8 @@ class TimeSeriesModifier:
         file_path: str,
         task_type: TaskTypes,
         *,
-        delim: str = None,
-        ts_config: TimeSeriesConfig = None,
+        delim: Optional[str] = None,
+        ts_config: Optional[TimeSeriesConfig] = None,
         contains_labels: bool = False,
     ):
         if not task_type.is_ts:
@@ -602,8 +602,8 @@ class TimeSeriesModifier:
         *,
         offset: int,
         batch_size: int = 32,
-        ts_config: TimeSeriesConfig = None,
-        aggregation_config: Dict[str, Any] = None,
+        ts_config: Optional[TimeSeriesConfig] = None,
+        aggregation_config: Optional[Dict[str, Any]] = None,
         aggregation: str = "continuous",
     ) -> "TimeSeriesModifier":
         if self._contains_labels:
