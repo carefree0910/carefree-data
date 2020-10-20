@@ -338,79 +338,80 @@ class TabularData(DataBase):
             self._converted = self._processed = self._raw
         else:
             ts_indices = self.ts_indices
-            with timing_context(self, "convert", enable=self._timing):
-                # convert features
-                features = self._raw.xT
-                assert features is not None
-                converted_features = []
-                self._recognizers, self._converters = {}, {}
-                for i, flat_arr in enumerate(features):
-                    column_name = self.column_names[i]
-                    is_valid = self.prior_valid_columns[i]
-                    is_string = self.prior_string_columns[i]
-                    is_numerical = self.prior_numerical_columns[i]
-                    is_categorical = self.prior_categorical_columns[i]
-                    if i == self.raw_dim - 1 == len(self.excludes):
-                        if i > 0:
-                            self.log_msg(
-                                f"last column {column_name} is forced to be valid "
-                                "because previous columns are all excluded",
-                                self.warning_prefix,
-                                verbose_level=2,
-                                msg_level=logging.WARNING,
-                            )
-                        is_valid = True
-                    kwargs: Dict[str, Any] = {
-                        "is_valid": is_valid,
-                        "is_string": is_string,
-                        "is_numerical": is_numerical,
-                        "is_categorical": is_categorical,
-                    }
-                    if self._numerical_threshold is not None:
-                        kwargs["numerical_threshold"] = self._numerical_threshold
-                    with timing_context(self, "fit recognizer", enable=self._timing):
-                        recognizer = Recognizer(column_name, **kwargs)  # type: ignore
-                        recognizer.fit(flat_arr)
-                        self._recognizers[i] = recognizer
-                    if not recognizer.info.is_valid:
+            # convert features
+            features = self._raw.xT
+            assert features is not None
+            converted_features = []
+            self._recognizers, self._converters = {}, {}
+            for i, flat_arr in enumerate(features):
+                column_name = self.column_names[i]
+                is_valid = self.prior_valid_columns[i]
+                is_string = self.prior_string_columns[i]
+                is_numerical = self.prior_numerical_columns[i]
+                is_categorical = self.prior_categorical_columns[i]
+                if i == self.raw_dim - 1 == len(self.excludes):
+                    if i > 0:
                         self.log_msg(
-                            recognizer.info.msg,
+                            f"last column {column_name} is forced to be valid "
+                            "because previous columns are all excluded",
                             self.warning_prefix,
-                            2,
-                            logging.WARNING,
+                            verbose_level=2,
+                            msg_level=logging.WARNING,
                         )
-                        self.excludes.add(i)
-                        continue
-                    if i not in ts_indices:
-                        with timing_context(self, "fit converter", enable=self._timing):
-                            converter = Converter.make_with(recognizer)
-                            self._converters[i] = converter
-                        converted_features.append(converter.converted_input)
-                # convert labels
-                if self._raw is None or self._raw.y is None:
-                    converted_labels = None
-                    self._recognizers[-1] = None
-                    self._converters[-1] = None
-                else:
-                    with timing_context(self, "fit recognizer", enable=self._timing):
-                        if self.label_name is None:
-                            label_name = "__label__"
-                        else:
-                            label_name = self.label_name
-                        recognizer = self._recognizers[-1] = Recognizer(
-                            label_name,
-                            is_label=True,
-                            task_type=self._task_type,
-                            is_valid=True,
-                            is_string=self.string_label,
-                            is_numerical=self.numerical_label,
-                            is_categorical=self.categorical_label,
-                            numerical_threshold=1.0,
-                        )
-                        recognizer.fit(self._flatten(self._raw.y))
+                    is_valid = True
+                kwargs: Dict[str, Any] = {
+                    "is_valid": is_valid,
+                    "is_string": is_string,
+                    "is_numerical": is_numerical,
+                    "is_categorical": is_categorical,
+                }
+                if self._numerical_threshold is not None:
+                    kwargs["numerical_threshold"] = self._numerical_threshold
+                with timing_context(self, "fit recognizer", enable=self._timing):
+                    recognizer = Recognizer(column_name, **kwargs)  # type: ignore
+                    recognizer.fit(flat_arr)
+                    self._recognizers[i] = recognizer
+                if not recognizer.info.is_valid:
+                    self.log_msg(
+                        recognizer.info.msg,
+                        self.warning_prefix,
+                        2,
+                        logging.WARNING,
+                    )
+                    self.excludes.add(i)
+                    continue
+                if i not in ts_indices:
                     with timing_context(self, "fit converter", enable=self._timing):
                         converter = Converter.make_with(recognizer)
-                        self._converters[-1] = converter
+                        self._converters[i] = converter
+                    with timing_context(self, "convert", enable=self._timing):
+                        converted_features.append(converter.converted_input)
+            # convert labels
+            if self._raw is None or self._raw.y is None:
+                converted_labels = None
+                self._recognizers[-1] = None
+                self._converters[-1] = None
+            else:
+                with timing_context(self, "fit recognizer", enable=self._timing):
+                    if self.label_name is None:
+                        label_name = "__label__"
+                    else:
+                        label_name = self.label_name
+                    recognizer = self._recognizers[-1] = Recognizer(
+                        label_name,
+                        is_label=True,
+                        task_type=self._task_type,
+                        is_valid=True,
+                        is_string=self.string_label,
+                        is_numerical=self.numerical_label,
+                        is_categorical=self.categorical_label,
+                        numerical_threshold=1.0,
+                    )
+                    recognizer.fit(self._flatten(self._raw.y))
+                with timing_context(self, "fit converter", enable=self._timing):
+                    converter = Converter.make_with(recognizer)
+                    self._converters[-1] = converter
+                with timing_context(self, "convert", enable=self._timing):
                     converted_labels = converter.converted_input.reshape([-1, 1])
             converted_x = np.vstack(converted_features).T
             with timing_context(self, "process", enable=self._timing):
