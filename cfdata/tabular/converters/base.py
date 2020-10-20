@@ -12,12 +12,18 @@ converter_dict: Dict[str, Type["Converter"]] = {}
 
 
 class Converter(DataStructure, metaclass=ABCMeta):
-    def __init__(self, recognizer: Recognizer, *, inplace: bool = False, **kwargs):
+    def __init__(
+        self,
+        recognizer: Recognizer,
+        *,
+        inplace: bool = False,
+        **kwargs: Any,
+    ):
         self._config = kwargs
         self._inplace = inplace
         self._recognizer = recognizer
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Converter({self.info.column_type})"
 
     __repr__ = __str__
@@ -35,19 +41,19 @@ class Converter(DataStructure, metaclass=ABCMeta):
         pass
 
     @property
-    def info(self):
+    def info(self) -> FeatureInfo:
         return self._recognizer.info
 
     @property
-    def converted_input(self):
+    def converted_input(self) -> np.ndarray:
         if getattr(self, "_converted_features", None) is None:
             self._converted_features = self.convert(self.info.flat_arr)
         return self._converted_features
 
-    def _initialize(self, **kwargs) -> None:
+    def _initialize(self, **kwargs: Any) -> None:
         pass
 
-    def initialize(self):
+    def initialize(self) -> None:
         self._initialize(**self._config)
         self._fit()
 
@@ -87,7 +93,7 @@ class Converter(DataStructure, metaclass=ABCMeta):
         recognizer: Recognizer,
         *,
         inplace: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> "Converter":
         key = recognizer.info.column_type.value
         converter = converter_dict[key](recognizer, inplace=inplace, **kwargs)
@@ -95,7 +101,7 @@ class Converter(DataStructure, metaclass=ABCMeta):
         return converter
 
     @classmethod
-    def register(cls, name):
+    def register(cls, name: str) -> Callable[[Type], Type]:
         global converter_dict
 
         def before(cls_: Type) -> None:

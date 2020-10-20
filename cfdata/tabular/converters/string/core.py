@@ -10,7 +10,7 @@ class StringConverter(Converter):
     def _fit(self) -> "Converter":
         assert self.info.is_valid and self.info.is_string and self.info.need_transform
         self._transform_dict = self._recognizer.transform_dict
-        reversed_dict = dict(map(reversed, self._transform_dict.items()))
+        reversed_dict = {v: k for k, v in self._transform_dict.items()}
         self._reverse_transform_dict = reversed_dict
         return self
 

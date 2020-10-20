@@ -11,7 +11,7 @@ class CategoricalConverter(Converter):
     def _fit(self) -> "Converter":
         assert self.info.is_valid and self.info.is_categorical
         self._transform_dict = self._recognizer.transform_dict
-        self._reverse_transform_dict = dict(map(reversed, self._transform_dict.items()))
+        self._reverse_transform_dict = {v: k for k, v in self._transform_dict.items()}
         return self
 
     def _convert(self, flat_arr: flat_arr_type) -> np.ndarray:

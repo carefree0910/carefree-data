@@ -16,17 +16,21 @@ processor_dict: Dict[str, Type["Processor"]] = {}
 
 class Processor(DataStructure, metaclass=ABCMeta):
     def __init__(
-        self, previous_processors: List["Processor"], *, inplace: bool = False, **kwargs
+        self,
+        previous_processors: List["Processor"],
+        *,
+        inplace: bool = False,
+        **kwargs: Any,
     ):
-        self._caches = {}
         self._config = kwargs
         self._inplace = inplace
+        self._caches: Dict[str, float] = {}
         self._previous_processors = previous_processors
         dims = [processor.input_dim for processor in self._previous_processors]
         start_idx = sum(dims)
         self._col_indices = [start_idx + i for i in range(self.input_dim)]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{type(self).__name__}()"
 
     __repr__ = __str__
@@ -64,16 +68,16 @@ class Processor(DataStructure, metaclass=ABCMeta):
         return list(range(previous_dimensions, previous_dimensions + self.output_dim))
 
     @property
-    def cache_excludes(self):
+    def cache_excludes(self) -> Set[str]:
         return {"_previous_processors"}
 
     @property
     def data_tuple_base(self) -> Optional[Type[NamedTuple]]:
-        return
+        return None
 
     @property
     def data_tuple_attributes(self) -> Optional[List[str]]:
-        return
+        return None
 
     def initialize(self) -> None:
         pass
@@ -96,7 +100,7 @@ class Processor(DataStructure, metaclass=ABCMeta):
         return instance_dict
 
     @classmethod
-    def loads(cls, instance_dict: Dict[str, Any], **kwargs) -> "Processor":
+    def loads(cls, instance_dict: Dict[str, Any], **kwargs: Any) -> "Processor":
         previous_processors = kwargs.get("previous_processors")
         if previous_processors is None:
             raise ValueError("`previous_processors` must be provided")
@@ -111,14 +115,14 @@ class Processor(DataStructure, metaclass=ABCMeta):
         previous_processors: List["Processor"],
         *,
         inplace: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> "Processor":
         instance = cls(previous_processors, inplace=inplace, **kwargs)
         instance.initialize()
         return instance
 
     @classmethod
-    def register(cls, name):
+    def register(cls, name: str) -> Callable[[Type], Type]:
         global processor_dict
 
         def before(cls_: Type) -> None:

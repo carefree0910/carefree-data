@@ -6,12 +6,20 @@ import random
 import numpy as np
 
 from typing import *
-from cftool.misc import *
-from sklearn.datasets import *
+from abc import abstractmethod
+from abc import ABCMeta
 from enum import Enum
-from abc import abstractmethod, ABCMeta
 from functools import partial
+from cftool.misc import get_unique_indices
+from cftool.misc import lock_manager
+from cftool.misc import Saving
+from cftool.misc import SavingMixin
+from cftool.misc import LoggingMixin
 from sklearn.utils import Bunch
+from sklearn.datasets import load_iris
+from sklearn.datasets import load_boston
+from sklearn.datasets import load_digits
+from sklearn.datasets import load_breast_cancer
 
 from ..types import *
 
@@ -19,12 +27,17 @@ from ..types import *
 # types
 
 flat_arr_type = Union[list, np.ndarray]
-raw_data_type = Optional[List[List[Union[str, float]]]]
+str_data_type = List[List[str]]
+raw_data_type = Optional[List[List[Any]]]
 data_type = Union[raw_data_type, np.ndarray]
+data_item_type = Tuple[np.ndarray, np.ndarray]
+batch_type = Union[data_item_type, Tuple[data_item_type, np.ndarray]]
 
 
-def transpose(x: data_type):
-    return x.T if isinstance(x, np.ndarray) else list(map(list, zip(*x)))
+def transpose(x: data_type) -> Union[List[List[Any]], np.ndarray]:
+    if isinstance(x, np.ndarray):
+        return x.T
+    return list(map(list, zip(*x)))  # type: ignore
 
 
 class DataTuple(NamedTuple):
@@ -32,16 +45,20 @@ class DataTuple(NamedTuple):
     y: data_type
     xT: data_type = None
 
-    def __eq__(self, other: "DataTuple"):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, DataTuple):
+            raise NotImplementedError
         self_x_is_list = isinstance(self.x, list)
         other_x_is_list = isinstance(other.x, list)
         if self_x_is_list and not other_x_is_list:
             return False
         if not self_x_is_list and other_x_is_list:
             return False
-        if self_x_is_list:
+        if self_x_is_list and other_x_is_list:
             x_allclose = self.x == other.x
         else:
+            assert isinstance(self.x, np.ndarray)
+            assert isinstance(other.x, np.ndarray)
             if isinstance(self.x[0][0], np.str_):
                 x_allclose = self.x.tolist() == other.x.tolist()
             else:
@@ -60,13 +77,15 @@ class DataTuple(NamedTuple):
             return False
         if not self_y_is_list and other_y_is_list:
             return False
-        if self_y_is_list:
+        if self_y_is_list and other_y_is_list:
             return self.y == other.y
+        assert isinstance(self.y, np.ndarray)
+        assert isinstance(other.y, np.ndarray)
         if isinstance(self.y[0][0], np.str_):
             return self.y.tolist() == other.y.tolist()
         return np.allclose(self.y, other.y, equal_nan=True)
 
-    def __ne__(self, other: "DataTuple"):
+    def __ne__(self, other: object) -> bool:
         return not self == other
 
     @property
@@ -74,9 +93,9 @@ class DataTuple(NamedTuple):
         return self.x, self.y
 
     def split_with(self, indices: Union[np.ndarray, List[int]]) -> "DataTuple":
-        def _fetch(arr):
+        def _fetch(arr: Optional[np.ndarray]) -> Optional[np.ndarray]:
             if arr is None:
-                return
+                return None
             if isinstance(arr, np.ndarray):
                 return arr[indices]
             assert isinstance(arr, list)
@@ -93,7 +112,7 @@ class DataTuple(NamedTuple):
         return DataTuple(x, y, xt)
 
     @classmethod
-    def with_transpose(cls, x: data_type, y: data_type):
+    def with_transpose(cls, x: data_type, y: data_type) -> "DataTuple":
         return DataTuple(x, y, transpose(x))
 
 
@@ -183,7 +202,7 @@ class TabularDataset(NamedTuple):
     label_names: Union[None, List[str]] = None
     feature_names: Union[None, List[str]] = None
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.x.shape[0]
 
     @property
@@ -345,7 +364,11 @@ class TabularDataset(NamedTuple):
         return cls.from_xy(xs, labels, TaskTypes.CLASSIFICATION)
 
     @staticmethod
-    def _fetch_ys(affine_train, affine_test, task_type):
+    def _fetch_ys(
+        affine_train: np.ndarray,
+        affine_test: np.ndarray,
+        task_type: TaskTypes,
+    ) -> Tuple[np.ndarray, np.ndarray]:
         if task_type.is_reg:
             y_train, y_test = affine_train, affine_test
         else:
@@ -500,16 +523,18 @@ def split_file(
         num_data = len(data)
         indices = list(range(num_data))
         if split < 1.0 or split == 1.0 and isinstance(split, float):
-            split = int(num_data * split)
+            split_num = int(num_data * split)
+        else:
+            split_num = int(split)
         random.shuffle(indices)
-        indices_pair = (indices[:split], indices[split:])
+        indices_pair = indices[:split_num], indices[split_num:]
 
-    def _split(file_, indices_):
-        with open(file_, "w") as f:
+    def _split(file_: str, indices_: np.ndarray) -> None:
+        with open(file_, "w") as f_:
             if header is not None:
-                f.write(header)
+                f_.write(header)
             for idx in indices_:
-                f.write(data[idx])
+                f_.write(data[idx])
 
     _split(split1, indices_pair[0])
     _split(split2, indices_pair[1])
@@ -536,12 +561,12 @@ class SplitResult(NamedTuple):
 
 
 class TimeSeriesConfig(NamedTuple):
-    id_column_name: str = None
-    time_column_name: str = None
-    id_column_idx: int = None
-    time_column_idx: int = None
-    id_column: np.ndarray = None
-    time_column: np.ndarray = None
+    id_column_name: Optional[str] = None
+    time_column_name: Optional[str] = None
+    id_column_idx: Optional[int] = None
+    time_column_idx: Optional[int] = None
+    id_column: Optional[np.ndarray] = None
+    time_column: Optional[np.ndarray] = None
 
 
 class DataSplitter(SavingMixin):
@@ -585,11 +610,11 @@ class DataSplitter(SavingMixin):
 
     @property
     def data_tuple_base(self) -> Optional[Type[NamedTuple]]:
-        return
+        return None
 
     @property
     def data_tuple_attributes(self) -> Optional[List[str]]:
-        return
+        return None
 
     def __init__(
         self,
@@ -599,13 +624,21 @@ class DataSplitter(SavingMixin):
         replace: bool = False,
         verbose_level: int = 2,
     ):
-        self._remained_indices = None
-        self._time_indices_list = self._time_indices_list_in_use = None
-        self._label_indices_list = self._label_indices_list_in_use = None
+        self._num_samples: int
+        self._num_unique_labels: int
+        self._label_ratios: np.ndarray
+        self._remained_indices: np.ndarray
+        self._time_indices_list: Optional[List[np.ndarray]] = None
+        self._time_indices_list_in_use: Optional[List[np.ndarray]] = None
+        self._times_counts_cumsum: np.ndarray
+        self._label_indices_list: Optional[List[np.ndarray]] = None
+        self._label_indices_list_in_use: Optional[List[np.ndarray]] = None
         self._time_series_config = time_series_config
         self._time_series_sorting_indices = None
         self._shuffle, self._replace = shuffle, replace
         self._verbose_level = verbose_level
+        self._id_column: Optional[np.ndarray]
+        self._time_column: Optional[np.ndarray]
         if time_series_config is not None:
             if replace:
                 msg = "`replace` cannot be True when splitting time series dataset"
@@ -630,15 +663,19 @@ class DataSplitter(SavingMixin):
         return self._y
 
     @property
-    def id_column(self):
+    def id_column(self) -> np.ndarray:
+        if self._id_column is None:
+            raise ValueError("`id_column` is not defined")
         return self._id_column
 
     @property
-    def time_column(self):
+    def time_column(self) -> np.ndarray:
+        if self._time_column is None:
+            raise ValueError("`time_column` is not defined")
         return self._time_column
 
     @property
-    def sorting_indices(self):
+    def sorting_indices(self) -> np.ndarray:
         if not self._dataset.is_ts:
             raise ValueError(
                 "sorting_indices should not be called "
@@ -647,17 +684,17 @@ class DataSplitter(SavingMixin):
         return self._time_series_sorting_indices
 
     @property
-    def remained_indices(self):
+    def remained_indices(self) -> np.ndarray:
         return self._remained_indices[::-1].copy()
 
     @property
-    def remained_xy(self):
+    def remained_xy(self) -> Tuple[np.ndarray, np.ndarray]:
         indices = self.remained_indices
         return self._x[indices], self._y[indices]
 
     # reset methods
 
-    def _reset_reg(self):
+    def _reset_reg(self) -> None:
         num_data = len(self._x)
         if not self._shuffle:
             self._remained_indices = np.arange(num_data)
@@ -665,7 +702,7 @@ class DataSplitter(SavingMixin):
             self._remained_indices = np.random.permutation(num_data)
         self._remained_indices = self._remained_indices.astype(np_int_type)
 
-    def _reset_clf(self):
+    def _reset_clf(self) -> None:
         if self._label_indices_list is None:
             flattened_y = self._y.ravel()
             unique_indices = get_unique_indices(flattened_y)
@@ -685,7 +722,7 @@ class DataSplitter(SavingMixin):
             )
         self._reset_indices_list("label_indices_list")
 
-    def _reset_time_series(self):
+    def _reset_time_series(self) -> None:
         if self._time_indices_list is None:
             self.log_msg(
                 f"gathering time -> indices mapping",
@@ -697,6 +734,7 @@ class DataSplitter(SavingMixin):
             times_counts = unique_indices.unique_cnt[::-1]
             self._time_indices_list = unique_indices.split_indices[::-1]
             self._times_counts_cumsum = np.cumsum(times_counts).astype(np_int_type)
+            assert self._time_column is not None
             assert self._times_counts_cumsum[-1] == len(self._time_column)
             stacked = np.hstack(self._time_indices_list[::-1]).astype(np_int_type)
             self._time_series_sorting_indices = stacked
@@ -705,7 +743,7 @@ class DataSplitter(SavingMixin):
         self._reset_indices_list("time_indices_list")
         self._times_counts_cumsum_in_use = self._times_counts_cumsum.copy()
 
-    def _reset_indices_list(self, attr):
+    def _reset_indices_list(self, attr: str) -> None:
         self_attr = getattr(self, f"_{attr}")
         if self._shuffle:
             tuple(map(np.random.shuffle, self_attr))
@@ -716,7 +754,10 @@ class DataSplitter(SavingMixin):
 
     # split methods
 
-    def _split_reg(self, n: int):
+    def _split_reg(self, n: int) -> None:
+        if self._remained_indices is None:
+            msg = "please call 'reset' method before calling 'split' method"
+            raise ValueError(msg)
         tgt_indices = self._remained_indices[-n:]
         n = min(n, len(self._remained_indices) - 1)
         if self._replace:
@@ -725,13 +766,17 @@ class DataSplitter(SavingMixin):
             self._remained_indices = self._remained_indices[:-n]
         return tgt_indices
 
-    def _split_clf(self, n: int):
+    def _split_clf(self, n: int) -> None:
+        if self._label_indices_list_in_use is None:
+            msg = "please call 'reset' method before calling 'split' method"
+            raise ValueError(msg)
         if n < self._num_unique_labels:
             raise ValueError(
                 f"at least {self._num_unique_labels} samples are required because "
                 f"we have {self._num_unique_labels} unique labels"
             )
-        pop_indices_list, tgt_indices_list = [], []
+        pop_indices_list: List[np.ndarray] = []
+        tgt_indices_list: List[np.ndarray] = []
         rounded = np.round(n * self._label_ratios).astype(np_int_type)
         num_samples_per_label = np.maximum(1, rounded)
         # -num_unique_labels <= num_samples_exceeded <= num_unique_labels
@@ -774,13 +819,10 @@ class DataSplitter(SavingMixin):
             tuple(map(np.random.shuffle, self._label_indices_list_in_use))
             self._remained_indices = np.hstack(self._label_indices_list_in_use)
         else:
-            self._label_indices_list_in_use = list(
-                map(
-                    lambda arr, pop_indices: np.delete(arr, pop_indices),
-                    self._label_indices_list_in_use,
-                    pop_indices_list,
-                )
-            )
+            for i, (in_use, pip_indices) in enumerate(
+                zip(self._label_indices_list_in_use, pop_indices_list)
+            ):
+                self._label_indices_list_in_use[i] = np.delete(in_use, pip_indices)
             remain_indices = np.hstack(self._label_indices_list_in_use)
             base = np.zeros(self._num_samples)
             base[tgt_indices] += 1
@@ -789,7 +831,10 @@ class DataSplitter(SavingMixin):
             self._remained_indices = remain_indices
         return tgt_indices
 
-    def _split_time_series(self, n: int):
+    def _split_time_series(self, n: int) -> np.ndarray:
+        if self._time_indices_list_in_use is None:
+            msg = "please call 'reset' method before calling 'split' method"
+            raise ValueError(msg)
         split_arg = np.argmax(self._times_counts_cumsum_in_use >= n)
         num_left = self._times_counts_cumsum_in_use[split_arg] - n
         if split_arg == 0:
@@ -820,9 +865,22 @@ class DataSplitter(SavingMixin):
         if not self._dataset.is_ts:
             self._time_column = None
         else:
-            if self._id_column is None or self._time_column is None:
+            if self._id_column is not None and self._time_column is not None:
+                self._id_column = np.asarray(self._id_column)
+                self._time_column = np.asarray(self._time_column)
+            else:
                 id_idx, time_idx = self._id_column_idx, self._time_column_idx
-                if self._id_column_idx < self._time_column_idx:
+                if id_idx is None:
+                    raise ValueError(
+                        "`id_column_idx` should be provided "
+                        "when `id_column` is not given"
+                    )
+                if time_idx is None:
+                    raise ValueError(
+                        "`time_column_idx` should be provided "
+                        "when `time_column` is not given"
+                    )
+                if id_idx < time_idx:
                     id_first = True
                     split_list = [id_idx, id_idx + 1, time_idx, time_idx + 1]
                 else:
@@ -857,21 +915,25 @@ class DataSplitter(SavingMixin):
                 raise ValueError(error_msg)
             if self._dataset.is_clf and self._label_indices_list_in_use is None:
                 raise ValueError(error_msg)
-        if n >= len(self._remained_indices):
+        if self._remained_indices is None:
+            raise ValueError(error_msg)
+        if n < 1.0 or (n == 1.0 and isinstance(n, float)):
+            num = int(round(len(self._x) * n))
+        else:
+            num = int(n)
+        if num >= len(self._remained_indices):
             remained_x, remained_y = self.remained_xy
             return SplitResult(
                 TabularDataset.from_xy(remained_x, remained_y, self._dataset.task_type),
                 self._remained_indices,
                 np.array([], np_int_type),
             )
-        if n < 1.0 or (n == 1.0 and isinstance(n, float)):
-            n = int(round(len(self._x) * n))
         if self._dataset.is_ts:
             split_method = self._split_time_series
         else:
             split_method = self._split_reg if self._dataset.is_reg else self._split_clf
-        tgt_indices = split_method(n)
-        assert len(tgt_indices) == n
+        tgt_indices = split_method(num)
+        assert len(tgt_indices) == num
         return SplitResult(
             self._dataset.split_with(tgt_indices),
             tgt_indices,
@@ -880,18 +942,16 @@ class DataSplitter(SavingMixin):
 
     def split_multiple(
         self,
-        n_list: List[Union[int, float]],
+        n_list: Union[List[int], List[float]],
         *,
         return_remained: bool = False,
     ) -> List[SplitResult]:
-        n_list = n_list.copy()
-        n_total = len(self._x)
-        if not all(n_ <= 1.0 for n_ in n_list):
-            if any(n_ < 1.0 for n_ in n_list):
-                msg = "some of the elements in `n_list` (but not all) are less than 1"
-                raise ValueError(msg)
+        num_list: List[int]
+        num_total = len(self._x)
+        if isinstance(n_list[0], int):
+            num_list = list(map(int, n_list))
             if return_remained:
-                n_list.append(n_total - sum(n_list))
+                num_list.append(num_total - sum(num_list))
         else:
             ratio_sum = sum(n_list)
             if ratio_sum > 1.0:
@@ -901,18 +961,21 @@ class DataSplitter(SavingMixin):
                     "sum of `n_list` should be less than 1 "
                     "when `return_remained` is True"
                 )
-            n_selected = int(round(n_total * ratio_sum))
-            n_list[:-1] = [int(round(n_total * ratio)) for ratio in n_list[:-1]]
-            n_list[-1] = n_selected - sum(n_list[:-1])
+            n_selected = int(round(num_total * ratio_sum))
+            num_list = [int(round(num_total * ratio)) for ratio in n_list[:-1]]
+            num_list.append(n_selected - sum(num_list))
             if ratio_sum < 1.0:
-                n_list.append(n_total - n_selected)
-        return list(map(self.split, n_list))
+                num_list.append(num_total - n_selected)
+        return list(map(self.split, num_list))
 
 
 __all__ = [
     "flat_arr_type",
+    "str_data_type",
     "raw_data_type",
     "data_type",
+    "data_item_type",
+    "batch_type",
     "transpose",
     "DataTuple",
     "ColumnTypes",

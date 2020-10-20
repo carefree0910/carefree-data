@@ -44,9 +44,11 @@ class Recognizer(DataStructure):
         self.is_numerical = is_numerical
         self.is_categorical = is_categorical
         self.numerical_threshold = numerical_threshold
-        self._info = self._counter = self._transform_dict = None
+        self._info: FeatureInfo
+        self._counter: Counter
+        self._transform_dict: Dict[Union[str, int], int]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"Recognizer({self.info.column_type})"
 
     __repr__ = __str__
@@ -71,7 +73,7 @@ class Recognizer(DataStructure):
 
     def _make_invalid_info(
         self,
-        msg: str,
+        msg: Optional[str],
         contains_nan: bool,
         nan_mask: np.ndarray,
     ) -> "Recognizer":
@@ -85,7 +87,12 @@ class Recognizer(DataStructure):
         return self
 
     @staticmethod
-    def _make_string_info(flat_arr, is_valid, msg, unique_values=None) -> FeatureInfo:
+    def _make_string_info(
+        flat_arr: np.ndarray,
+        is_valid: bool,
+        msg: Optional[str],
+        unique_values: Optional[np.ndarray] = None,
+    ) -> FeatureInfo:
         return FeatureInfo(
             False,
             flat_arr,
@@ -99,9 +106,10 @@ class Recognizer(DataStructure):
     def _check_string_column(
         self,
         flat_arr: flat_arr_type,
-    ) -> Tuple[bool, Union[FeatureInfo, None]]:
+    ) -> Tuple[bool, Optional[FeatureInfo]]:
         if self.is_numerical or self.is_categorical or self.is_string is False:
             return False, None
+        msg: Optional[str] = None
         is_reg_label = self.is_label and self.task_type.is_reg
         if self.is_string:
             if is_reg_label:
@@ -129,7 +137,6 @@ class Recognizer(DataStructure):
                 "are DIFFERENT. It'll be excluded since it might be redundant"
             )
             return True, self._make_string_info(None, False, msg)
-        msg = None
         if num_unique_values >= 1e3:
             msg = (
                 f"TOO MANY unique values occurred in column {self.name} "
@@ -143,7 +150,7 @@ class Recognizer(DataStructure):
         self,
         num_samples: int,
         num_unique_values: int,
-    ) -> Tuple[str, Union[str, None]]:
+    ) -> Tuple[str, Optional[str]]:
         if not self.is_valid and num_unique_values == 1:
             msg = (
                 f"all values in column {self.name}, which tends to be "
@@ -171,14 +178,17 @@ class Recognizer(DataStructure):
             return "numerical", msg
         return "keep", None
 
-    def _generate_categorical_transform_dict(self):
-        values = self._info.unique_values_sorted_by_counts.tolist()
+    def _generate_categorical_transform_dict(self) -> None:
+        unique_values = self._info.unique_values_sorted_by_counts
+        assert unique_values is not None
+        values = unique_values.tolist()
         transform_dict = {v: i for i, v in enumerate(values) if not math.isnan(v)}
         if self._info.contains_nan:
             transform_dict["nan"] = len(transform_dict)
         self._transform_dict = transform_dict
 
     def fit(self, flat_arr: flat_arr_type) -> "Recognizer":
+        msg: Optional[str]
         if self.is_valid is False:
             self._info = FeatureInfo(
                 None,
@@ -189,6 +199,7 @@ class Recognizer(DataStructure):
             return self
         is_string, info = self._check_string_column(flat_arr)
         if is_string:
+            assert info is not None
             self._info = info
             return self
         if isinstance(flat_arr[0], (str, np.str_)):

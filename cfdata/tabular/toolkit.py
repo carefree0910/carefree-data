@@ -1,7 +1,18 @@
 import numpy as np
 
-from typing import *
-from cftool.misc import *
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Type
+from typing import Tuple
+from typing import Union
+from typing import Callable
+from typing import Optional
+from cftool.misc import register_core
+from cftool.misc import shallow_copy_dict
+from cftool.misc import get_unique_indices
+from cftool.misc import Sampler
+from cftool.misc import LoggingMixin
 
 from abc import *
 from .misc import *
@@ -48,15 +59,17 @@ class KFold:
 
     """
 
-    def __init__(self, k: int, dataset: TabularDataset, **kwargs):
+    def __init__(self, k: int, dataset: TabularDataset, **kwargs: Any):
         if k <= 1:
             raise ValueError("k should be larger than 1 in KFold")
         ratio = 1.0 / k
         self.n_list = (k - 1) * [ratio]
         self.splitter = DataSplitter(**kwargs).fit(dataset)
-        self.split_results = self._order = self._cursor = None
+        self._cursor: int
+        self._order: np.ndarray
+        self.split_results: List[SplitResult]
 
-    def __iter__(self):
+    def __iter__(self) -> "KFold":
         self.split_results = self.splitter.split_multiple(
             self.n_list,
             return_remained=True,
@@ -118,13 +131,13 @@ class KRandom:
         k: int,
         num_test: Union[int, float],
         dataset: TabularDataset,
-        **kwargs,
+        **kwargs: Any,
     ):
-        self._cursor = None
+        self._cursor: int
         self.k, self.num_test = k, num_test
         self.splitter = DataSplitter(**kwargs).fit(dataset)
 
-    def __iter__(self):
+    def __iter__(self) -> "KRandom":
         self._cursor = 0
         return self
 
@@ -185,9 +198,9 @@ class KBootstrap:
         k: int,
         num_test: Union[int, float],
         dataset: TabularDataset,
-        **kwargs,
+        **kwargs: Any,
     ):
-        self._cursor = None
+        self._cursor: int
         self.dataset = dataset
         self.num_samples = len(dataset)
         if isinstance(num_test, float):
@@ -195,7 +208,7 @@ class KBootstrap:
         self.k, self.num_test = k, num_test
         self.splitter = DataSplitter(**kwargs).fit(dataset)
 
-    def __iter__(self):
+    def __iter__(self) -> "KBootstrap":
         self._cursor = 0
         return self
 
@@ -280,22 +293,26 @@ class ImbalancedSampler(LoggingMixin):
             base = aggregation_dict[aggregation]
             self.aggregation = base(data, aggregation_config, data._verbose_level)
             self._num_samples = len(self.aggregation.indices2id)
-        label_recognizer = data.recognizers[-1]
         if not self.shuffle or data.is_reg:
             label_counts = self._label_ratios = self._sampler = None
         else:
+            label_recognizer = data.recognizers[-1]
+            if label_recognizer is None:
+                msg = "`data` should contain label recognizer for `ImbalancedSampler`"
+                raise ValueError(msg)
             label_counter = label_recognizer.counter
             transform_dict = label_recognizer.transform_dict
-            label_counter = {transform_dict[k]: v for k, v in label_counter.items()}
-            counts_list = [label_counter[k] for k in sorted(label_counter)]
+            new_counter = {transform_dict[k]: v for k, v in label_counter.items()}
+            counts_list = [new_counter[k] for k in sorted(new_counter)]
             label_counts = np.array(counts_list, np_float_type)
-            self._label_ratios, max_label_count = (
-                label_counts / self._num_samples,
-                label_counts.max(),
-            )
+            self._label_ratios = label_counts / self._num_samples
+            max_label_count = label_counts.max()
             if label_counts.min() / max_label_count >= imbalance_threshold:
                 self._sampler = None
             else:
+                if not isinstance(data.processed.y, np.ndarray):
+                    msg = "`data` should contain `processed.y` for `ImbalancedSampler`"
+                    raise ValueError(msg)
                 labels = data.processed.y.ravel()
                 sample_weights = np.zeros(self._num_samples, np_float_type)
                 for i, count in enumerate(label_counts):
@@ -303,15 +320,18 @@ class ImbalancedSampler(LoggingMixin):
                 sample_weights /= sample_weights.sum()
                 self._sampler = Sampler(sample_method, sample_weights)
 
-        self._sample_method, self._verbose_level = sample_method, verbose_level
-        if verbose_imbalance and self._sampler is not None:
-            self.log_msg(
-                f"using imbalanced sampler with label counts = {label_counts.tolist()}",
-                self.info_prefix,
-                2,
-            )
+        self._sample_method = sample_method
+        self._verbose_level = verbose_level
+        if label_counts is not None and verbose_imbalance:
+            if self._sampler is not None:
+                self.log_msg(
+                    "using imbalanced sampler with "
+                    f"label counts = {label_counts.tolist()}",
+                    self.info_prefix,
+                    2,
+                )
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self._num_samples
 
     @property
@@ -333,6 +353,8 @@ class ImbalancedSampler(LoggingMixin):
         if not self.shuffle or not self._sample_imbalance_flag or not self.is_imbalance:
             indices = np.arange(self._num_samples).astype(np_int_type)
         else:
+            if self._sampler is None:
+                raise ValueError("`_sampler` is not yet generated")
             indices = self._sampler.sample(self._num_samples)
         if self.shuffle:
             np.random.shuffle(indices)
@@ -397,6 +419,8 @@ class DataLoader:
         label_collator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
         verbose_level: int = 2,
     ):
+        self._cursor: int
+        self._siamese_cursor: int
         self._indices_in_use = None
         self._verbose_level = verbose_level
         self.data = sampler.data
@@ -414,15 +438,15 @@ class DataLoader:
         self.batch_size = min(self._num_samples, batch_size)
         self._verbose_level = verbose_level
 
-    def __len__(self):
+    def __len__(self) -> int:
         n_iter = int(self._num_samples / self.batch_size)
         return n_iter + int(n_iter * self.batch_size < self._num_samples)
 
-    def __iter__(self):
+    def __iter__(self) -> "DataLoader":
         self._reset()
         return self
 
-    def __next__(self):
+    def __next__(self) -> batch_type:
         data_next = self._get_next_batch()
         if self._num_siamese == 1:
             if self.return_indices:
@@ -451,10 +475,10 @@ class DataLoader:
         return self.sampler.sample_imbalance
 
     @enabled_sampling.setter
-    def enabled_sampling(self, value: bool):
+    def enabled_sampling(self, value: bool) -> None:
         self.sampler.switch_imbalance_status(value)
 
-    def _reset(self):
+    def _reset(self) -> None:
         reset_caches = {
             "_indices_in_use": self.sampler.get_indices(),
             "_siamese_cursor": 0,
@@ -463,7 +487,7 @@ class DataLoader:
         for attr, init_value in reset_caches.items():
             setattr(self, attr, init_value)
 
-    def _get_next_batch(self):
+    def _get_next_batch(self) -> batch_type:
         n_iter, self._cursor = len(self), self._cursor + 1
         if self._cursor == n_iter * self._num_siamese:
             raise StopIteration
@@ -472,6 +496,8 @@ class DataLoader:
             if new_siamese_cursor > self._siamese_cursor:
                 self._siamese_cursor = new_siamese_cursor
                 self._indices_in_use = self.sampler.get_indices()
+        if self._indices_in_use is None:
+            raise ValueError("`_indices_in_use` is not yet generated")
         start = (self._cursor - n_iter * self._siamese_cursor) * self.batch_size
         end = start + self.batch_size
         indices = self._indices_in_use[start:end]
@@ -480,8 +506,8 @@ class DataLoader:
             return batch
         return batch, indices
 
-    def _check_full_batch(self, batch):
-        if len(batch[0]) == self.batch_size:
+    def _check_full_batch(self, data_item: data_item_type) -> bool:
+        if len(data_item[0]) == self.batch_size:
             return True
         return False
 
@@ -524,10 +550,22 @@ class TimeSeriesModifier:
         self.data.read(file_path, contains_labels=contains_labels)
         if delim is None:
             delim = self.data._delim
+            if delim is None:
+                msg = "`data` need to contain `_delim` for `TimeSeriesModifier`"
+                raise ValueError(msg)
         self.delim = delim
+        if self.data._column_names is None:
+            msg = "`data` need to contain `_column_names` for `TimeSeriesModifier`"
+            raise ValueError(msg)
         sorted_indices = sorted(self.data._column_names)
         column_names = [self.data._column_names[i] for i in sorted_indices]
-        self.header = None if column_names is None else self.delim.join(column_names)
+        self.header = self.delim.join(column_names)
+        if self.data.raw.x is None:
+            msg = "`data` need to contain `raw.x` for `TimeSeriesModifier`"
+            raise ValueError(msg)
+        if self.data.raw.xT is None:
+            msg = "`data` need to contain `raw.xT` for `TimeSeriesModifier`"
+            raise ValueError(msg)
         self._num_samples = len(self.data.raw.x)
         self.xt = self.data.raw.xT
         self._modified = False
@@ -568,9 +606,7 @@ class TimeSeriesModifier:
                 msg = "time_series_config is not provided for the original data"
                 raise ValueError(msg)
         else:
-            column_names = None
-            if self.header is not None:
-                column_names = self.header.split(self.delim)
+            column_names = self.header.split(self.delim)
             if ts_config is None:
                 msg = "columns are modified but new time_series_config is not provided"
                 raise ValueError(msg)
@@ -600,6 +636,8 @@ class TimeSeriesModifier:
         return self
 
     def export_to(self, export_path: str) -> "TimeSeriesModifier":
+        if self.delim is None:
+            raise ValueError("`delim` is not yet generated")
         with open(export_path, "w") as f:
             if self.header is not None:
                 f.write(f"{self.header}\n")
@@ -615,27 +653,35 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         if not data.is_ts:
             raise ValueError("time series data is required")
         self.data = data
-        self.config, self._verbose_level = config, verbose_level
+        self.config = config
+        self._verbose_level = verbose_level
         self._num_history = config.setdefault("num_history", 1)
-        id_column = data.raw.xT[data.ts_config.id_column_idx]
+        if data.raw.xT is None:
+            raise ValueError("`data` need to contain `raw.xT` for `AggregationBase`")
+        if data.ts_config is None:
+            raise ValueError("`data` need to contain `ts_config` for `AggregationBase`")
+        id_column_idx = data.ts_config.id_column_idx
+        if id_column_idx is None:
+            msg = "`ts_config` need to contain `id_column_idx` for `AggregationBase`"
+            raise ValueError(msg)
+        id_column = data.raw.xT[id_column_idx]
         sorted_id_column = [id_column[i] for i in data.ts_sorting_indices]
         unique_indices = get_unique_indices(sorted_id_column)
-        self._unique_id_arr, self._id2indices = (
-            unique_indices.unique,
-            unique_indices.split_indices,
-        )
+        self.indices2id: np.ndarray
+        self._unique_id_arr = unique_indices.unique
+        self._id2indices = unique_indices.split_indices
         self._initialize()
 
     @property
     @abstractmethod
-    def num_aggregation(self):
+    def num_aggregation(self) -> int:
         pass
 
     @abstractmethod
     def _aggregate_core(self, indices: np.ndarray) -> np.ndarray:
         """ indices should be a column vector """
 
-    def _initialize(self):
+    def _initialize(self) -> None:
         num_list = list(map(len, self._id2indices))
         self._num_samples_per_id = np.array(num_list, np_int_type)
         self.log_msg("generating valid aggregation info", self.info_prefix, 5)
@@ -674,9 +720,9 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
             verbose_level=5,
         )
         self._get_id2valid_indices()
-        self._get_valid_samples_info()
+        self._inject_valid_samples_info()
 
-    def _get_valid_samples_info(self):
+    def _inject_valid_samples_info(self) -> None:
         # 'indices' in self.indices2id here doesn't refer to indices of original dataset
         # (e.g. 'indices' in self._id2indices), but refers to indices generated by sampler,
         # so we should only care 'valid' indices here
@@ -690,7 +736,7 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         self.indices2id = np.repeat(arange, self._num_valid_samples_per_id)
         self._id2valid_indices_stack = np.hstack(self._id2valid_indices)
 
-    def _get_id2valid_indices(self):
+    def _get_id2valid_indices(self) -> None:
         # TODO : support nan_fill here
         nan_fill = self.config.setdefault("nan_fill", "past")
         nan_ratio = self.config.setdefault("nan_ratio", 0.0)
@@ -704,8 +750,9 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
                 self._num_samples_per_id_cumsum, self._id2indices
             )
         ]
-        self._get_valid_samples_info()
+        self._inject_valid_samples_info()
         x, y = self.data.processed.xy
+        assert isinstance(x, np.ndarray)
         feature_dim = self.data.processed_dim
         for i, valid_indices in enumerate(self._id2valid_indices):
             cumsum = self._num_valid_samples_per_id_cumsum[i]
@@ -754,24 +801,24 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         reversed_aggregated = self.data.ts_sorting_indices[aggregated]
         return reversed_aggregated.reshape([-1, self.num_aggregation])
 
-    def get_last_indices(self, aggregated_flat_indices: np.ndarray):
+    def get_last_indices(self, aggregated_flat_indices: np.ndarray) -> np.ndarray:
         reshaped = aggregated_flat_indices.reshape([-1, self.num_aggregation])
         return reshaped[..., -1]
 
     @classmethod
-    def register(cls, name: str):
+    def register(cls, name: str) -> Callable[[Type], Type]:
         global aggregation_dict
         return register_core(name, aggregation_dict)
 
 
 @AggregationBase.register("continuous")
 class ContinuousAggregation(AggregationBase):
-    def _initialize(self):
+    def _initialize(self) -> None:
         self._history_arange = np.arange(self._num_history)
         super()._initialize()
 
     @property
-    def num_aggregation(self):
+    def num_aggregation(self) -> int:
         return self._num_history
 
     def _aggregate_core(self, indices: np.ndarray) -> np.ndarray:
