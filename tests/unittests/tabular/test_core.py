@@ -257,7 +257,12 @@ class TestTabularData(unittest.TestCase):
         loaded = TabularData.load(task)
         self.assertTrue(data == loaded)
         self.assertTrue(loaded.transform(task_file) == data.processed)
+        simplified_file = f"{task}_simplified"
+        data.save(simplified_file, retain_data=False)
+        loaded_simplified = TabularData.load(simplified_file)
+        self.assertTrue(loaded_simplified.transform(task_file) == data.processed)
         os.remove(f"{task}.zip")
+        os.remove(f"{simplified_file}.zip")
 
     def _test_recover_labels_core(self, dataset):
         data = TabularData.from_dataset(dataset)
