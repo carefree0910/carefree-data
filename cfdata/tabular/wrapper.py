@@ -31,6 +31,7 @@ class TabularData(DataBase):
     def __init__(
         self,
         *,
+        simplify: bool = False,
         task_type: TaskTypes = TaskTypes.NONE,
         time_series_config: Optional[TimeSeriesConfig] = None,
         label_name: Optional[str] = None,
@@ -59,6 +60,7 @@ class TabularData(DataBase):
                 raise ValueError("string labels are invalid in REGRESSION tasks")
             if categorical_label:
                 raise ValueError("categorical labels are invalid in REGRESSION tasks")
+        self._simplify = simplify
         self._task_type = task_type
         self._time_series_config = time_series_config
         self.label_name = label_name
@@ -328,160 +330,169 @@ class TabularData(DataBase):
             raise ValueError("`_raw` is not provided")
         if self._raw.x is None:
             raise ValueError("`_raw.x` is not provided")
-        ts_indices = self.ts_indices
         self._raw_dim = len(self._raw.x[0])
-        with timing_context(self, "convert", enable=self._timing):
-            # convert features
-            features = self._raw.xT
-            assert features is not None
-            converted_features = []
-            self._recognizers, self._converters = {}, {}
-            for i, flat_arr in enumerate(features):
-                column_name = self.column_names[i]
-                is_valid = self.prior_valid_columns[i]
-                is_string = self.prior_string_columns[i]
-                is_numerical = self.prior_numerical_columns[i]
-                is_categorical = self.prior_categorical_columns[i]
-                if i == self.raw_dim - 1 == len(self.excludes):
-                    if i > 0:
+        if self._simplify:
+            self._recognizers = {}
+            self._converters = {}
+            self._processors = {}
+            self._converted = self._processed = self._raw
+        else:
+            ts_indices = self.ts_indices
+            with timing_context(self, "convert", enable=self._timing):
+                # convert features
+                features = self._raw.xT
+                assert features is not None
+                converted_features = []
+                self._recognizers, self._converters = {}, {}
+                for i, flat_arr in enumerate(features):
+                    column_name = self.column_names[i]
+                    is_valid = self.prior_valid_columns[i]
+                    is_string = self.prior_string_columns[i]
+                    is_numerical = self.prior_numerical_columns[i]
+                    is_categorical = self.prior_categorical_columns[i]
+                    if i == self.raw_dim - 1 == len(self.excludes):
+                        if i > 0:
+                            self.log_msg(
+                                f"last column {column_name} is forced to be valid "
+                                "because previous columns are all excluded",
+                                self.warning_prefix,
+                                verbose_level=2,
+                                msg_level=logging.WARNING,
+                            )
+                        is_valid = True
+                    kwargs: Dict[str, Any] = {
+                        "is_valid": is_valid,
+                        "is_string": is_string,
+                        "is_numerical": is_numerical,
+                        "is_categorical": is_categorical,
+                    }
+                    if self._numerical_threshold is not None:
+                        kwargs["numerical_threshold"] = self._numerical_threshold
+                    with timing_context(self, "fit recognizer", enable=self._timing):
+                        recognizer = Recognizer(column_name, **kwargs)  # type: ignore
+                        recognizer.fit(flat_arr)
+                        self._recognizers[i] = recognizer
+                    if not recognizer.info.is_valid:
                         self.log_msg(
-                            f"last column {column_name} is forced to be valid "
-                            "because previous columns are all excluded",
+                            recognizer.info.msg,
                             self.warning_prefix,
-                            verbose_level=2,
-                            msg_level=logging.WARNING,
+                            2,
+                            logging.WARNING,
                         )
-                    is_valid = True
-                kwargs: Dict[str, Any] = {
-                    "is_valid": is_valid,
-                    "is_string": is_string,
-                    "is_numerical": is_numerical,
-                    "is_categorical": is_categorical,
-                }
-                if self._numerical_threshold is not None:
-                    kwargs["numerical_threshold"] = self._numerical_threshold
-                with timing_context(self, "fit recognizer", enable=self._timing):
-                    recognizer = Recognizer(column_name, **kwargs)  # type: ignore
-                    recognizer.fit(flat_arr)
-                    self._recognizers[i] = recognizer
-                if not recognizer.info.is_valid:
-                    self.log_msg(
-                        recognizer.info.msg,
-                        self.warning_prefix,
-                        2,
-                        logging.WARNING,
-                    )
-                    self.excludes.add(i)
-                    continue
-                if i not in ts_indices:
+                        self.excludes.add(i)
+                        continue
+                    if i not in ts_indices:
+                        with timing_context(self, "fit converter", enable=self._timing):
+                            converter = Converter.make_with(recognizer)
+                            self._converters[i] = converter
+                        converted_features.append(converter.converted_input)
+                # convert labels
+                if self._raw is None or self._raw.y is None:
+                    converted_labels = None
+                    self._recognizers[-1] = None
+                    self._converters[-1] = None
+                else:
+                    with timing_context(self, "fit recognizer", enable=self._timing):
+                        if self.label_name is None:
+                            label_name = "__label__"
+                        else:
+                            label_name = self.label_name
+                        recognizer = self._recognizers[-1] = Recognizer(
+                            label_name,
+                            is_label=True,
+                            task_type=self._task_type,
+                            is_valid=True,
+                            is_string=self.string_label,
+                            is_numerical=self.numerical_label,
+                            is_categorical=self.categorical_label,
+                            numerical_threshold=1.0,
+                        )
+                        recognizer.fit(self._flatten(self._raw.y))
                     with timing_context(self, "fit converter", enable=self._timing):
                         converter = Converter.make_with(recognizer)
-                        self._converters[i] = converter
-                    converted_features.append(converter.converted_input)
-            # convert labels
-            if self._raw is None or self._raw.y is None:
-                converted_labels = self._recognizers[-1] = self._converters[-1] = None
-            else:
-                with timing_context(self, "fit recognizer", enable=self._timing):
-                    if self.label_name is None:
-                        label_name = "__label__"
+                        self._converters[-1] = converter
+                    converted_labels = converter.converted_input.reshape([-1, 1])
+            converted_x = np.vstack(converted_features).T
+            with timing_context(self, "process", enable=self._timing):
+                # process features
+                self._processors = {}
+                processed_features = []
+                previous_processors: List[Processor] = []
+                idx = 0
+                while idx < self.raw_dim:
+                    if idx in self.excludes or idx in ts_indices:
+                        idx += 1
+                        continue
+                    local_converter = self._converters[idx]
+                    assert local_converter is not None
+                    column_type = local_converter.info.column_type
+                    if self._process_methods is None:
+                        method = None
+                    elif isinstance(self._process_methods, str):
+                        method = self._process_methods
                     else:
-                        label_name = self.label_name
-                    recognizer = self._recognizers[-1] = Recognizer(
-                        label_name,
-                        is_label=True,
-                        task_type=self._task_type,
-                        is_valid=True,
-                        is_string=self.string_label,
-                        is_numerical=self.numerical_label,
-                        is_categorical=self.categorical_label,
-                        numerical_threshold=1.0,
-                    )
-                    recognizer.fit(self._flatten(self._raw.y))
-                with timing_context(self, "fit converter", enable=self._timing):
-                    converter = self._converters[-1] = Converter.make_with(recognizer)
-                converted_labels = converter.converted_input.reshape([-1, 1])
-        converted_x = np.vstack(converted_features).T
-        with timing_context(self, "process", enable=self._timing):
-            # process features
-            self._processors = {}
-            processed_features = []
-            previous_processors: List[Processor] = []
-            idx = 0
-            while idx < self.raw_dim:
-                if idx in self.excludes or idx in ts_indices:
-                    idx += 1
-                    continue
-                local_converter = self._converters[idx]
-                assert local_converter is not None
-                column_type = local_converter.info.column_type
-                if self._process_methods is None:
-                    method = None
-                elif isinstance(self._process_methods, str):
-                    method = self._process_methods
-                else:
-                    method = self._process_methods.get(idx, "auto")
-                if method is None:
-                    method = "identical"
-                elif method == "auto":
-                    if idx in ts_indices:
+                        method = self._process_methods.get(idx, "auto")
+                    if method is None:
                         method = "identical"
-                    elif column_type is ColumnTypes.NUMERICAL:
-                        method = self._default_numerical_process
-                    else:
-                        method = self._default_categorical_process
-                base = processor_dict[method]
-                processor = base.make_with(previous_processors.copy())
-                previous_processors.append(processor)
-                self._processors[idx] = processor
-                columns = converted_x[..., processor.input_indices]
-                with timing_context(self, "fit processor", enable=self._timing):
-                    processor.fit(columns)
-                with timing_context(
-                    self,
-                    "process with processor",
-                    enable=self._timing,
-                ):
-                    processed_features.append(processor.process(columns))
-                idx += processor.input_dim
-            # process labels
-            if converted_labels is None:
-                processed_labels = self._processors[-1] = None
-            else:
-                label_converter = self._converters[-1]
-                assert label_converter is not None
-                column_type = label_converter.info.column_type
-                method = None
-                if self._label_process_method is not None:
-                    method = self._label_process_method
-                if method is None:
-                    method = (
-                        "normalize"
-                        if column_type is ColumnTypes.NUMERICAL
-                        else "identical"
-                    )
-                with timing_context(self, "fit processor", enable=self._timing):
-                    processor = processor_dict[method].make_with([])
-                    self._processors[-1] = processor.fit(converted_labels)
-                with timing_context(
-                    self,
-                    "process with processor",
-                    enable=self._timing,
-                ):
-                    processed_labels = processor.process(converted_labels)
-        has_converted_labels = converted_labels is not None
-        has_processed_labels = processed_labels is not None
-        if self.task_type.is_clf and has_converted_labels and has_processed_labels:
-            assert isinstance(converted_labels, np.ndarray)
-            assert isinstance(processed_labels, np.ndarray)
-            converted_labels = converted_labels.astype(np_int_type)
-            processed_labels = processed_labels.astype(np_int_type)
-        self._converted = DataTuple(converted_x, converted_labels)
-        self._processed = DataTuple(np.hstack(processed_features), processed_labels)
+                    elif method == "auto":
+                        if idx in ts_indices:
+                            method = "identical"
+                        elif column_type is ColumnTypes.NUMERICAL:
+                            method = self._default_numerical_process
+                        else:
+                            method = self._default_categorical_process
+                    base = processor_dict[method]
+                    processor = base.make_with(previous_processors.copy())
+                    previous_processors.append(processor)
+                    self._processors[idx] = processor
+                    columns = converted_x[..., processor.input_indices]
+                    with timing_context(self, "fit processor", enable=self._timing):
+                        processor.fit(columns)
+                    with timing_context(
+                        self,
+                        "process with processor",
+                        enable=self._timing,
+                    ):
+                        processed_features.append(processor.process(columns))
+                    idx += processor.input_dim
+                # process labels
+                if converted_labels is None:
+                    processed_labels = self._processors[-1] = None
+                else:
+                    label_converter = self._converters[-1]
+                    assert label_converter is not None
+                    column_type = label_converter.info.column_type
+                    method = None
+                    if self._label_process_method is not None:
+                        method = self._label_process_method
+                    if method is None:
+                        method = (
+                            "normalize"
+                            if column_type is ColumnTypes.NUMERICAL
+                            else "identical"
+                        )
+                    with timing_context(self, "fit processor", enable=self._timing):
+                        processor = processor_dict[method].make_with([])
+                        self._processors[-1] = processor.fit(converted_labels)
+                    with timing_context(
+                        self,
+                        "process with processor",
+                        enable=self._timing,
+                    ):
+                        processed_labels = processor.process(converted_labels)
+            has_converted_labels = converted_labels is not None
+            has_processed_labels = processed_labels is not None
+            if self.task_type.is_clf and has_converted_labels and has_processed_labels:
+                assert isinstance(converted_labels, np.ndarray)
+                assert isinstance(processed_labels, np.ndarray)
+                converted_labels = converted_labels.astype(np_int_type)
+                processed_labels = processed_labels.astype(np_int_type)
+            self._converted = DataTuple(converted_x, converted_labels)
+            self._processed = DataTuple(np.hstack(processed_features), processed_labels)
         self._valid_columns = [
             col for col in range(self.raw_dim) if col not in self.excludes
         ]
-        self._valid_columns_dict = self.ts_sorting_indices = None
+        self.ts_sorting_indices = None
         # time series
         if self.is_ts:
             self._get_ts_sorting_indices()
@@ -532,26 +543,35 @@ class TabularData(DataBase):
         self._raw = DataTuple.with_transpose(x, y)
         return self._core_fit()
 
-    def _transform_labels(self, raw: DataTuple) -> Tuple[np.ndarray, np.ndarray]:
-        if raw.y is None:
-            converted_labels = transformed_labels = None
-        else:
-            label_converter = self._converters[-1]
-            label_processor = self._processors[-1]
-            if label_converter is None:
-                raise ValueError("label_converter is not generated")
-            if label_processor is None:
-                raise ValueError("label_processor is not generated")
-            converted_labels = label_converter.convert(self._flatten(raw.y))
-            converted_labels = converted_labels.reshape([-1, 1])
-            transformed_labels = label_processor.process(converted_labels)
+    def _transform_labels(
+        self,
+        raw: DataTuple,
+    ) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+        raw_y = raw.y
+        if raw_y is None:
+            return None, None
+        if self._simplify:
+            if not isinstance(raw_y, np.ndarray):
+                msg = "`TabularData` is set to `simplify` but `raw.y` is not np.ndarray"
+                raise ValueError(msg)
+            return raw_y, raw_y
+        label_converter = self._converters[-1]
+        label_processor = self._processors[-1]
+        if label_converter is None:
+            raise ValueError("label_converter is not generated")
+        if label_processor is None:
+            raise ValueError("label_processor is not generated")
+        converted_labels = label_converter.convert(self._flatten(raw.y))
+        converted_labels = converted_labels.reshape([-1, 1])
+        transformed_labels = label_processor.process(converted_labels)
         if self.task_type.is_clf:
-            if converted_labels is not None and transformed_labels is not None:
-                converted_labels = converted_labels.astype(np_int_type)
-                transformed_labels = transformed_labels.astype(np_int_type)
+            converted_labels = converted_labels.astype(np_int_type)
+            transformed_labels = transformed_labels.astype(np_int_type)
         return converted_labels, transformed_labels
 
     def _transform(self, raw: DataTuple) -> Tuple[DataTuple, DataTuple]:
+        if self._simplify:
+            return raw, raw
         # transform features
         features = raw.xT
         if features is None:
@@ -940,41 +960,46 @@ class TabularData(DataBase):
                             core_folder,
                             log_method=data.log_msg,
                         )
-                # data structures
-                ds_path = os.path.join(abs_folder, cls.data_structures_file)
-                with open(ds_path, "rb") as f:
-                    data_structures = dill.load(f)
-                # converters & corresponding recognizers
                 recognizers: Dict[int, Optional[Recognizer]] = {}
                 converters: Dict[int, Optional[Converter]] = {}
-                converters_dicts = data_structures["converters"]
-                for idx, converter_dict_ in converters_dicts.items():
-                    converter = converters[idx] = Converter.loads(converter_dict_)
-                    recognizers[idx] = converter._recognizer
-                # other recognizers
-                recognizers_dicts = data_structures["recognizers"]
-                for idx, recognizer_dict_ in recognizers_dicts.items():
-                    recognizers[idx] = Recognizer.loads(recognizer_dict_)
-                # processors
                 processors: Dict[int, Optional[Processor]] = {}
-                previous_processors: List[Processor] = []
-                processors_dicts = data_structures["processors"]
-                label_processor_data = processors_dicts.pop(-1)
-                if label_processor_data is None:
-                    recognizers[-1] = None
-                    converters[-1] = None
-                    processors[-1] = None
+                if data._simplify:
+                    recognizers = {}
+                    converters = {}
+                    processors = {}
                 else:
-                    processors[-1] = Processor.loads(
-                        label_processor_data,
-                        previous_processors=[],
-                    )
-                for idx in sorted(processors_dicts):
-                    processor = processors[idx] = Processor.loads(
-                        processors_dicts[idx],
-                        previous_processors=previous_processors.copy(),
-                    )
-                    previous_processors.append(processor)
+                    # data structures
+                    ds_path = os.path.join(abs_folder, cls.data_structures_file)
+                    with open(ds_path, "rb") as f:
+                        data_structures = dill.load(f)
+                    # converters & corresponding recognizers
+                    converters_dicts = data_structures["converters"]
+                    for idx, converter_dict_ in converters_dicts.items():
+                        converter = converters[idx] = Converter.loads(converter_dict_)
+                        recognizers[idx] = converter._recognizer
+                    # other recognizers
+                    recognizers_dicts = data_structures["recognizers"]
+                    for idx, recognizer_dict_ in recognizers_dicts.items():
+                        recognizers[idx] = Recognizer.loads(recognizer_dict_)
+                    # processors
+                    previous_processors: List[Processor] = []
+                    processors_dicts = data_structures["processors"]
+                    label_processor_data = processors_dicts.pop(-1)
+                    if label_processor_data is None:
+                        recognizers[-1] = None
+                        converters[-1] = None
+                        processors[-1] = None
+                    else:
+                        processors[-1] = Processor.loads(
+                            label_processor_data,
+                            previous_processors=[],
+                        )
+                    for idx in sorted(processors_dicts):
+                        processor = processors[idx] = Processor.loads(
+                            processors_dicts[idx],
+                            previous_processors=previous_processors.copy(),
+                        )
+                        previous_processors.append(processor)
                 # assign
                 data._recognizers = recognizers
                 data._converters = converters
@@ -1018,13 +1043,7 @@ class TabularData(DataBase):
 
     @classmethod
     def simple(cls, task_type: TaskTypes, **kwargs: Any) -> "TabularData":
-        return cls(
-            default_numerical_process="identical",
-            default_categorical_process="identical",
-            task_type=task_type,
-            verbose_level=0,
-            **kwargs,
-        )
+        return cls(simplify=True, task_type=task_type, verbose_level=0, **kwargs)
 
 
 __all__ = ["TabularData"]
