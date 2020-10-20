@@ -1042,8 +1042,19 @@ class TabularData(DataBase):
         return cls(task_type=task_type, **kwargs).read(*dataset.xy)
 
     @classmethod
-    def simple(cls, task_type: TaskTypes, **kwargs: Any) -> "TabularData":
-        return cls(simplify=True, task_type=task_type, verbose_level=0, **kwargs)
+    def simple(
+        cls,
+        task_type: TaskTypes,
+        *,
+        simplify: bool = False,
+        **kwargs: Any,
+    ) -> "TabularData":
+        if simplify:
+            kwargs["simplify"] = simplify
+        else:
+            kwargs.setdefault("default_numerical_process", "identical")
+            kwargs.setdefault("default_categorical_process", "identical")
+        return cls(task_type=task_type, verbose_level=0, **kwargs)
 
 
 __all__ = ["TabularData"]
