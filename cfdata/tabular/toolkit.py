@@ -310,10 +310,14 @@ class ImbalancedSampler(LoggingMixin):
             if label_counts.min() / max_label_count >= imbalance_threshold:
                 self._sampler = None
             else:
-                if not isinstance(data.processed.y, np.ndarray):
+                processed = data.processed
+                if processed is None:
+                    msg = "`data` should contain `processed` for `ImbalancedSampler`"
+                    raise ValueError(msg)
+                if not isinstance(processed.y, np.ndarray):
                     msg = "`data` should contain `processed.y` for `ImbalancedSampler`"
                     raise ValueError(msg)
-                labels = data.processed.y.ravel()
+                labels = processed.y.ravel()
                 sample_weights = np.zeros(self._num_samples, np_float_type)
                 for i, count in enumerate(label_counts):
                     sample_weights[labels == i] = max_label_count / count
@@ -560,14 +564,18 @@ class TimeSeriesModifier:
         sorted_indices = sorted(self.data._column_names)
         column_names = [self.data._column_names[i] for i in sorted_indices]
         self.header = self.delim.join(column_names)
-        if self.data.raw.x is None:
+        raw = self.data.raw
+        if raw is None:
+            msg = "`data` need to contain `raw` for `TimeSeriesModifier`"
+            raise ValueError(msg)
+        if raw.x is None:
             msg = "`data` need to contain `raw.x` for `TimeSeriesModifier`"
             raise ValueError(msg)
-        if self.data.raw.xT is None:
+        if raw.xT is None:
             msg = "`data` need to contain `raw.xT` for `TimeSeriesModifier`"
             raise ValueError(msg)
-        self._num_samples = len(self.data.raw.x)
-        self.xt = self.data.raw.xT
+        self._num_samples = len(raw.x)
+        self.xt = raw.xT
         self._modified = False
 
     def pad_id(self) -> "TimeSeriesModifier":
@@ -656,7 +664,10 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         self.config = config
         self._verbose_level = verbose_level
         self._num_history = config.setdefault("num_history", 1)
-        if data.raw.xT is None:
+        raw = data.raw
+        if raw is None:
+            raise ValueError("`data` need to contain `raw` for `AggregationBase`")
+        if raw.xT is None:
             raise ValueError("`data` need to contain `raw.xT` for `AggregationBase`")
         if data.ts_config is None:
             raise ValueError("`data` need to contain `ts_config` for `AggregationBase`")
@@ -664,7 +675,7 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         if id_column_idx is None:
             msg = "`ts_config` need to contain `id_column_idx` for `AggregationBase`"
             raise ValueError(msg)
-        id_column = data.raw.xT[id_column_idx]
+        id_column = raw.xT[id_column_idx]
         sorted_id_column = [id_column[i] for i in data.ts_sorting_indices]
         unique_indices = get_unique_indices(sorted_id_column)
         self.indices2id: np.ndarray
@@ -751,7 +762,10 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
             )
         ]
         self._inject_valid_samples_info()
-        x, y = self.data.processed.xy
+        processed = self.data.processed
+        if processed is None:
+            raise ValueError("`processed` is not generated yet")
+        x, y = processed.xy
         assert isinstance(x, np.ndarray)
         feature_dim = self.data.processed_dim
         for i, valid_indices in enumerate(self._id2valid_indices):
