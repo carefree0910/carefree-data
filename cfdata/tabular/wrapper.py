@@ -326,6 +326,8 @@ class TabularData(DataBase):
     def _core_fit(self) -> "TabularData":
         if self._raw is None:
             raise ValueError("`_raw` is not provided")
+        if self._raw.x is None:
+            raise ValueError("`_raw.x` is not provided")
         ts_indices = self.ts_indices
         self._raw_dim = len(self._raw.x[0])
         with timing_context(self, "convert", enable=self._timing):
