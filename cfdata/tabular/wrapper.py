@@ -82,9 +82,9 @@ class TabularData(DataBase):
         self._has_column_names: Optional[bool]
         self._delim: Optional[str]
         self._quote_char: Optional[str]
-        self._raw: Optional[DataTuple]
-        self._converted: Optional[DataTuple]
-        self._processed: Optional[DataTuple]
+        self._raw: Optional[DataTuple] = None
+        self._converted: Optional[DataTuple] = None
+        self._processed: Optional[DataTuple] = None
         self._recognizers: Dict[int, Optional[Recognizer]]
         self._converters: Dict[int, Optional[Converter]]
         self._processors: Dict[int, Optional[Processor]]
