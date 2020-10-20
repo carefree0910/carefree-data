@@ -27,27 +27,29 @@ class TabularSplit(NamedTuple):
 
 # TODO : Add outlier detection
 class TabularData(DataBase):
-    def __init__(self,
-                 *,
-                 task_type: TaskTypes = TaskTypes.NONE,
-                 time_series_config: TimeSeriesConfig = None,
-                 label_name: str = None,
-                 string_label: Union[bool, None] = None,
-                 numerical_label: Union[bool, None] = None,
-                 categorical_label: Union[bool, None] = None,
-                 column_names: Dict[int, str] = None,
-                 valid_columns: List[int] = None,
-                 string_columns: List[int] = None,
-                 numerical_columns: List[int] = None,
-                 categorical_columns: List[int] = None,
-                 process_methods: Union[str, None, Dict[int, str]] = "auto",
-                 default_numerical_process: str = "normalize",
-                 default_categorical_process: str = "one_hot",
-                 label_process_method: str = None,
-                 numerical_threshold: float = None,
-                 use_timing_context: bool = True,
-                 trigger_logging: bool = False,
-                 verbose_level: int = 1):
+    def __init__(
+        self,
+        *,
+        task_type: TaskTypes = TaskTypes.NONE,
+        time_series_config: TimeSeriesConfig = None,
+        label_name: str = None,
+        string_label: Union[bool, None] = None,
+        numerical_label: Union[bool, None] = None,
+        categorical_label: Union[bool, None] = None,
+        column_names: Dict[int, str] = None,
+        valid_columns: List[int] = None,
+        string_columns: List[int] = None,
+        numerical_columns: List[int] = None,
+        categorical_columns: List[int] = None,
+        process_methods: Union[str, None, Dict[int, str]] = "auto",
+        default_numerical_process: str = "normalize",
+        default_categorical_process: str = "one_hot",
+        label_process_method: str = None,
+        numerical_threshold: float = None,
+        use_timing_context: bool = True,
+        trigger_logging: bool = False,
+        verbose_level: int = 1,
+    ):
         if task_type.is_clf:
             if numerical_label:
                 raise ValueError("numerical labels are invalid in CLASSIFICATION tasks")
@@ -108,21 +110,30 @@ class TabularData(DataBase):
         time_idx = self._time_series_config.time_column_idx
         if id_idx is None:
             if id_name is None:
-                raise ValueError("either `id_column_name` or `id_column` should be provided")
+                msg = "either `id_column_name` or `id_column` should be provided"
+                raise ValueError(msg)
             for k, v in self.column_names.items():
                 if v == id_name:
                     id_idx = k
                     break
         if time_idx is None:
             if time_name is None:
-                raise ValueError("either `time_column_name` or `time_column` should be provided")
+                msg = "either `time_column_name` or `time_column` should be provided"
+                raise ValueError(msg)
             for k, v in self.column_names.items():
                 if v == time_name:
                     time_idx = k
                     break
         id_column = self.raw.xT[id_idx]
         time_column = self.raw.xT[time_idx]
-        return TimeSeriesConfig(id_name, time_name, id_idx, time_idx, id_column, time_column)
+        return TimeSeriesConfig(
+            id_name,
+            time_name,
+            id_idx,
+            time_idx,
+            id_column,
+            time_column,
+        )
 
     @property
     def cache_excludes(self):
@@ -188,7 +199,11 @@ class TabularData(DataBase):
             self._column_names.setdefault(i, str(i))
         return self._column_names
 
-    def _get_prior_dict(self, attr: str, ts_value: Union[bool, None]) -> Dict[int, Union[bool, None]]:
+    def _get_prior_dict(
+        self,
+        attr: str,
+        ts_value: Optional[bool],
+    ) -> Dict[int, Optional[bool]]:
         prior_dict_attr = f"{attr}_dict"
         prior_dict = getattr(self, prior_dict_attr, None)
         if prior_dict is None:
@@ -205,19 +220,19 @@ class TabularData(DataBase):
         return prior_dict
 
     @property
-    def prior_valid_columns(self) -> Dict[int, Union[bool, None]]:
+    def prior_valid_columns(self) -> Dict[int, Optional[bool]]:
         return self._get_prior_dict("_valid_columns", True)
 
     @property
-    def prior_string_columns(self) -> Dict[int, Union[bool, None]]:
+    def prior_string_columns(self) -> Dict[int, Optional[bool]]:
         return self._get_prior_dict("_string_columns", None)
 
     @property
-    def prior_numerical_columns(self) -> Dict[int, Union[bool, None]]:
+    def prior_numerical_columns(self) -> Dict[int, Optional[bool]]:
         return self._get_prior_dict("_numerical_columns", False)
 
     @property
-    def prior_categorical_columns(self) -> Dict[int, Union[bool, None]]:
+    def prior_categorical_columns(self) -> Dict[int, Optional[bool]]:
         return self._get_prior_dict("_categorical_columns", None)
 
     @property
@@ -244,7 +259,11 @@ class TabularData(DataBase):
     @property
     def ts_indices(self) -> Set[int]:
         ts_config = self.ts_config
-        return set() if ts_config is None else {ts_config.id_column_idx, ts_config.time_column_idx}
+        return (
+            set()
+            if ts_config is None
+            else {ts_config.id_column_idx, ts_config.time_column_idx}
+        )
 
     @property
     def num_classes(self) -> int:
@@ -266,7 +285,8 @@ class TabularData(DataBase):
         return flattened
 
     def _get_ts_sorting_indices(self):
-        self.ts_sorting_indices = np.hstack(self.splitter._time_indices_list_in_use)[::-1].copy()
+        stacked = np.hstack(self.splitter._time_indices_list_in_use)
+        self.ts_sorting_indices = stacked[::-1].copy()
 
     def _core_fit(self) -> "TabularData":
         ts_indices = self.ts_indices
@@ -285,8 +305,10 @@ class TabularData(DataBase):
                     if i > 0:
                         self.log_msg(
                             f"last column {column_name} is forced to be valid "
-                            "because previous columns are all excluded", self.warning_prefix,
-                            verbose_level=2, msg_level=logging.WARNING
+                            "because previous columns are all excluded",
+                            self.warning_prefix,
+                            verbose_level=2,
+                            msg_level=logging.WARNING,
                         )
                     is_valid = True
                 kwargs = {
@@ -298,14 +320,21 @@ class TabularData(DataBase):
                 if self._numerical_threshold is not None:
                     kwargs["numerical_threshold"] = self._numerical_threshold
                 with timing_context(self, "fit recognizer", enable=self._timing):
-                    recognizer = self._recognizers[i] = Recognizer(column_name, **kwargs).fit(flat_arr)
+                    recognizer = Recognizer(column_name, **kwargs).fit(flat_arr)
+                    self._recognizers[i] = recognizer
                 if not recognizer.info.is_valid:
-                    self.log_msg(recognizer.info.msg, self.warning_prefix, 2, logging.WARNING)
+                    self.log_msg(
+                        recognizer.info.msg,
+                        self.warning_prefix,
+                        2,
+                        logging.WARNING,
+                    )
                     self.excludes.add(i)
                     continue
                 if i not in ts_indices:
                     with timing_context(self, "fit converter", enable=self._timing):
-                        converter = self._converters[i] = Converter.make_with(recognizer)
+                        converter = Converter.make_with(recognizer)
+                        self._converters[i] = converter
                     converted_features.append(converter.converted_input)
             # convert labels
             if self._raw.y is None:
@@ -320,7 +349,7 @@ class TabularData(DataBase):
                         is_string=self.string_label,
                         is_numerical=self.numerical_label,
                         is_categorical=self.categorical_label,
-                        numerical_threshold=1.
+                        numerical_threshold=1.0,
                     ).fit(self._flatten(self._raw.y))
                 with timing_context(self, "fit converter", enable=self._timing):
                     converter = self._converters[-1] = Converter.make_with(recognizer)
@@ -352,13 +381,18 @@ class TabularData(DataBase):
                         method = self._default_numerical_process
                     else:
                         method = self._default_categorical_process
-                processor = processor_dict[method].make_with(previous_processors.copy())
+                base = processor_dict[method]
+                processor = base.make_with(previous_processors.copy())
                 previous_processors.append(processor)
                 self._processors[idx] = processor
                 columns = converted_x[..., processor.input_indices]
                 with timing_context(self, "fit processor", enable=self._timing):
                     processor.fit(columns)
-                with timing_context(self, "process with processor", enable=self._timing):
+                with timing_context(
+                    self,
+                    "process with processor",
+                    enable=self._timing,
+                ):
                     processed_features.append(processor.process(columns))
                 idx += processor.input_dim
             # process labels
@@ -370,31 +404,43 @@ class TabularData(DataBase):
                 if self._label_process_method is not None:
                     method = self._label_process_method
                 if method is None:
-                    method = "normalize" if column_type is ColumnTypes.NUMERICAL else "identical"
+                    method = (
+                        "normalize"
+                        if column_type is ColumnTypes.NUMERICAL
+                        else "identical"
+                    )
                 with timing_context(self, "fit processor", enable=self._timing):
                     processor = processor_dict[method].make_with([])
                     self._processors[-1] = processor.fit(converted_labels)
-                with timing_context(self, "process with processor", enable=self._timing):
+                with timing_context(
+                    self,
+                    "process with processor",
+                    enable=self._timing,
+                ):
                     processed_labels = processor.process(converted_labels)
         if self.task_type.is_clf and converted_labels is not None:
             converted_labels = converted_labels.astype(np_int_type)
             processed_labels = processed_labels.astype(np_int_type)
         self._converted = DataTuple(converted_x, converted_labels)
         self._processed = DataTuple(np.hstack(processed_features), processed_labels)
-        self._valid_columns = [col for col in range(self.raw_dim) if col not in self.excludes]
+        self._valid_columns = [
+            col for col in range(self.raw_dim) if col not in self.excludes
+        ]
         self._valid_columns_dict = self.ts_sorting_indices = None
         if self.is_ts:
             self._get_ts_sorting_indices()
         return self
 
-    def _read_from_file(self,
-                        file_path: str,
-                        *,
-                        label_idx: int = None,
-                        contains_labels: bool = True,
-                        has_column_names: bool = None,
-                        quote_char: str = None,
-                        delim: str = None) -> "TabularData":
+    def _read_from_file(
+        self,
+        file_path: str,
+        *,
+        label_idx: int = None,
+        contains_labels: bool = True,
+        has_column_names: bool = None,
+        quote_char: str = None,
+        delim: str = None,
+    ) -> "TabularData":
         self._is_file = True
         self._label_idx, self._has_column_names = label_idx, has_column_names
         self._delim, self._quote_char = delim, quote_char
@@ -413,38 +459,40 @@ class TabularData(DataBase):
         if failed:
             raise ValueError("input labels should be 2d")
 
-    def _read_from_arr(self,
-                       x: data_type,
-                       y: data_type) -> "TabularData":
+    def _read_from_arr(self, x: data_type, y: data_type) -> "TabularData":
         self._is_arr = True
         self._check_2d_y(y)
         self._raw = DataTuple.with_transpose(x, y)
         return self._core_fit()
 
-    def _transform_labels(self,
-                          raw: DataTuple) -> Tuple[np.ndarray, np.ndarray]:
+    def _transform_labels(self, raw: DataTuple) -> Tuple[np.ndarray, np.ndarray]:
         if raw.y is None:
             converted_labels = transformed_labels = None
         else:
-            converted_labels = self._converters[-1].convert(self._flatten(raw.y)).reshape([-1, 1])
-            transformed_labels = self._processors[-1].process(converted_labels.reshape([-1, 1]))
+            converted_labels = self._converters[-1].convert(self._flatten(raw.y))
+            converted_labels = converted_labels.reshape([-1, 1])
+            transformed_labels = self._processors[-1].process(converted_labels)
         if self.task_type.is_clf:
             if converted_labels is not None:
                 converted_labels = converted_labels.astype(np_int_type)
                 transformed_labels = transformed_labels.astype(np_int_type)
         return converted_labels, transformed_labels
 
-    def _transform(self,
-                   raw: DataTuple,
-                   return_converted: bool) -> Union[DataTuple, Tuple[DataTuple, DataTuple]]:
+    def _transform(
+        self,
+        raw: DataTuple,
+        return_converted: bool,
+    ) -> Union[DataTuple, Tuple[DataTuple, DataTuple]]:
         # transform features
         features = raw.xT
         ts_indices = self.ts_indices
-        converted_features = np.vstack([
-            self._converters[i].convert(flat_arr)
-            for i, flat_arr in enumerate(features)
-            if i not in self.excludes and i not in ts_indices
-        ])
+        converted_features = np.vstack(
+            [
+                self._converters[i].convert(flat_arr)
+                for i, flat_arr in enumerate(features)
+                if i not in self.excludes and i not in ts_indices
+            ]
+        )
         idx = 0
         processed = []
         while idx < self.raw_dim:
@@ -466,37 +514,41 @@ class TabularData(DataBase):
         converted = DataTuple(converted_features.T, converted_labels)
         return converted, transformed
 
-    def _get_raw(self,
-                 x: Union[str, data_type],
-                 y: data_type = None,
-                 *,
-                 contains_labels: bool = True) -> DataTuple:
+    def _get_raw(
+        self,
+        x: Union[str, data_type],
+        y: data_type = None,
+        *,
+        contains_labels: bool = True,
+    ) -> DataTuple:
         if self._is_file:
             if isinstance(x, str):
                 if y is not None:
-                    raise ValueError(f"x refers to file_path but y is still provided ({y}), which is illegal")
+                    raise ValueError(
+                        "x refers to file_path but y is still provided "
+                        f"({y}), which is illegal"
+                    )
                 x, y = self.read_file(x, contains_labels=contains_labels)
         return DataTuple.with_transpose(x, y)
 
     # API
 
-    def read_file(self,
-                  file_path: str,
-                  *,
-                  contains_labels: bool = True) -> Tuple[raw_data_type, raw_data_type]:
+    def read_file(
+        self, file_path: str, *, contains_labels: bool = True
+    ) -> Tuple[raw_data_type, raw_data_type]:
         ext = os.path.splitext(file_path)[1][1:]
         set_default = lambda n, default: n if n is not None else default
         if ext == "txt":
             has_column_names, delim, quote_char = map(
                 set_default,
                 [self._has_column_names, self._delim, self._quote_char],
-                [False, " ", None]
+                [False, " ", None],
             )
         elif ext == "csv":
             has_column_names, delim, quote_char = map(
                 set_default,
                 [self._has_column_names, self._delim, self._quote_char],
-                [True, ",", '"']
+                [True, ",", '"'],
             )
         else:
             raise NotImplementedError(f"file type '{ext}' not recognized")
@@ -508,12 +560,17 @@ class TabularData(DataBase):
                 self._column_names = {i: name for i, name in enumerate(column_names)}
             data = []
             for line in f:
-                line = ["nan" if not elem else elem for elem in line.strip().split(delim)]
+                elements = line.strip().split(delim)
+                elements = ["nan" if not elem else elem for elem in elements]
                 if quote_char is not None:
-                    startswith_quote = [elem.startswith(quote_char) for elem in line]
-                    endswith_quote = [elem.endswith(quote_char) for elem in line]
+                    startswith_quote = [
+                        elem.startswith(quote_char) for elem in elements
+                    ]
+                    endswith_quote = [elem.endswith(quote_char) for elem in elements]
                     merge_start, merge_intervals = None, []
-                    for i, (startswith, endswith) in enumerate(zip(startswith_quote, endswith_quote)):
+                    for i, (startswith, endswith) in enumerate(
+                        zip(startswith_quote, endswith_quote)
+                    ):
                         if startswith and not endswith:
                             merge_start = i
                             continue
@@ -521,23 +578,25 @@ class TabularData(DataBase):
                             merge_intervals.append((merge_start, i + 1))
                             merge_start = None
                             continue
-                    idx, new_line = 0, []
+                    idx, new_elements = 0, []
                     for start, end in merge_intervals:
                         if start > idx:
-                            new_line += line[idx:start]
-                        new_line.append(delim.join(line[start:end]))
+                            new_elements += elements[idx:start]
+                        new_elements.append(delim.join(elements[start:end]))
                         idx = end
-                    if idx < len(line):
-                        new_line += line[idx:len(line)]
-                    line = new_line
+                    if idx < len(elements):
+                        new_elements += elements[idx : len(elements)]
+                    elements = new_elements
                 if first_row is None:
-                    first_row = line
+                    first_row = elements
                 else:
-                    assert len(first_row) == len(line), "num_features are not identical"
-                data.append(line)
+                    if len(first_row) == len(elements):
+                        raise ValueError("num_features are not identical")
+                data.append(elements)
         if not contains_labels:
             if self._raw is not None and len(data[0]) == len(self._raw.x[0]) + 1:
-                raise ValueError("file contains labels but 'contains_labels=False' passed in")
+                msg = "file contains labels but 'contains_labels=False' passed in"
+                raise ValueError(msg)
             return data, None
 
         if self._column_names is None or self.label_name is None:
@@ -549,22 +608,29 @@ class TabularData(DataBase):
             if self._label_idx is None:
                 raise ValueError(
                     f"'{self.label_name}' is not included in column names "
-                    f"({[self._column_names[i] for i in range(len(self._column_names))]})"
+                    f"({list(self._column_names.values())})"
                 )
         if self._label_idx < 0:
             self._label_idx = len(data[0]) + self._label_idx
-        x = [line[:self._label_idx] + line[self._label_idx+1:] for line in data]
-        y = [line[self._label_idx:self._label_idx+1] for line in data]
+        x = [line[: self._label_idx] + line[self._label_idx + 1 :] for line in data]
+        y = [line[self._label_idx : self._label_idx + 1] for line in data]
         return x, y
 
-    def read(self,
-             x: Union[str, data_type],
-             y: Union[int, data_type] = None,
-             *,
-             contains_labels: bool = True,
-             **kwargs) -> "TabularData":
+    def read(
+        self,
+        x: Union[str, data_type],
+        y: Union[int, data_type] = None,
+        *,
+        contains_labels: bool = True,
+        **kwargs,
+    ) -> "TabularData":
         if isinstance(x, str):
-            self._read_from_file(x, label_idx=y, contains_labels=contains_labels, **kwargs)
+            self._read_from_file(
+                x,
+                label_idx=y,
+                contains_labels=contains_labels,
+                **kwargs,
+            )
         else:
             if isinstance(y, int):
                 y = None
@@ -572,17 +638,17 @@ class TabularData(DataBase):
         self.log_timing()
         return self
 
-    def split(self,
-              n: Union[int, float],
-              *,
-              order: str = "auto") -> TabularSplit:
+    def split(self, n: Union[int, float], *, order: str = "auto") -> TabularSplit:
         if order == "auto":
             split = self.splitter.split(n)
             split_indices = split.corresponding_indices
             remained_indices = split.remaining_indices
         else:
             if order not in {"bottom_up", "top_down"}:
-                raise NotImplementedError(f"`order` should be either 'bottom_up' or 'top_down', {order} found")
+                raise NotImplementedError(
+                    "`order` should be either 'bottom_up' or "
+                    f"'top_down', {order} found"
+                )
             base_indices = np.arange(self._raw.x.shape[0])
             if order == "bottom_up":
                 split_indices, remained_indices = base_indices[-n:], base_indices[:-n]
@@ -590,34 +656,39 @@ class TabularData(DataBase):
                 split_indices, remained_indices = base_indices[:n], base_indices[n:]
         return self.split_with_indices(split_indices, remained_indices)
 
-    def split_with_indices(self,
-                           split_indices: np.ndarray,
-                           remained_indices: np.ndarray) -> TabularSplit:
+    def split_with_indices(
+        self,
+        split_indices: np.ndarray,
+        remained_indices: np.ndarray,
+    ) -> TabularSplit:
         raw, converted, processed = self._raw, self._converted, self._processed
         p1, p2 = map(copy.copy, [self] * 2)
         p1._raw, p1._converted, p1._processed = map(
             DataTuple.split_with,
-            [raw, converted, processed], [split_indices] * 3
+            [raw, converted, processed],
+            [split_indices] * 3,
         )
         p2._raw, p2._converted, p2._processed = map(
             DataTuple.split_with,
-            [raw, converted, processed], [remained_indices] * 3
+            [raw, converted, processed],
+            [remained_indices] * 3,
         )
         p1.ts_sorting_indices = np.arange(len(p1))
         p2.ts_sorting_indices = np.arange(len(p2))
         return TabularSplit(p1, p2, split_indices, remained_indices)
 
-    def copy_to(self,
-                x: Union[str, data_type],
-                y: data_type = None,
-                *,
-                contains_labels: bool = True) -> "TabularData":
+    def copy_to(
+        self,
+        x: Union[str, data_type],
+        y: data_type = None,
+        *,
+        contains_labels: bool = True,
+    ) -> "TabularData":
         copied = copy.copy(self)
         raw = copied._raw = self._get_raw(x, y, contains_labels=contains_labels)
         converted, copied._processed = self._transform(raw, True)
         copied_converters = {
-            idx: copy.copy(converter)
-            for idx, converter in self.converters.items()
+            idx: copy.copy(converter) for idx, converter in self.converters.items()
         }
         copied_converters[-1]._converted_features = converted.y
         converter_indices = [idx for idx in sorted(copied_converters) if idx != -1]
@@ -629,41 +700,47 @@ class TabularData(DataBase):
             copied._get_ts_sorting_indices()
         return copied
 
-    def transform(self,
-                  x: Union[str, data_type],
-                  y: data_type = None,
-                  *,
-                  contains_labels: bool = True,
-                  return_converted: bool = False) -> Union[DataTuple, Tuple[DataTuple, DataTuple]]:
+    def transform(
+        self,
+        x: Union[str, data_type],
+        y: data_type = None,
+        *,
+        contains_labels: bool = True,
+        return_converted: bool = False,
+    ) -> Union[DataTuple, Tuple[DataTuple, DataTuple]]:
         raw = self._get_raw(x, y, contains_labels=contains_labels)
         return self._transform(raw, return_converted)
 
-    def transform_labels(self,
-                         y: data_type,
-                         *,
-                         return_converted: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
+    def transform_labels(
+        self,
+        y: data_type,
+        *,
+        return_converted: bool = False,
+    ) -> Union[np.ndarray, Tuple[np.ndarray, np.ndarray]]:
         raw = DataTuple(None, y)
         converted_labels, transformed_labels = self._transform_labels(raw)
         if not return_converted:
             return transformed_labels
         return converted_labels, transformed_labels
 
-    def recover_labels(self,
-                       y: np.ndarray,
-                       *,
-                       inplace: bool = False) -> np.ndarray:
+    def recover_labels(self, y: np.ndarray, *, inplace: bool = False) -> np.ndarray:
         process_recovered = self._processors[-1].recover(y, inplace=inplace)
-        convert_recovered = self.converters[-1].recover(process_recovered.ravel(), inplace=inplace)
+        convert_recovered = self.converters[-1].recover(
+            process_recovered.ravel(),
+            inplace=inplace,
+        )
         return convert_recovered.reshape([-1, 1])
 
     core_folder = "__core__"
     data_structures_file = "data_structures"
 
-    def save(self,
-             folder: str,
-             *,
-             compress: bool = True,
-             remove_original: bool = True) -> "TabularData":
+    def save(
+        self,
+        folder: str,
+        *,
+        compress: bool = True,
+        remove_original: bool = True,
+    ) -> "TabularData":
         abs_folder = os.path.abspath(folder)
         base_folder = os.path.dirname(abs_folder)
         core_folder = os.path.join(abs_folder, self.core_folder)
@@ -694,11 +771,13 @@ class TabularData(DataBase):
         return self
 
     @classmethod
-    def load(cls,
-             folder: str,
-             *,
-             compress: bool = True,
-             verbose_level: int = 0) -> "TabularData":
+    def load(
+        cls,
+        folder: str,
+        *,
+        compress: bool = True,
+        verbose_level: int = 0,
+    ) -> "TabularData":
         data = cls(verbose_level=verbose_level)
         abs_folder = os.path.abspath(folder)
         base_folder = os.path.dirname(abs_folder)
@@ -714,7 +793,8 @@ class TabularData(DataBase):
                 with data._data_tuple_context(is_saving=False):
                     Saving.load_instance(data, core_folder, log_method=data.log_msg)
                 # data structures
-                with open(os.path.join(abs_folder, cls.data_structures_file), "rb") as f:
+                ds_path = os.path.join(abs_folder, cls.data_structures_file)
+                with open(ds_path, "rb") as f:
                     data_structures = dill.load(f)
                 # converters & corresponding recognizers
                 recognizers, converters = {}, {}
@@ -756,21 +836,18 @@ class TabularData(DataBase):
         return TabularDataset(*self.processed.xy, task_type=self.task_type)
 
     @classmethod
-    def from_dataset(cls,
-                     dataset: TabularDataset,
-                     **kwargs) -> "TabularData":
+    def from_dataset(cls, dataset: TabularDataset, **kwargs) -> "TabularData":
         task_type = kwargs.pop("task_type", dataset.task_type)
         return cls(task_type=task_type, **kwargs).read(*dataset.xy)
 
     @classmethod
-    def simple(cls,
-               task_type: TaskTypes,
-               **kwargs) -> "TabularData":
+    def simple(cls, task_type: TaskTypes, **kwargs) -> "TabularData":
         return cls(
             default_numerical_process="identical",
             default_categorical_process="identical",
-            task_type=task_type, verbose_level=0,
-            **kwargs
+            task_type=task_type,
+            verbose_level=0,
+            **kwargs,
         )
 
 

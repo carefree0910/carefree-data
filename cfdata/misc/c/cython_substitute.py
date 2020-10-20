@@ -24,5 +24,6 @@ def naive_flat_arr_to_float32(arr):
 
 __all__ = [
     "naive_transform_flat_data_with_dict",
-    "naive_is_all_numeric", "naive_flat_arr_to_float32"
+    "naive_is_all_numeric",
+    "naive_flat_arr_to_float32",
 ]

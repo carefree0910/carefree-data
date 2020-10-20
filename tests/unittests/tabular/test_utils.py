@@ -16,8 +16,10 @@ class TestTabularUtils(unittest.TestCase):
                 yy_ = yy_.ravel()
                 ratio_arr.append(np.bincount(yy_) / len(yy_))
             return np.array(ratio_arr, np.float32)
+
         def _mae(arr1, arr2):
             return np.abs(arr1 - arr2).mean().item()
+
         def _assert_proportion(n_, p1, p2):
             mae_ = _mae(p1, p2)
             self.assertTrue(n_ * mae_ <= tolerance)
@@ -126,7 +128,8 @@ class TestTabularUtils(unittest.TestCase):
             for _ in range((5 - power) * 10 + 1):
                 data = TabularData().read(x, y)
                 sampler = ImbalancedSampler(data, verbose_level=0)
-                counts.append(np.unique(y[sampler.get_indices()], return_counts=True)[1])
+                count = np.unique(y[sampler.get_indices()], return_counts=True)[1]
+                counts.append(count)
         counts = np.vstack(counts)
         ratios = (counts / counts.sum(1, keepdims=True)).T
         diff = np.mean(ratios[1] - ratios[0])
@@ -160,7 +163,7 @@ class TestTabularUtils(unittest.TestCase):
             y = np.zeros(num_samples, np_int_type)
             # here, number of positive samples will be less than number of negative samples (by 2)
             # hence, one positive sample will be duplicated, and one negative sample will be dropped
-            y[-half_samples+1:] = 1
+            y[-half_samples + 1 :] = 1
             dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
             k_fold = KFold(half_samples, dataset)
             for train_fold, test_fold in k_fold:
@@ -193,9 +196,10 @@ class TestTabularUtils(unittest.TestCase):
             k_random = KRandom(10, 2, dataset)
             for train_fold, test_fold in k_random:
                 x_stack = np.vstack([train_fold.dataset.x, test_fold.dataset.x])
-                self.assertEqual(num_elem - len(np.unique(x_stack.ravel())), num_features)
+                infer_num_features = num_elem - len(np.unique(x_stack.ravel()))
+                self.assertEqual(infer_num_features, num_features)
                 self.assertTrue(sorted(test_fold.dataset.y.ravel()), [0, 1])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

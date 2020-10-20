@@ -16,7 +16,8 @@ data_folder = os.path.abspath(os.path.join(file_folder, os.pardir, "data"))
 
 class TestTabularData(unittest.TestCase):
     x_ts = y_ts = ts_config = None
-    x = y = y_bundle = task_types = cannot_regressions = str_columns = cat_columns = None
+    x = y = y_bundle = task_types = None
+    cannot_regressions = str_columns = cat_columns = None
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -31,18 +32,132 @@ class TestTabularData(unittest.TestCase):
             ["pear", "2020-01-03", 2.0],
             ["orange", "2020-01-02", 2.0],
             ["apple", "2020-01-02", 2.0],
-            ["banana", "2020-01-02", 1.5]
+            ["banana", "2020-01-02", 1.5],
         ]
-        cls.y_ts = np.atleast_2d([2.0, 2.0, 2.5, 1.5, 2.0, 2.0, 1.5, 2.5, 2.5, 2.5, 2.0, 2.0]).T
+        cls.y_ts = np.atleast_2d(
+            [2.0, 2.0, 2.5, 1.5, 2.0, 2.0, 1.5, 2.5, 2.5, 2.5, 2.0, 2.0]
+        ).T
         cls.ts_config = TimeSeriesConfig(id_column_idx=0, time_column_idx=1)
         cls.x = [
-            [1, "1.0", "nan", math.nan, 0, math.nan, 1, "nan", "a", "0", 0.2, "aa", "1", "1", "aa"],
-            [-1, "-1.0", "aaa", 1, 0.1, math.nan, 0, "nan", "b", "0.1", math.nan, "bb", "2", "1", "aa"],
-            [1, "-1.0", "nan", 1, 0, math.nan, 0., "nan", "a", "nan", 0, "cc", "3", "1", "aa"],
-            [-1, "1.0", "bbb", 1, 10, math.nan, 1., "nan", "c", "0.2", 0.1, "dd", "4", "1", "aa"],
-            [1, "-1.0", "nan", 1, 1, math.nan, 1., "nan", "a", "0.5", -0.1, "ee", "5", "1", "aa"],
-            [-1, "1.0", "aaa", math.nan, 0, math.nan, -1., "nan", "b", "nan", math.nan, "ff", "6", "1", "aa"],
-            [-1, "1.0", "aaa", math.nan, 0, math.nan, -1., "nan", "b", "nan", math.nan, "gg", "7", "1", "aa"]
+            [
+                1,
+                "1.0",
+                "nan",
+                math.nan,
+                0,
+                math.nan,
+                1,
+                "nan",
+                "a",
+                "0",
+                0.2,
+                "aa",
+                "1",
+                "1",
+                "aa",
+            ],
+            [
+                -1,
+                "-1.0",
+                "aaa",
+                1,
+                0.1,
+                math.nan,
+                0,
+                "nan",
+                "b",
+                "0.1",
+                math.nan,
+                "bb",
+                "2",
+                "1",
+                "aa",
+            ],
+            [
+                1,
+                "-1.0",
+                "nan",
+                1,
+                0,
+                math.nan,
+                0.0,
+                "nan",
+                "a",
+                "nan",
+                0,
+                "cc",
+                "3",
+                "1",
+                "aa",
+            ],
+            [
+                -1,
+                "1.0",
+                "bbb",
+                1,
+                10,
+                math.nan,
+                1.0,
+                "nan",
+                "c",
+                "0.2",
+                0.1,
+                "dd",
+                "4",
+                "1",
+                "aa",
+            ],
+            [
+                1,
+                "-1.0",
+                "nan",
+                1,
+                1,
+                math.nan,
+                1.0,
+                "nan",
+                "a",
+                "0.5",
+                -0.1,
+                "ee",
+                "5",
+                "1",
+                "aa",
+            ],
+            [
+                -1,
+                "1.0",
+                "aaa",
+                math.nan,
+                0,
+                math.nan,
+                -1.0,
+                "nan",
+                "b",
+                "nan",
+                math.nan,
+                "ff",
+                "6",
+                "1",
+                "aa",
+            ],
+            [
+                -1,
+                "1.0",
+                "aaa",
+                math.nan,
+                0,
+                math.nan,
+                -1.0,
+                "nan",
+                "b",
+                "nan",
+                math.nan,
+                "gg",
+                "7",
+                "1",
+                "aa",
+            ],
         ]
         cls.str_columns = [2, 8, 11, 14]
         cls.cat_columns = [0, 1, 3, 5, 6, 7, 12, 13]
@@ -57,7 +172,7 @@ class TestTabularData(unittest.TestCase):
             np.atleast_2d(["1.0", "2.0", "3.0", "4.0", "3.0", "4.0"]).T,
             np.atleast_2d(["1.0", "2.0", "3.0", "4.0", "3.0", "4.1"]).T,
             np.atleast_2d(["one", "two", "one", "two", "two", "one"]).T,
-            np.atleast_2d(["one", "two", "two", "one", "two", "one", "one"]).T.tolist()
+            np.atleast_2d(["one", "two", "two", "one", "two", "one", "one"]).T.tolist(),
         ]
         cls.task_types = [
             TaskTypes.CLASSIFICATION,
@@ -70,14 +185,21 @@ class TestTabularData(unittest.TestCase):
             TaskTypes.CLASSIFICATION,
             TaskTypes.REGRESSION,
             TaskTypes.CLASSIFICATION,
-            TaskTypes.CLASSIFICATION
+            TaskTypes.CLASSIFICATION,
         ]
         cls.cannot_regressions = {6, 9, 10}
 
     @classmethod
     def tearDownClass(cls) -> None:
         del cls.x_ts, cls.y_ts, cls.ts_config
-        del cls.x, cls.y_bundle, cls.task_types, cls.str_columns, cls.cat_columns, cls.cannot_regressions
+        del (
+            cls.x,
+            cls.y_bundle,
+            cls.task_types,
+            cls.str_columns,
+            cls.cat_columns,
+            cls.cannot_regressions,
+        )
 
     def _get_data(self, y, **kwargs):
         data = TabularData(**kwargs).read(self.x, y)
@@ -116,10 +238,12 @@ class TestTabularData(unittest.TestCase):
         self.assertTrue(data.transform(self.x, None) == data.processed)
 
     def test_read_from_list_with_column_info(self):
-        self._test_core({
-            "string_columns": self.str_columns,
-            "categorical_columns": self.cat_columns
-        })
+        self._test_core(
+            {
+                "string_columns": self.str_columns,
+                "categorical_columns": self.cat_columns,
+            }
+        )
 
     def test_read_from_list_without_column_info(self):
         self._test_core({})
@@ -138,7 +262,8 @@ class TestTabularData(unittest.TestCase):
     def _test_recover_labels_core(self, dataset):
         data = TabularData.from_dataset(dataset)
         dataset_processed = data.to_dataset()
-        self.assertTrue(np.allclose(data.recover_labels(dataset_processed.y), dataset.y))
+        recovered = data.recover_labels(dataset_processed.y)
+        self.assertTrue(np.allclose(recovered, dataset.y))
 
     def test_recover_labels(self):
         self._test_recover_labels_core(TabularDataset.iris())
@@ -169,7 +294,9 @@ class TestTabularData(unittest.TestCase):
         self._test_recover_features_core(TabularDataset.breast_cancer())
 
     def _test_equal_core(self, dataset):
-        self.assertTrue(TabularData().read(*dataset.xy) == TabularData.from_dataset(dataset))
+        d1 = TabularData().read(*dataset.xy)
+        d2 = TabularData.from_dataset(dataset)
+        self.assertTrue(d1 == d2)
 
     def test_equal(self):
         self._test_equal_core(TabularDataset.iris())
@@ -202,13 +329,15 @@ class TestTabularData(unittest.TestCase):
     def test_quote(self):
         data_file = os.path.join(data_folder, "quote_test.csv")
         data = TabularData().read(data_file)
-        self.assertDictEqual(data.column_names, {0: "f1", 1: "f2", 2: "f3", 3: "f4", 4: "f5"})
+        gt = {0: "f1", 1: "f2", 2: "f3", 3: "f4", 4: "f5"}
+        self.assertDictEqual(data.column_names, gt)
         self.assertListEqual(data.raw.x[0], ["1", '"2, 3"', '4"', '"5'])
         self.assertListEqual(data.raw.y[0], ["6"])
 
     def test_ts_split(self):
         data = TabularData(time_series_config=self.ts_config).read(self.x_ts, self.y_ts)
-        self.assertListEqual(data.split(5).split.raw.xT[1], ["2020-01-02"] + ["2020-01-03"] * 4)
+        split = data.split(5).split.raw.xT[1]
+        self.assertListEqual(split, ["2020-01-02"] + ["2020-01-03"] * 4)
         for _ in range(100):
             sampler = ImbalancedSampler(data, aggregation_config={"num_history": 2})
             loader = DataLoader(2, sampler, return_indices=True)
@@ -229,12 +358,20 @@ class TestTabularData(unittest.TestCase):
         y_ts = [self.y_ts[i].tolist() for i in shuffled_indices]
         data = TabularData(time_series_config=self.ts_config).read(x_ts, y_ts)
         gt = [
-            "2020-01-01", "2020-01-01", "2020-01-01", "2020-01-01",
-            "2020-01-02", "2020-01-02", "2020-01-02",
-            "2020-01-03", "2020-01-03", "2020-01-03", "2020-01-03",
+            "2020-01-01",
+            "2020-01-01",
+            "2020-01-01",
+            "2020-01-01",
+            "2020-01-02",
+            "2020-01-02",
+            "2020-01-02",
+            "2020-01-03",
+            "2020-01-03",
+            "2020-01-03",
+            "2020-01-03",
         ]
         self.assertListEqual([x_ts[i][1] for i in data.ts_sorting_indices], gt)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

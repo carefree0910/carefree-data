@@ -40,7 +40,11 @@ class TestC(unittest.TestCase):
     def test_flat_arr_to_float32(self):
         self._print_header("flat_arr_to_float32")
         results = []
-        methods = [flat_arr_to_float32, c_flat_arr_to_float32, naive_flat_arr_to_float32]
+        methods = [
+            flat_arr_to_float32,
+            c_flat_arr_to_float32,
+            naive_flat_arr_to_float32,
+        ]
         for t, m in zip(types, methods):
             with timeit(t):
                 results.append(m(self.arr1))
@@ -54,7 +58,7 @@ class TestC(unittest.TestCase):
         methods = [
             transform_flat_data_with_dict,
             c_transform_flat_data_with_dict,
-            naive_transform_flat_data_with_dict
+            naive_transform_flat_data_with_dict,
         ]
         for t, m in zip(types, methods):
             with timeit(t):
@@ -62,5 +66,5 @@ class TestC(unittest.TestCase):
         self.assertTrue(allclose(*results))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -13,16 +13,13 @@ class Identical(Processor):
     def output_dim(self) -> int:
         return 1
 
-    def fit(self,
-            columns: np.ndarray) -> Processor:
+    def fit(self, columns: np.ndarray) -> Processor:
         return self
 
-    def _process(self,
-                 columns: np.ndarray) -> np.ndarray:
+    def _process(self, columns: np.ndarray) -> np.ndarray:
         return columns
 
-    def _recover(self,
-                 processed_columns: np.ndarray) -> np.ndarray:
+    def _recover(self, processed_columns: np.ndarray) -> np.ndarray:
         return processed_columns
 
 

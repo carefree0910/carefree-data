@@ -1,5 +1,3 @@
-import dill
-
 import numpy as np
 
 from typing import *
@@ -14,11 +12,7 @@ converter_dict: Dict[str, Type["Converter"]] = {}
 
 
 class Converter(DataStructure, metaclass=ABCMeta):
-    def __init__(self,
-                 recognizer: Recognizer,
-                 *,
-                 inplace: bool = False,
-                 **kwargs):
+    def __init__(self, recognizer: Recognizer, *, inplace: bool = False, **kwargs):
         self._config = kwargs
         self._inplace = inplace
         self._recognizer = recognizer
@@ -33,13 +27,11 @@ class Converter(DataStructure, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def _convert(self,
-                 flat_arr: flat_arr_type) -> np.ndarray:
+    def _convert(self, flat_arr: flat_arr_type) -> np.ndarray:
         pass
 
     @abstractmethod
-    def _recover(self,
-                 flat_arr: flat_arr_type) -> np.ndarray:
+    def _recover(self, flat_arr: flat_arr_type) -> np.ndarray:
         pass
 
     @property
@@ -59,16 +51,12 @@ class Converter(DataStructure, metaclass=ABCMeta):
         self._initialize(**self._config)
         self._fit()
 
-    def convert(self,
-                flat_arr: flat_arr_type) -> np.ndarray:
+    def convert(self, flat_arr: flat_arr_type) -> np.ndarray:
         if not self._inplace:
             flat_arr = flat_arr.copy()
         return self._convert(flat_arr)
 
-    def recover(self,
-                flat_arr: flat_arr_type,
-                *,
-                inplace: bool = False) -> np.ndarray:
+    def recover(self, flat_arr: flat_arr_type, *, inplace: bool = False) -> np.ndarray:
         if not inplace:
             flat_arr = flat_arr.copy()
         return self._recover(flat_arr)
@@ -94,11 +82,13 @@ class Converter(DataStructure, metaclass=ABCMeta):
         return converter
 
     @classmethod
-    def make_with(cls,
-                  recognizer: Recognizer,
-                  *,
-                  inplace: bool = False,
-                  **kwargs) -> "Converter":
+    def make_with(
+        cls,
+        recognizer: Recognizer,
+        *,
+        inplace: bool = False,
+        **kwargs,
+    ) -> "Converter":
         key = recognizer.info.column_type.value
         converter = converter_dict[key](recognizer, inplace=inplace, **kwargs)
         converter.initialize()

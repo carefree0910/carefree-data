@@ -11,7 +11,9 @@ from ..base import Converter
 class NumericalConverter(Converter):
     @property
     def nan_fill(self) -> Optional[float]:
-        return None if self._nan_fill is None else self._feature_statistics[self._nan_fill]
+        if self._nan_fill is None:
+            return None
+        return self._feature_statistics[self._nan_fill]
 
     @property
     def statistics(self) -> Dict[str, float]:
@@ -39,16 +41,14 @@ class NumericalConverter(Converter):
             self._converted_features = np_flat_features
         return self
 
-    def _convert(self,
-                 flat_arr: flat_arr_type) -> np.ndarray:
+    def _convert(self, flat_arr: flat_arr_type) -> np.ndarray:
         np_flat = np.asarray(flat_arr, np_float_type)
         if self._nan_fill is None:
             return np_flat
         np_flat[np.isnan(np_flat)] = self.nan_fill
         return np_flat
 
-    def _recover(self,
-                 flat_arr: flat_arr_type) -> np.ndarray:
+    def _recover(self, flat_arr: flat_arr_type) -> np.ndarray:
         return np.asarray(flat_arr, np_float_type)
 
 

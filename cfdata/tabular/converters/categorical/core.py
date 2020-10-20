@@ -14,15 +14,13 @@ class CategoricalConverter(Converter):
         self._reverse_transform_dict = dict(map(reversed, self._transform_dict.items()))
         return self
 
-    def _convert(self,
-                 flat_arr: flat_arr_type) -> np.ndarray:
+    def _convert(self, flat_arr: flat_arr_type) -> np.ndarray:
         flat_arr = np.asarray(flat_arr, np_float_type)
         if not self.info.need_transform:
             return flat_arr.astype(np_int_type)
         return transform_flat_data_with_dict(flat_arr, self._transform_dict)
 
-    def _recover(self,
-                 flat_arr: flat_arr_type) -> np.ndarray:
+    def _recover(self, flat_arr: flat_arr_type) -> np.ndarray:
         flat_arr = np.asarray(flat_arr, np_float_type)
         if not self.info.need_transform:
             return flat_arr.astype(np_float_type)

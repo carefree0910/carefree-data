@@ -48,19 +48,19 @@ class KFold:
 
     """
 
-    def __init__(self,
-                 k: int,
-                 dataset: TabularDataset,
-                 **kwargs):
+    def __init__(self, k: int, dataset: TabularDataset, **kwargs):
         if k <= 1:
             raise ValueError("k should be larger than 1 in KFold")
-        ratio = 1. / k
+        ratio = 1.0 / k
         self.n_list = (k - 1) * [ratio]
         self.splitter = DataSplitter(**kwargs).fit(dataset)
         self.split_results = self._order = self._cursor = None
 
     def __iter__(self):
-        self.split_results = self.splitter.split_multiple(self.n_list, return_remained=True)
+        self.split_results = self.splitter.split_multiple(
+            self.n_list,
+            return_remained=True,
+        )
         self._order = np.random.permutation(len(self.split_results)).tolist()
         self._cursor = 0
         return self
@@ -113,11 +113,13 @@ class KRandom:
 
     """
 
-    def __init__(self,
-                 k: int,
-                 num_test: Union[int, float],
-                 dataset: TabularDataset,
-                 **kwargs):
+    def __init__(
+        self,
+        k: int,
+        num_test: Union[int, float],
+        dataset: TabularDataset,
+        **kwargs,
+    ):
         self._cursor = None
         self.k, self.num_test = k, num_test
         self.splitter = DataSplitter(**kwargs).fit(dataset)
@@ -131,7 +133,10 @@ class KRandom:
             raise StopIteration
         self._cursor += 1
         self.splitter.reset()
-        test_result, train_result = self.splitter.split_multiple([self.num_test], return_remained=True)
+        test_result, train_result = self.splitter.split_multiple(
+            [self.num_test],
+            return_remained=True,
+        )
         return train_result, test_result
 
 
@@ -175,11 +180,13 @@ class KBootstrap:
 
     """
 
-    def __init__(self,
-                 k: int,
-                 num_test: Union[int, float],
-                 dataset: TabularDataset,
-                 **kwargs):
+    def __init__(
+        self,
+        k: int,
+        num_test: Union[int, float],
+        dataset: TabularDataset,
+        **kwargs,
+    ):
         self._cursor = None
         self.dataset = dataset
         self.num_samples = len(dataset)
@@ -197,7 +204,10 @@ class KBootstrap:
             raise StopIteration
         self._cursor += 1
         self.splitter.reset()
-        test_result, train_result = self.splitter.split_multiple([self.num_test], return_remained=True)
+        test_result, train_result = self.splitter.split_multiple(
+            [self.num_test],
+            return_remained=True,
+        )
         tr_indices = train_result.corresponding_indices
         tr_indices = np.random.choice(tr_indices, len(tr_indices))
         tr_set = self.dataset.split_with(tr_indices)
@@ -243,16 +253,18 @@ class ImbalancedSampler(LoggingMixin):
 
     """
 
-    def __init__(self,
-                 data: TabularData,
-                 imbalance_threshold: float = 0.1,
-                 *,
-                 shuffle: bool = True,
-                 aggregation: str = "continuous",
-                 aggregation_config: Dict[str, Any] = None,
-                 sample_method: str = "multinomial",
-                 verbose_imbalance: bool = True,
-                 verbose_level: int = 2):
+    def __init__(
+        self,
+        data: TabularData,
+        imbalance_threshold: float = 0.1,
+        *,
+        shuffle: bool = True,
+        aggregation: str = "continuous",
+        aggregation_config: Dict[str, Any] = None,
+        sample_method: str = "multinomial",
+        verbose_imbalance: bool = True,
+        verbose_level: int = 2,
+    ):
         self.data = data
         self.shuffle = shuffle
         self.imbalance_threshold = imbalance_threshold
@@ -265,7 +277,8 @@ class ImbalancedSampler(LoggingMixin):
         else:
             if aggregation_config is None:
                 aggregation_config = {}
-            self.aggregation = aggregation_dict[aggregation](data, aggregation_config, data._verbose_level)
+            base = aggregation_dict[aggregation]
+            self.aggregation = base(data, aggregation_config, data._verbose_level)
             self._num_samples = len(self.aggregation.indices2id)
         label_recognizer = data.recognizers[-1]
         if not self.shuffle or data.is_reg:
@@ -274,8 +287,12 @@ class ImbalancedSampler(LoggingMixin):
             label_counter = label_recognizer.counter
             transform_dict = label_recognizer.transform_dict
             label_counter = {transform_dict[k]: v for k, v in label_counter.items()}
-            label_counts = np.array([label_counter[k] for k in sorted(label_counter)], np_float_type)
-            self._label_ratios, max_label_count = label_counts / self._num_samples, label_counts.max()
+            counts_list = [label_counter[k] for k in sorted(label_counter)]
+            label_counts = np.array(counts_list, np_float_type)
+            self._label_ratios, max_label_count = (
+                label_counts / self._num_samples,
+                label_counts.max(),
+            )
             if label_counts.min() / max_label_count >= imbalance_threshold:
                 self._sampler = None
             else:
@@ -290,7 +307,8 @@ class ImbalancedSampler(LoggingMixin):
         if verbose_imbalance and self._sampler is not None:
             self.log_msg(
                 f"using imbalanced sampler with label counts = {label_counts.tolist()}",
-                self.info_prefix, 2
+                self.info_prefix,
+                2,
             )
 
     def __len__(self):
@@ -369,14 +387,16 @@ class DataLoader:
 
     """
 
-    def __init__(self,
-                 batch_size: int,
-                 sampler: ImbalancedSampler,
-                 *,
-                 num_siamese: int = 1,
-                 return_indices: bool = False,
-                 label_collator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
-                 verbose_level: int = 2):
+    def __init__(
+        self,
+        batch_size: int,
+        sampler: ImbalancedSampler,
+        *,
+        num_siamese: int = 1,
+        return_indices: bool = False,
+        label_collator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
+        verbose_level: int = 2,
+    ):
         self._indices_in_use = None
         self._verbose_level = verbose_level
         self.data = sampler.data
@@ -437,7 +457,8 @@ class DataLoader:
     def _reset(self):
         reset_caches = {
             "_indices_in_use": self.sampler.get_indices(),
-            "_siamese_cursor": 0, "_cursor": -1
+            "_siamese_cursor": 0,
+            "_cursor": -1,
         }
         for attr, init_value in reset_caches.items():
             setattr(self, attr, init_value)
@@ -477,20 +498,24 @@ class DataLoader:
 
 # time series
 
+
 class TimeSeriesModifier:
     id_name = "id"
     time_name = "timestamp"
     label_name = "label"
 
-    def __init__(self,
-                 file_path: str,
-                 task_type: TaskTypes,
-                 *,
-                 delim: str = None,
-                 ts_config: TimeSeriesConfig = None,
-                 contains_labels: bool = False):
+    def __init__(
+        self,
+        file_path: str,
+        task_type: TaskTypes,
+        *,
+        delim: str = None,
+        ts_config: TimeSeriesConfig = None,
+        contains_labels: bool = False,
+    ):
         if not task_type.is_ts:
-            raise ValueError("task_type should be either TIME_SERIES_CLF or TIME_SERIES_REG")
+            msg = "task_type should be either TIME_SERIES_CLF or TIME_SERIES_REG"
+            raise ValueError(msg)
         self._file_path = file_path
         self._task_type = task_type
         self._ts_config = ts_config
@@ -500,7 +525,8 @@ class TimeSeriesModifier:
         if delim is None:
             delim = self.data._delim
         self.delim = delim
-        column_names = [self.data._column_names[i] for i in sorted(self.data._column_names)]
+        sorted_indices = sorted(self.data._column_names)
+        column_names = [self.data._column_names[i] for i in sorted_indices]
         self.header = None if column_names is None else self.delim.join(column_names)
         self._num_samples = len(self.data.raw.x)
         self.xt = self.data.raw.xT
@@ -524,26 +550,30 @@ class TimeSeriesModifier:
         self.pad_date().pad_id()
         return self
 
-    def pad_labels(self,
-                   fn: Callable[[np.ndarray], np.ndarray],
-                   *,
-                   offset: int,
-                   batch_size: int = 32,
-                   ts_config: TimeSeriesConfig = None,
-                   aggregation_config: Dict[str, Any] = None,
-                   aggregation: str = "continuous") -> "TimeSeriesModifier":
+    def pad_labels(
+        self,
+        fn: Callable[[np.ndarray], np.ndarray],
+        *,
+        offset: int,
+        batch_size: int = 32,
+        ts_config: TimeSeriesConfig = None,
+        aggregation_config: Dict[str, Any] = None,
+        aggregation: str = "continuous",
+    ) -> "TimeSeriesModifier":
         if self._contains_labels:
             raise ValueError("labels already exist")
         if not self._modified:
             data = self.data
             if not data.is_ts:
-                raise ValueError("time_series_config is not provided for the original data")
+                msg = "time_series_config is not provided for the original data"
+                raise ValueError(msg)
         else:
             column_names = None
             if self.header is not None:
                 column_names = self.header.split(self.delim)
             if ts_config is None:
-                raise ValueError("columns are modified but new time_series_config is not provided")
+                msg = "columns are modified but new time_series_config is not provided"
+                raise ValueError(msg)
             data = TabularData.simple(
                 self._task_type,
                 time_series_config=ts_config,
@@ -569,8 +599,7 @@ class TimeSeriesModifier:
         self.xt.append(sorted_labels.astype(np.str))
         return self
 
-    def export_to(self,
-                  export_path: str) -> "TimeSeriesModifier":
+    def export_to(self, export_path: str) -> "TimeSeriesModifier":
         with open(export_path, "w") as f:
             if self.header is not None:
                 f.write(f"{self.header}\n")
@@ -582,10 +611,7 @@ aggregation_dict: Dict[str, Type["AggregationBase"]] = {}
 
 
 class AggregationBase(LoggingMixin, metaclass=ABCMeta):
-    def __init__(self,
-                 data: TabularData,
-                 config: Dict[str, Any],
-                 verbose_level: int):
+    def __init__(self, data: TabularData, config: Dict[str, Any], verbose_level: int):
         if not data.is_ts:
             raise ValueError("time series data is required")
         self.data = data
@@ -594,7 +620,10 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         id_column = data.raw.xT[data.ts_config.id_column_idx]
         sorted_id_column = [id_column[i] for i in data.ts_sorting_indices]
         unique_indices = get_unique_indices(sorted_id_column)
-        self._unique_id_arr, self._id2indices = unique_indices.unique, unique_indices.split_indices
+        self._unique_id_arr, self._id2indices = (
+            unique_indices.unique,
+            unique_indices.split_indices,
+        )
         self._initialize()
 
     @property
@@ -607,31 +636,43 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         """ indices should be a column vector """
 
     def _initialize(self):
-        self._num_samples_per_id = np.array(list(map(len, self._id2indices)), np_int_type)
+        num_list = list(map(len, self._id2indices))
+        self._num_samples_per_id = np.array(num_list, np_int_type)
         self.log_msg("generating valid aggregation info", self.info_prefix, 5)
         valid_mask = self._num_samples_per_id >= self._num_history
         if not valid_mask.any():
             raise ValueError(
-                "current settings lead to empty valid dataset, increasing raw dataset size or "
-                f"decreasing n_history (current: {self._num_history}) might help"
+                "current settings lead to empty valid dataset, "
+                "increasing raw dataset size or decreasing n_history "
+                f"(current: {self._num_history}) might help"
             )
         if not valid_mask.all():
             invalid_mask = ~valid_mask
             n_invalid_id = invalid_mask.sum()
             n_invalid_samples = self._num_samples_per_id[invalid_mask].sum()
             self.log_msg(
-                f"{n_invalid_id} id (with {n_invalid_samples} samples) will be dropped "
-                f"(n_history={self._num_history})", self.info_prefix, verbose_level=2
+                f"{n_invalid_id} id (with {n_invalid_samples} samples) "
+                f"will be dropped (n_history={self._num_history})",
+                self.info_prefix,
+                verbose_level=2,
             )
+            invalid_ids = self._unique_id_arr[invalid_mask].tolist()
             self.log_msg(
-                f"dropped id : {', '.join(map(str, self._unique_id_arr[invalid_mask].tolist()))}",
-                self.info_prefix, verbose_level=4
+                f"dropped id : {', '.join(map(str, invalid_ids))}",
+                self.info_prefix,
+                verbose_level=4,
             )
-        self._num_samples_per_id_cumsum = np.hstack([[0], np.cumsum(self._num_samples_per_id[:-1])])
+        self._num_samples_per_id_cumsum = np.hstack(
+            [[0], np.cumsum(self._num_samples_per_id[:-1])]
+        )
         # self._id2indices need to contain 'redundant' indices here because
         # aggregation need to aggregate those 'invalid' samples
         self._id2indices_stack = np.hstack(self._id2indices)
-        self.log_msg("generating aggregation attributes", self.info_prefix, verbose_level=5)
+        self.log_msg(
+            "generating aggregation attributes",
+            self.info_prefix,
+            verbose_level=5,
+        )
         self._get_id2valid_indices()
         self._get_valid_samples_info()
 
@@ -639,27 +680,40 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         # 'indices' in self.indices2id here doesn't refer to indices of original dataset
         # (e.g. 'indices' in self._id2indices), but refers to indices generated by sampler,
         # so we should only care 'valid' indices here
-        self._num_valid_samples_per_id = [len(indices) for indices in self._id2valid_indices]
-        self._num_valid_samples_per_id_cumsum = np.hstack([[0], np.cumsum(self._num_valid_samples_per_id[:-1])])
-        self._num_valid_samples_per_id_cumsum = self._num_valid_samples_per_id_cumsum.astype(np_int_type)
-        self.indices2id = np.repeat(np.arange(len(self._unique_id_arr)), self._num_valid_samples_per_id)
+        self._num_valid_samples_per_id = list(map(len, self._id2valid_indices))
+        self._num_valid_samples_per_id_cumsum = np.hstack(
+            [[0], np.cumsum(self._num_valid_samples_per_id[:-1])]
+        )
+        num_int = self._num_valid_samples_per_id_cumsum.astype(np_int_type)
+        self._num_valid_samples_per_id_cumsum = num_int
+        arange = np.arange(len(self._unique_id_arr))
+        self.indices2id = np.repeat(arange, self._num_valid_samples_per_id)
         self._id2valid_indices_stack = np.hstack(self._id2valid_indices)
 
     def _get_id2valid_indices(self):
         # TODO : support nan_fill here
-        nan_fill, nan_ratio = map(self.config.setdefault, ["nan_fill", "nan_ratio"], ["past", 0.])
+        nan_fill = self.config.setdefault("nan_fill", "past")
+        nan_ratio = self.config.setdefault("nan_ratio", 0.0)
         self._id2valid_indices = [
-            np.array([], np_int_type) if len(indices) < self._num_history else
-            np.arange(cumsum, cumsum + len(indices) - self._num_history + 1).astype(np_int_type)
-            for cumsum, indices in zip(self._num_samples_per_id_cumsum, self._id2indices)
+            np.array([], np_int_type)
+            if len(indices) < self._num_history
+            else np.arange(
+                cumsum, cumsum + len(indices) - self._num_history + 1
+            ).astype(np_int_type)
+            for cumsum, indices in zip(
+                self._num_samples_per_id_cumsum, self._id2indices
+            )
         ]
         self._get_valid_samples_info()
         x, y = self.data.processed.xy
         feature_dim = self.data.processed_dim
         for i, valid_indices in enumerate(self._id2valid_indices):
             cumsum = self._num_valid_samples_per_id_cumsum[i]
-            aggregated_flat_indices = self.aggregate(np.arange(cumsum, cumsum + len(valid_indices))).ravel()
-            aggregated_x = x[aggregated_flat_indices].reshape([-1, self.num_aggregation, feature_dim])
+            arange = np.arange(cumsum, cumsum + len(valid_indices))
+            aggregated_flat_indices = self.aggregate(arange).ravel()
+            aggregated_x = x[aggregated_flat_indices]
+            shape = [-1, self.num_aggregation, feature_dim]
+            aggregated_x = aggregated_x.reshape(shape)
             aggregated_x_nan_mask = np.isnan(aggregated_x)
             if y is None:
                 aggregated_y_valid_mask = None
@@ -677,10 +731,12 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         """
         We've maintained two groups of indices in `_initialize` method:
         * the 'original' indices, which points to indices of original dataset
-        * the 'valid' indices, which is 'virtual' should points to indices of the 'original' indices
+        * the 'valid' indices, which is 'virtual' should points to indices
+        of the 'original' indices
 
-        So we need to translate sampler indices to 'valid' indices, add offsets to the 'valid' indices,
-        and then fetch the 'original' indices to fetch the corresponding data
+        So we need to translate sampler indices to 'valid' indices, add offsets
+        to the 'valid' indices, and then fetch the 'original' indices to fetch
+        the corresponding data
         * _aggregate_core method will add offsets for us
 
         Parameters
@@ -699,8 +755,8 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
         return reversed_aggregated.reshape([-1, self.num_aggregation])
 
     def get_last_indices(self, aggregated_flat_indices: np.ndarray):
-        aggregated_indices_mat = aggregated_flat_indices.reshape([-1, self.num_aggregation])
-        return aggregated_indices_mat[..., -1]
+        reshaped = aggregated_flat_indices.reshape([-1, self.num_aggregation])
+        return reshaped[..., -1]
 
     @classmethod
     def register(cls, name: str):
@@ -723,7 +779,12 @@ class ContinuousAggregation(AggregationBase):
 
 
 __all__ = [
-    "KFold", "KRandom", "KBootstrap",
-    "ImbalancedSampler", "DataLoader",
-    "TimeSeriesModifier", "aggregation_dict", "AggregationBase",
+    "KFold",
+    "KRandom",
+    "KBootstrap",
+    "ImbalancedSampler",
+    "DataLoader",
+    "TimeSeriesModifier",
+    "aggregation_dict",
+    "AggregationBase",
 ]

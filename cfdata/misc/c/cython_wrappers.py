@@ -24,5 +24,6 @@ def c_flat_arr_to_float32(arr):
 
 __all__ = [
     "c_transform_flat_data_with_dict",
-    "c_is_all_numeric", "c_flat_arr_to_float32"
+    "c_is_all_numeric",
+    "c_flat_arr_to_float32",
 ]
