@@ -377,6 +377,29 @@ class TestTabularData(unittest.TestCase):
         ]
         self.assertListEqual([x_ts[i][1] for i in data.ts_sorting_indices], gt)
 
+    def test_simplify(self):
+        n = 1000000
+        x = np.random.random([n, 5])
+        y = np.random.randint(0, 2, [n, 1])
+        export_name = "test_data"
+        simplified_export_name = f"{export_name}_simple"
+        d = TabularData().read(x, y)
+        d1 = TabularData.simple(TaskTypes.CLASSIFICATION).read(x, y)
+        d.save(export_name)
+        d2 = TabularData.load(export_name)
+        self.assertTrue(d == d2)
+        d.save(export_name, retain_data=False)
+        d1.save(simplified_export_name, retain_data=False)
+        d2 = TabularData.load(export_name)
+        d3 = TabularData.load(simplified_export_name)
+        self.assertTrue(np.allclose(x, d1.transform(x).x))
+        self.assertFalse(np.allclose(x, d.transform(x).x))
+        self.assertTrue(np.allclose(y, d1.transform_labels(y)))
+        self.assertTrue(d.transform(x) == d2.transform(x))
+        self.assertTrue(d1.transform(x) == d3.transform(x))
+        os.remove(f"{export_name}.zip")
+        os.remove(f"{simplified_export_name}.zip")
+
 
 if __name__ == "__main__":
     unittest.main()
