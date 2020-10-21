@@ -990,25 +990,21 @@ class TabularData(DataBase):
                 recognizers: Dict[int, Optional[Recognizer]] = {}
                 converters: Dict[int, Optional[Converter]] = {}
                 processors: Dict[int, Optional[Processor]] = {}
-                if data._simplify:
-                    recognizers = {}
-                    converters = {}
-                    processors = {}
-                else:
-                    # data structures
-                    ds_path = os.path.join(abs_folder, cls.data_structures_file)
-                    with open(ds_path, "rb") as f:
-                        data_structures = dill.load(f)
-                    # converters & corresponding recognizers
-                    converters_dicts = data_structures["converters"]
-                    for idx, converter_dict_ in converters_dicts.items():
-                        converter = converters[idx] = Converter.loads(converter_dict_)
-                        recognizers[idx] = converter._recognizer
-                    # other recognizers
-                    recognizers_dicts = data_structures["recognizers"]
-                    for idx, recognizer_dict_ in recognizers_dicts.items():
-                        recognizers[idx] = Recognizer.loads(recognizer_dict_)
-                    # processors
+                # data structures
+                ds_path = os.path.join(abs_folder, cls.data_structures_file)
+                with open(ds_path, "rb") as f:
+                    data_structures = dill.load(f)
+                # converters & corresponding recognizers
+                converters_dicts = data_structures["converters"]
+                for idx, converter_dict_ in converters_dicts.items():
+                    converter = converters[idx] = Converter.loads(converter_dict_)
+                    recognizers[idx] = converter._recognizer
+                # other recognizers
+                recognizers_dicts = data_structures["recognizers"]
+                for idx, recognizer_dict_ in recognizers_dicts.items():
+                    recognizers[idx] = Recognizer.loads(recognizer_dict_)
+                # processors
+                if not data.is_simplify:
                     previous_processors: List[Processor] = []
                     processors_dicts = data_structures["processors"]
                     label_processor_data = processors_dicts.pop(-1)
