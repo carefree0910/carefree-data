@@ -351,17 +351,37 @@ class TabularData(DataBase):
         stacked = np.hstack(self.splitter._time_indices_list_in_use)
         self.ts_sorting_indices = stacked[::-1].copy()
 
+    def _inject_label_recognizer(self, label_name: str) -> None:
+        recognizer = self._recognizers[-1] = Recognizer(
+            label_name,
+            is_label=True,
+            task_type=self._task_type,
+            is_valid=True,
+            is_string=self.string_label,
+            is_numerical=self.numerical_label,
+            is_categorical=self.categorical_label,
+            numerical_threshold=1.0,
+        )
+        recognizer.fit(self._flatten(self._raw.y))
+
     def _core_fit(self) -> "TabularData":
         if self._raw is None:
             raise ValueError("`_raw` is not provided")
         if self._raw.x is None:
             raise ValueError("`_raw.x` is not provided")
         self._raw_dim = len(self._raw.x[0])
+        if self.label_name is None:
+            label_name = "__label__"
+        else:
+            label_name = self.label_name
         if self._simplify:
             self._recognizers = {}
             self._converters = {}
             self._processors = {}
             self._converted = self._processed = self._raw
+            # fit label recognizer for imbalance sampler
+            with timing_context(self, "fit recognizer", enable=self._timing):
+                self._inject_label_recognizer(label_name)
         else:
             ts_indices = self.ts_indices
             # convert features
@@ -419,21 +439,7 @@ class TabularData(DataBase):
                 self._converters[-1] = None
             else:
                 with timing_context(self, "fit recognizer", enable=self._timing):
-                    if self.label_name is None:
-                        label_name = "__label__"
-                    else:
-                        label_name = self.label_name
-                    recognizer = self._recognizers[-1] = Recognizer(
-                        label_name,
-                        is_label=True,
-                        task_type=self._task_type,
-                        is_valid=True,
-                        is_string=self.string_label,
-                        is_numerical=self.numerical_label,
-                        is_categorical=self.categorical_label,
-                        numerical_threshold=1.0,
-                    )
-                    recognizer.fit(self._flatten(self._raw.y))
+                    self._inject_label_recognizer(label_name)
                 with timing_context(self, "fit converter", enable=self._timing):
                     converter = Converter.make_with(recognizer)
                     self._converters[-1] = converter
