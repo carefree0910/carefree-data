@@ -1039,18 +1039,19 @@ class TabularData(DataBase):
                         raise ValueError(msg)
                     if not isinstance(data._converted.x, np.ndarray):
                         raise ValueError(msg)
-                    converted_features = data._converted.x
-                    converter_indices = [idx for idx in sorted(converters) if idx != -1]
-                    for i, idx in enumerate(converter_indices):
-                        converter_ = converters[idx]
-                        assert converter_ is not None
-                        converter_._converted_features = converted_features[..., i]
-                    label_converter = converters[-1]
-                    if label_converter is not None:
-                        if not isinstance(data._converted.y, np.ndarray):
-                            raise ValueError(msg)
-                        y_flatten = data._converted.y.flatten()
-                        label_converter._converted_features = y_flatten
+                    if not data._simplify:
+                        converted_features = data._converted.x
+                        indices = [idx for idx in sorted(converters) if idx != -1]
+                        for i, idx in enumerate(indices):
+                            converter_ = converters[idx]
+                            assert converter_ is not None
+                            converter_._converted_features = converted_features[..., i]
+                        label_converter = converters[-1]
+                        if label_converter is not None:
+                            if not isinstance(data._converted.y, np.ndarray):
+                                raise ValueError(msg)
+                            y_flatten = data._converted.y.flatten()
+                            label_converter._converted_features = y_flatten
         return data
 
     def to_dataset(self) -> TabularDataset:
