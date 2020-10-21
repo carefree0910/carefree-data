@@ -60,6 +60,9 @@ class TabularData(DataBase):
                 raise ValueError("string labels are invalid in REGRESSION tasks")
             if categorical_label:
                 raise ValueError("categorical labels are invalid in REGRESSION tasks")
+        if simplify and task_type.is_none:
+            msg = "`task_type` should be provided when simplified data is used"
+            raise ValueError(msg)
         self._simplify = simplify
         self._task_type = task_type
         self._time_series_config = time_series_config
