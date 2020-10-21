@@ -758,11 +758,11 @@ class DataSplitter(SavingMixin):
         if self._remained_indices is None:
             msg = "please call 'reset' method before calling 'split' method"
             raise ValueError(msg)
-        tgt_indices = self._remained_indices[-n:]
-        n = min(n, len(self._remained_indices) - 1)
-        if self._replace:
-            np.random.shuffle(self._remained_indices)
-        elif n > 0:
+        num_remained = len(self._remained_indices)
+        indices = np.random.permutation(num_remained)
+        tgt_indices = indices[-n:]
+        n = min(n, num_remained - 1)
+        if not self._replace and n > 0:
             self._remained_indices = self._remained_indices[:-n]
         return tgt_indices
 
