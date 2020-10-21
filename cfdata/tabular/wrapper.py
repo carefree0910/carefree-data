@@ -831,20 +831,21 @@ class TabularData(DataBase):
         raw = copied._raw = self._get_raw(x, y, contains_labels=contains_labels)
         converted, copied._processed = self._transform(raw)
         assert isinstance(converted.x, np.ndarray), "internal error occurred"
-        copied_converters: Dict[int, Optional[Converter]] = {
-            idx: None if converter is None else copy.copy(converter)
-            for idx, converter in self.converters.items()
-        }
-        label_converter = copied_converters[-1]
-        if label_converter is not None:
-            label_converter._converted_features = converted.y
-        converter_indices = [idx for idx in sorted(copied_converters) if idx != -1]
-        for i, idx in enumerate(converter_indices):
-            local_converter = copied_converters[idx]
-            assert local_converter is not None
-            local_converter._converted_features = converted.x[..., i]
-        copied._converters = copied_converters
-        copied._converted = converted
+        if not self._simplify:
+            copied_converters: Dict[int, Optional[Converter]] = {
+                idx: None if converter is None else copy.copy(converter)
+                for idx, converter in self.converters.items()
+            }
+            label_converter = copied_converters[-1]
+            if label_converter is not None:
+                label_converter._converted_features = converted.y
+            converter_indices = [idx for idx in sorted(copied_converters) if idx != -1]
+            for i, idx in enumerate(converter_indices):
+                local_converter = copied_converters[idx]
+                assert local_converter is not None
+                local_converter._converted_features = converted.x[..., i]
+            copied._converters = copied_converters
+            copied._converted = converted
         if copied.is_ts:
             copied._get_ts_sorting_indices()
         return copied
