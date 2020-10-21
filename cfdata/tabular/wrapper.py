@@ -351,7 +351,7 @@ class TabularData(DataBase):
         stacked = np.hstack(self.splitter._time_indices_list_in_use)
         self.ts_sorting_indices = stacked[::-1].copy()
 
-    def _inject_label_recognizer(self, label_name: str) -> None:
+    def _inject_label_recognizer(self, label_name: str) -> "Recognizer":
         recognizer = self._recognizers[-1] = Recognizer(
             label_name,
             is_label=True,
@@ -364,6 +364,7 @@ class TabularData(DataBase):
         )
         assert self._raw is not None and self._raw.y is not None
         recognizer.fit(self._flatten(self._raw.y))
+        return recognizer
 
     def _core_fit(self) -> "TabularData":
         if self._raw is None:
@@ -440,7 +441,7 @@ class TabularData(DataBase):
                 self._converters[-1] = None
             else:
                 with timing_context(self, "fit recognizer", enable=self._timing):
-                    self._inject_label_recognizer(label_name)
+                    recognizer = self._inject_label_recognizer(label_name)
                 with timing_context(self, "fit converter", enable=self._timing):
                     converter = Converter.make_with(recognizer)
                     self._converters[-1] = converter
