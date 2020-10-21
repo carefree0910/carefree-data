@@ -845,6 +845,8 @@ class TabularData(DataBase):
         return converted_labels, transformed_labels
 
     def recover_labels(self, y: np.ndarray, *, inplace: bool = False) -> np.ndarray:
+        if self._simplify:
+            return y
         label_processor = self._processors[-1]
         if label_processor is None:
             raise ValueError("`processor` for labels is not generated")
