@@ -67,9 +67,28 @@ class TabularData(DataBase):
         self._task_type = task_type
         self._time_series_config = time_series_config
         self.label_name = label_name
-        self.string_label = string_label
-        self.numerical_label = numerical_label
-        self.categorical_label = categorical_label
+        if not simplify:
+            self.string_label = string_label
+            self.numerical_label = numerical_label
+            self.categorical_label = categorical_label
+        else:
+            if string_label:
+                msg = "`string_label` should be False when simplified data is used"
+                raise ValueError(msg)
+            self.string_label = False
+            assert task_type is not None
+            if task_type.is_reg and categorical_label:
+                raise ValueError(
+                    "`task_type` indicates regression task but "
+                    "`categorical_label` is set to True"
+                )
+            if task_type.is_clf and numerical_label:
+                raise ValueError(
+                    "`task_type` indicates classification task but "
+                    "`numerical_label` is set to True"
+                )
+            self.numerical_label = task_type.is_reg
+            self.categorical_label = task_type.is_clf
         self._column_names = column_names
         self._valid_columns = valid_columns
         self._string_columns = string_columns
