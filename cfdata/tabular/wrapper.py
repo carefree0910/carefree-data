@@ -120,6 +120,10 @@ class TabularData(DataBase):
         return self.processed == other.processed
 
     @property
+    def is_simplify(self) -> bool:
+        return self._simplify
+
+    @property
     def ts_config(self) -> Optional[TimeSeriesConfig]:
         if self._time_series_config is None:
             return None
