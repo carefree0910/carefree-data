@@ -362,6 +362,7 @@ class TabularData(DataBase):
             is_categorical=self.categorical_label,
             numerical_threshold=1.0,
         )
+        assert self._raw is not None and self._raw.y is not None
         recognizer.fit(self._flatten(self._raw.y))
 
     def _core_fit(self) -> "TabularData":
