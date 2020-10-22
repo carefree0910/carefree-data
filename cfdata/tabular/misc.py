@@ -803,6 +803,7 @@ class DataSplitter(SavingMixin):
             num_samples_per_label,
         ):
             num_samples_in_use = len(indices)
+            np.random.shuffle(indices)
             tgt_indices_list.append(indices[-num_sample_per_label:])
             if num_sample_per_label >= num_samples_in_use:
                 pop_indices_list.append([])
@@ -816,7 +817,6 @@ class DataSplitter(SavingMixin):
                 )
         tgt_indices = np.hstack(tgt_indices_list)
         if self._replace:
-            tuple(map(np.random.shuffle, self._label_indices_list_in_use))
             self._remained_indices = np.hstack(self._label_indices_list_in_use)
         else:
             for i, (in_use, pop_indices) in enumerate(
