@@ -32,7 +32,7 @@ class TabularData(DataBase):
         self,
         *,
         simplify: bool = False,
-        task_type: TaskTypes = TaskTypes.NONE,
+        task_type: task_type_type = TaskTypes.NONE,
         time_series_config: Optional[TimeSeriesConfig] = None,
         label_name: Optional[str] = None,
         string_label: Optional[bool] = None,
@@ -52,6 +52,7 @@ class TabularData(DataBase):
         trigger_logging: bool = False,
         verbose_level: int = 1,
     ):
+        task_type = parse_task_type(task_type)
         if task_type.is_clf:
             if numerical_label:
                 raise ValueError("numerical labels are invalid in CLASSIFICATION tasks")

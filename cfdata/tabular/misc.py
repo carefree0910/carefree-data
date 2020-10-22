@@ -171,6 +171,15 @@ class TaskTypes(Enum):
         return cls.TIME_SERIES_CLF if is_time_series else cls.CLASSIFICATION
 
 
+task_type_type = Union[str, TaskTypes]
+
+
+def parse_task_type(task_type: task_type_type) -> TaskTypes:
+    if isinstance(task_type, TaskTypes):
+        return task_type
+    return TaskTypes.from_str(task_type)
+
+
 class FeatureInfo(NamedTuple):
     contains_nan: Optional[bool]
     flat_arr: Optional[flat_arr_type]
@@ -976,6 +985,8 @@ __all__ = [
     "data_type",
     "data_item_type",
     "batch_type",
+    "task_type_type",
+    "parse_task_type",
     "transpose",
     "DataTuple",
     "ColumnTypes",
