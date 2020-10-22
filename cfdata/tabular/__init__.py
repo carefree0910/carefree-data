@@ -9,6 +9,8 @@ __all__ = [
     "TimeSeriesConfig",
     "TimeSeriesModifier",
     "TaskTypes",
+    "task_type_type",
+    "parse_task_type",
     "ColumnTypes",
     "DataTuple",
     "SplitResult",

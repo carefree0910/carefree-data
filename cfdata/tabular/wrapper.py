@@ -1071,7 +1071,7 @@ class TabularData(DataBase):
     @classmethod
     def simple(
         cls,
-        task_type: TaskTypes,
+        task_type: task_type_type,
         *,
         simplify: bool = False,
         **kwargs: Any,

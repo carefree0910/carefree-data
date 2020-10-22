@@ -43,7 +43,6 @@ class KFold:
     >>> import numpy as np
     >>>
     >>> from cfdata.types import np_int_type
-    >>> from cfdata.tabular.misc import TaskTypes
     >>> from cfdata.tabular.toolkit import KFold
     >>> from cfdata.tabular.wrapper import TabularDataset
     >>>
@@ -51,7 +50,7 @@ class KFold:
     >>> # create an imbalance dataset
     >>> y = np.zeros(6, np_int_type)
     >>> y[[-1, -2]] = 1
-    >>> dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+    >>> dataset = TabularDataset.from_xy(x, y, "clf")
     >>> k_fold = KFold(3, dataset)
     >>> for train_fold, test_fold in k_fold:
     >>>     print(np.vstack([train_fold.dataset.x, test_fold.dataset.x]))
@@ -110,7 +109,6 @@ class KRandom:
     >>> import numpy as np
     >>>
     >>> from cfdata.types import np_int_type
-    >>> from cfdata.tabular.misc import TaskTypes
     >>> from cfdata.tabular.toolkit import KRandom
     >>> from cfdata.tabular.wrapper import TabularDataset
     >>>
@@ -118,7 +116,7 @@ class KRandom:
     >>> # create an imbalance dataset
     >>> y = np.zeros(6, np_int_type)
     >>> y[[-1, -2]] = 1
-    >>> dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+    >>> dataset = TabularDataset.from_xy(x, y, "clf")
     >>> k_random = KRandom(3, 2, dataset)
     >>> for train_fold, test_fold in k_random:
     >>>     print(np.vstack([train_fold.dataset.x, test_fold.dataset.x]))
@@ -177,7 +175,6 @@ class KBootstrap:
     >>> import numpy as np
     >>>
     >>> from cfdata.types import np_int_type
-    >>> from cfdata.tabular.misc import TaskTypes
     >>> from cfdata.tabular.toolkit import KBootstrap
     >>> from cfdata.tabular.wrapper import TabularDataset
     >>>
@@ -185,7 +182,7 @@ class KBootstrap:
     >>> # create an imbalance dataset
     >>> y = np.zeros(6, np_int_type)
     >>> y[[-1, -2]] = 1
-    >>> dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+    >>> dataset = TabularDataset.from_xy(x, y, "clf")
     >>> k_bootstrap = KBootstrap(3, 2, dataset)
     >>> for train_fold, test_fold in k_bootstrap:
     >>>     print(np.vstack([train_fold.dataset.x, test_fold.dataset.x]))
@@ -537,12 +534,13 @@ class TimeSeriesModifier:
     def __init__(
         self,
         file_path: str,
-        task_type: TaskTypes,
+        task_type: task_type_type,
         *,
         delim: Optional[str] = None,
         ts_config: Optional[TimeSeriesConfig] = None,
         contains_labels: bool = False,
     ):
+        task_type = parse_task_type(task_type)
         if not task_type.is_ts:
             msg = "task_type should be either TIME_SERIES_CLF or TIME_SERIES_REG"
             raise ValueError(msg)

@@ -27,7 +27,7 @@ class TestTabularUtils(unittest.TestCase):
         n_class = 10
         tolerance = 5
         ratios = [0.1, 0.1]
-        task = TaskTypes.CLASSIFICATION
+        task = "clf"
         for power in range(3, 6):
             n = int(10 ** power)
             n_cv, n_test = map(int, map(operator.mul, 2 * [n], ratios))
@@ -86,7 +86,7 @@ class TestTabularUtils(unittest.TestCase):
     def test_k_fold(self):
         k = 10
         num_class = 10
-        task = TaskTypes.CLASSIFICATION
+        task = "clf"
         for power in range(3, 6):
             n = int(10 ** power)
             x = np.random.random([n, 100]).astype(np_float_type)
@@ -98,7 +98,7 @@ class TestTabularUtils(unittest.TestCase):
         k = 10
         test_ratio = 0.1
         num_class = 10
-        task = TaskTypes.CLASSIFICATION
+        task = "clf"
         for power in range(3, 6):
             n = int(10 ** power)
             x = np.random.random([n, 100]).astype(np_float_type)
@@ -110,7 +110,7 @@ class TestTabularUtils(unittest.TestCase):
         k = 10
         test_ratio = 0.1
         num_class = 10
-        task = TaskTypes.CLASSIFICATION
+        task = "clf"
         for power in range(3, 6):
             n = int(10 ** power)
             x = np.random.random([n, 100]).astype(np_float_type)
@@ -164,7 +164,7 @@ class TestTabularUtils(unittest.TestCase):
             # here, number of positive samples will be less than number of negative samples (by 2)
             # hence, one positive sample will be duplicated, and one negative sample will be dropped
             y[-half_samples + 1 :] = 1
-            dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+            dataset = TabularDataset.from_xy(x, y, "clf")
             k_fold = KFold(half_samples, dataset)
             for train_fold, test_fold in k_fold:
                 x_stack = np.vstack([train_fold.dataset.x, test_fold.dataset.x])
@@ -174,7 +174,7 @@ class TestTabularUtils(unittest.TestCase):
             # here, labels are balanced
             # hence, all folds should cover the entire dataset
             y[-half_samples] = 1
-            dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+            dataset = TabularDataset.from_xy(x, y, "clf")
             k_fold = KFold(half_samples, dataset)
             for train_fold, test_fold in k_fold:
                 x_stack = np.vstack([train_fold.dataset.x, test_fold.dataset.x])
@@ -192,7 +192,7 @@ class TestTabularUtils(unittest.TestCase):
             # here, we only have one positive sample
             # but we will still have this positive sample in each test fold
             y[-1] = 1
-            dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+            dataset = TabularDataset.from_xy(x, y, "clf")
             k_random = KRandom(10, 2, dataset)
             for train_fold, test_fold in k_random:
                 x_stack = np.vstack([train_fold.dataset.x, test_fold.dataset.x])

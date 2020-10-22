@@ -18,7 +18,7 @@ class Recognizer(DataStructure):
         column_name: str,
         *,
         is_label: bool = False,
-        task_type: TaskTypes = TaskTypes.NONE,
+        task_type: task_type_type = TaskTypes.NONE,
         is_valid: Optional[bool] = None,
         is_string: Optional[bool] = None,
         is_numerical: Optional[bool] = None,
@@ -30,7 +30,7 @@ class Recognizer(DataStructure):
         # - `False` means 'force not to *', `True` means 'force to *'
         self.name = column_name
         self.is_label = is_label
-        self.task_type = task_type
+        self.task_type = parse_task_type(task_type)
         if is_string is False and is_numerical is False and is_categorical is False:
             if is_valid is None:
                 is_valid = False

@@ -256,7 +256,8 @@ class TabularDataset(NamedTuple):
         return TabularDataset(self.x[indices], self.y[indices], *self[2:])
 
     @classmethod
-    def from_bunch(cls, bunch: Bunch, task_type: TaskTypes) -> "TabularDataset":
+    def from_bunch(cls, bunch: Bunch, task_type: task_type_type) -> "TabularDataset":
+        task_type = parse_task_type(task_type)
         x, y = TabularDataset.to_task_type(bunch.data, bunch.target, task_type)
         label_names = bunch.get("target_names")
         feature_names = bunch.get("feature_names")
@@ -273,8 +274,9 @@ class TabularDataset(NamedTuple):
         cls,
         x: np.ndarray,
         y: np.ndarray,
-        task_type: TaskTypes,
+        task_type: task_type_type,
     ) -> "TabularDataset":
+        task_type = parse_task_type(task_type)
         x, y = cls.to_task_type(x, y, task_type)
         return TabularDataset(x, y, task_type)
 
@@ -282,19 +284,19 @@ class TabularDataset(NamedTuple):
 
     @classmethod
     def iris(cls) -> "TabularDataset":
-        return cls.from_bunch(load_iris(), TaskTypes.CLASSIFICATION)
+        return cls.from_bunch(load_iris(), "clf")
 
     @classmethod
     def boston(cls) -> "TabularDataset":
-        return cls.from_bunch(load_boston(), TaskTypes.REGRESSION)
+        return cls.from_bunch(load_boston(), "reg")
 
     @classmethod
     def digits(cls) -> "TabularDataset":
-        return cls.from_bunch(load_digits(), TaskTypes.CLASSIFICATION)
+        return cls.from_bunch(load_digits(), "clf")
 
     @classmethod
     def breast_cancer(cls) -> "TabularDataset":
-        return cls.from_bunch(load_breast_cancer(), TaskTypes.CLASSIFICATION)
+        return cls.from_bunch(load_breast_cancer(), "clf")
 
     # artificial datasets
 
@@ -303,9 +305,7 @@ class TabularDataset(NamedTuple):
         x = np.random.randn(size) * scale
         y = np.random.randn(size) * scale
         z = (x * y >= 0).astype(np_int_type)
-        return TabularDataset.from_xy(
-            np.c_[x, y].astype(np_float_type), z, TaskTypes.CLASSIFICATION
-        )
+        return TabularDataset.from_xy(np.c_[x, y].astype(np_float_type), z, "clf")
 
     @classmethod
     def spiral(
@@ -327,7 +327,7 @@ class TabularDataset(NamedTuple):
             t = np.linspace(t_start, t_end, size) + np.random.random(size=size) * 0.1
             xs[ix] = np.c_[r * np.sin(t), r * np.cos(t)]
             ys[ix] = i % num_classes
-        return cls.from_xy(xs, ys, TaskTypes.CLASSIFICATION)
+        return cls.from_xy(xs, ys, "clf")
 
     @classmethod
     def two_clusters(
@@ -347,7 +347,7 @@ class TabularDataset(NamedTuple):
         labels = np.array([1] * size + [0] * size, np_int_type)
         indices = np.random.permutation(size * 2)
         data, labels = data[indices], labels[indices]
-        return cls.from_xy(data, labels, TaskTypes.CLASSIFICATION)
+        return cls.from_xy(data, labels, "clf")
 
     @classmethod
     def simple_non_linear(cls, *, size: int = 120) -> "TabularDataset":
@@ -356,7 +356,7 @@ class TabularDataset(NamedTuple):
         mask = xs[..., 1] >= xs[..., 0] ** 2
         xs[..., 1][mask] += 2
         ys[mask] = 1
-        return cls.from_xy(xs, ys, TaskTypes.CLASSIFICATION)
+        return cls.from_xy(xs, ys, "clf")
 
     @classmethod
     def nine_grid(cls, *, size: int = 120) -> "TabularDataset":
@@ -370,14 +370,15 @@ class TabularDataset(NamedTuple):
         labels[mask2] = 2
         labels[(x_mid_mask | y_mid_mask) & ~mask2] = 1
         xs = np.vstack([x, y]).T
-        return cls.from_xy(xs, labels, TaskTypes.CLASSIFICATION)
+        return cls.from_xy(xs, labels, "clf")
 
     @staticmethod
     def _fetch_ys(
         affine_train: np.ndarray,
         affine_test: np.ndarray,
-        task_type: TaskTypes,
+        task_type: task_type_type,
     ) -> Tuple[np.ndarray, np.ndarray]:
+        task_type = parse_task_type(task_type)
         if task_type.is_reg:
             y_train, y_test = affine_train, affine_test
         else:
@@ -393,7 +394,7 @@ class TabularDataset(NamedTuple):
         n_dim: int = 100,
         n_valid: int = 5,
         noise_scale: float = 0.5,
-        task_type: TaskTypes = TaskTypes.REGRESSION,
+        task_type: task_type_type = TaskTypes.REGRESSION,
         test_ratio: float = 0.15,
     ) -> Tuple["TabularDataset", "TabularDataset"]:
         x_train = np.random.randn(size, n_dim)
@@ -420,7 +421,7 @@ class TabularDataset(NamedTuple):
         n_dim: int = 100,
         n_valid: int = 5,
         noise_scale: float = 0.5,
-        task_type: TaskTypes = TaskTypes.REGRESSION,
+        task_type: task_type_type = TaskTypes.REGRESSION,
         test_ratio: float = 0.15,
     ) -> Tuple["TabularDataset", "TabularDataset"]:
         assert p > 1, "p should be greater than 1"
@@ -590,14 +591,14 @@ class DataSplitter(SavingMixin):
     >>> import numpy as np
     >>>
     >>> from cfdata.types import np_int_type
-    >>> from cfdata.tabular.misc import TaskTypes, DataSplitter
+    >>> from cfdata.tabular.misc import DataSplitter
     >>> from cfdata.tabular.wrapper import TabularDataset
     >>>
     >>> x = np.arange(12).reshape([6, 2])
     >>> # create an imbalance dataset
     >>> y = np.zeros(6, np_int_type)
     >>> y[[-1, -2]] = 1
-    >>> dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+    >>> dataset = TabularDataset.from_xy(x, y, "clf")
     >>> data_splitter = DataSplitter().fit(dataset)
     >>> # labels in result will keep its ratio
     >>> result = data_splitter.split(3)
@@ -609,7 +610,7 @@ class DataSplitter(SavingMixin):
     >>> print(result.dataset.y.ravel())
     >>> # at least one sample of each class will be kept
     >>> y[-2] = 0
-    >>> dataset = TabularDataset.from_xy(x, y, TaskTypes.CLASSIFICATION)
+    >>> dataset = TabularDataset.from_xy(x, y, "clf")
     >>> data_splitter = DataSplitter().fit(dataset)
     >>> result = data_splitter.split(2)
     >>> # [0 0 0 0 0 1] [0 1]
