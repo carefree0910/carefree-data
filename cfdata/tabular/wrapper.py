@@ -17,6 +17,7 @@ from .converters import *
 from .processors import *
 from ..base import DataBase
 from ..types import np_int_type
+from ..types import np_float_type
 
 
 class TabularSplit(NamedTuple):
@@ -434,7 +435,8 @@ class TabularData(DataBase):
                         converter = Converter.make_with(recognizer)
                         self._converters[i] = converter
                     with timing_context(self, "convert", enable=self._timing):
-                        converted_features.append(converter.converted_input)
+                        converted = converter.converted_input.astype(np_float_type)
+                        converted_features.append(converted)
             # convert labels
             if self._raw is None or self._raw.y is None:
                 converted_labels = None
