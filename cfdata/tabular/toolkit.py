@@ -437,7 +437,6 @@ class DataLoader:
         self._num_siamese = num_siamese
         self._num_samples = len(sampler)
         self.batch_size = min(self._num_samples, batch_size)
-        self._verbose_level = verbose_level
 
     def __len__(self) -> int:
         n_iter = int(self._num_samples / self.batch_size)
