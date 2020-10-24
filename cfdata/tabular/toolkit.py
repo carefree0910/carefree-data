@@ -271,6 +271,7 @@ class ImbalancedSampler(LoggingMixin):
         shuffle: bool = True,
         aggregation: str = "continuous",
         aggregation_config: Optional[Dict[str, Any]] = None,
+        sample_weights: Optional[np.ndarray] = None,
         sample_method: str = "multinomial",
         verbose_imbalance: bool = True,
         verbose_level: int = 2,
@@ -278,6 +279,7 @@ class ImbalancedSampler(LoggingMixin):
         self.data = data
         self.shuffle = shuffle
         self.imbalance_threshold = imbalance_threshold
+        self.sample_weights = sample_weights
         self._sample_imbalance_flag = True
         self._aggregation_name = aggregation
         self._aggregation_config = aggregation_config
@@ -290,36 +292,47 @@ class ImbalancedSampler(LoggingMixin):
             base = aggregation_dict[aggregation]
             self.aggregation = base(data, aggregation_config, data._verbose_level)
             self._num_samples = len(self.aggregation.indices2id)
-        if not self.shuffle or data.is_reg:
-            label_counts = self._label_ratios = self._sampler = None
+        if sample_weights is not None:
+            label_counts = None
+            sample_weights /= sample_weights.sum()
+            self._sampler = Sampler(sample_method, sample_weights)
         else:
-            label_recognizer = data.recognizers[-1]
-            if label_recognizer is None:
-                msg = "`data` should contain label recognizer for `ImbalancedSampler`"
-                raise ValueError(msg)
-            label_counter = label_recognizer.counter
-            transform_dict = label_recognizer.transform_dict
-            new_counter = {transform_dict[k]: v for k, v in label_counter.items()}
-            counts_list = [new_counter[k] for k in sorted(new_counter)]
-            label_counts = np.array(counts_list, np_float_type)
-            self._label_ratios = label_counts / self._num_samples
-            max_label_count = label_counts.max()
-            if label_counts.min() / max_label_count >= imbalance_threshold:
-                self._sampler = None
+            if not self.shuffle or data.is_reg:
+                label_counts = self._label_ratios = self._sampler = None
             else:
-                processed = data.processed
-                if processed is None:
-                    msg = "`data` should contain `processed` for `ImbalancedSampler`"
-                    raise ValueError(msg)
-                if not isinstance(processed.y, np.ndarray):
-                    msg = "`data` should contain `processed.y` for `ImbalancedSampler`"
-                    raise ValueError(msg)
-                labels = processed.y.ravel()
-                sample_weights = np.zeros(self._num_samples, np_float_type)
-                for i, count in enumerate(label_counts):
-                    sample_weights[labels == i] = max_label_count / count
-                sample_weights /= sample_weights.sum()
-                self._sampler = Sampler(sample_method, sample_weights)
+                label_recognizer = data.recognizers[-1]
+                if label_recognizer is None:
+                    raise ValueError(
+                        "`data` should contain label recognizer "
+                        "for `ImbalancedSampler`"
+                    )
+                label_counter = label_recognizer.counter
+                transform_dict = label_recognizer.transform_dict
+                new_counter = {transform_dict[k]: v for k, v in label_counter.items()}
+                counts_list = [new_counter[k] for k in sorted(new_counter)]
+                label_counts = np.array(counts_list, np_float_type)
+                self._label_ratios = label_counts / self._num_samples
+                max_label_count = label_counts.max()
+                if label_counts.min() / max_label_count >= imbalance_threshold:
+                    self._sampler = None
+                else:
+                    processed = data.processed
+                    if processed is None:
+                        raise ValueError(
+                            "`data` should contain `processed` "
+                            "for `ImbalancedSampler`"
+                        )
+                    if not isinstance(processed.y, np.ndarray):
+                        raise ValueError(
+                            "`data` should contain `processed.y` "
+                            "for `ImbalancedSampler`"
+                        )
+                    labels = processed.y.ravel()
+                    sample_weights = np.zeros(self._num_samples, np_float_type)
+                    for i, count in enumerate(label_counts):
+                        sample_weights[labels == i] = max_label_count / count
+                    sample_weights /= sample_weights.sum()
+                    self._sampler = Sampler(sample_method, sample_weights)
 
         self._sample_method = sample_method
         self._verbose_level = verbose_level
