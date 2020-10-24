@@ -279,7 +279,6 @@ class ImbalancedSampler(LoggingMixin):
         self.data = data
         self.shuffle = shuffle
         self.imbalance_threshold = imbalance_threshold
-        self.sample_weights = sample_weights
         self._sample_imbalance_flag = True
         self._aggregation_name = aggregation
         self._aggregation_config = aggregation_config
@@ -294,9 +293,11 @@ class ImbalancedSampler(LoggingMixin):
             self._num_samples = len(self.aggregation.indices2id)
         if sample_weights is not None:
             label_counts = None
-            sample_weights /= (sample_weights.sum() + 1e-8)
-            self._sampler = Sampler(sample_method, sample_weights)
+            self.sample_weights = sample_weights.copy()
+            self.sample_weights /= (self.sample_weights.sum() + 1e-8)
+            self._sampler = Sampler(sample_method, self.sample_weights)
         else:
+            self.sample_weights = None
             if not self.shuffle or data.is_reg:
                 label_counts = self._label_ratios = self._sampler = None
             else:
