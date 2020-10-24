@@ -294,7 +294,7 @@ class ImbalancedSampler(LoggingMixin):
             self._num_samples = len(self.aggregation.indices2id)
         if sample_weights is not None:
             label_counts = None
-            sample_weights /= sample_weights.sum()
+            sample_weights /= (sample_weights.sum() + 1e-8)
             self._sampler = Sampler(sample_method, sample_weights)
         else:
             if not self.shuffle or data.is_reg:
@@ -331,7 +331,7 @@ class ImbalancedSampler(LoggingMixin):
                     sample_weights = np.zeros(self._num_samples, np_float_type)
                     for i, count in enumerate(label_counts):
                         sample_weights[labels == i] = max_label_count / count
-                    sample_weights /= sample_weights.sum()
+                    sample_weights /= (sample_weights.sum() + 1e-8)
                     self._sampler = Sampler(sample_method, sample_weights)
 
         self._sample_method = sample_method
