@@ -23,7 +23,7 @@ class Recognizer(DataStructure):
         is_string: Optional[bool] = None,
         is_numerical: Optional[bool] = None,
         is_categorical: Optional[bool] = None,
-        numerical_threshold: float = 0.5,
+        config: Optional[Dict[str, Any]] = None,
     ):
         # is_* :
         # - `None` means no information
@@ -43,7 +43,7 @@ class Recognizer(DataStructure):
         self.is_string = is_string
         self.is_numerical = is_numerical
         self.is_categorical = is_categorical
-        self.numerical_threshold = numerical_threshold
+        self._init_config(config)
         self._info: FeatureInfo
         self._counter: Counter
         self._transform_dict: Dict[Union[str, int], int]
@@ -70,6 +70,12 @@ class Recognizer(DataStructure):
         if self._info.is_numerical:
             return math.inf
         return len(self._transform_dict)
+
+    def _init_config(self, config: Optional[Dict[str, Any]] = None) -> None:
+        if config is None:
+            config = {}
+        self.config = config
+        self._num_thresh = config.setdefault("numerical_threshold", 0.5)
 
     def _make_invalid_info(
         self,
@@ -167,7 +173,7 @@ class Recognizer(DataStructure):
             return "exclude", msg
         if (
             not self.is_categorical
-            and num_unique_values >= self.numerical_threshold * num_samples
+            and num_unique_values >= self._num_thresh * num_samples
         ):
             msg = (
                 f"TOO MANY unique values occurred in column {self.name} "

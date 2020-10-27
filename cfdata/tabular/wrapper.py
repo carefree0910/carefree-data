@@ -44,11 +44,12 @@ class TabularData(DataBase):
         string_columns: Optional[List[int]] = None,
         numerical_columns: Optional[List[int]] = None,
         categorical_columns: Optional[List[int]] = None,
+        recognizer_configs: Optional[Dict[int, Dict[str, Any]]] = None,
         process_methods: Optional[Union[str, Dict[int, str]]] = "auto",
         default_numerical_process: str = "normalize",
         default_categorical_process: str = "one_hot",
+        label_recognizer_config: Optional[Dict[str, Any]] = None,
         label_process_method: Optional[str] = None,
-        numerical_threshold: Optional[float] = None,
         use_timing_context: bool = True,
         trigger_logging: bool = False,
         verbose_level: int = 1,
@@ -96,11 +97,16 @@ class TabularData(DataBase):
         self._string_columns = string_columns
         self._numerical_columns = numerical_columns
         self._categorical_columns = categorical_columns
+        if recognizer_configs is None:
+            recognizer_configs = {}
+        self._recognizer_configs = recognizer_configs
         self._process_methods = process_methods
         self._default_numerical_process = default_numerical_process
         self._default_categorical_process = default_categorical_process
+        if label_recognizer_config is None:
+            label_recognizer_config = {}
+        self._label_recognizer_config = label_recognizer_config
         self._label_process_method = label_process_method
-        self._numerical_threshold = numerical_threshold
         self._is_file = self._is_arr = False
         self._raw_dim: Optional[int] = None
         self._num_classes: Optional[int] = None
@@ -354,6 +360,7 @@ class TabularData(DataBase):
         self.ts_sorting_indices = stacked[::-1].copy()
 
     def _inject_label_recognizer(self, label_name: str) -> "Recognizer":
+        self._label_recognizer_config["numerical_threshold"] = 1.0
         recognizer = self._recognizers[-1] = Recognizer(
             label_name,
             is_label=True,
@@ -362,7 +369,7 @@ class TabularData(DataBase):
             is_string=self.string_label,
             is_numerical=self.numerical_label,
             is_categorical=self.categorical_label,
-            numerical_threshold=1.0,
+            config=self._label_recognizer_config,
         )
         assert self._raw is not None and self._raw.y is not None
         recognizer.fit(self._flatten(self._raw.y))
@@ -415,8 +422,8 @@ class TabularData(DataBase):
                     "is_numerical": is_numerical,
                     "is_categorical": is_categorical,
                 }
-                if self._numerical_threshold is not None:
-                    kwargs["numerical_threshold"] = self._numerical_threshold
+                recognizer_config = self._recognizer_configs.setdefault(i, {})
+                kwargs["config"] = recognizer_config
                 with timing_context(self, "fit recognizer", enable=self._timing):
                     recognizer = Recognizer(column_name, **kwargs)  # type: ignore
                     recognizer.fit(flat_arr)
