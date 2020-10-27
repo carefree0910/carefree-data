@@ -187,8 +187,22 @@ class FeatureInfo(NamedTuple):
     nan_mask: Optional[np.ndarray] = None
     need_transform: Optional[bool] = None
     column_type: ColumnTypes = ColumnTypes.NUMERICAL
+    truncate_ratio: Optional[float] = None
+    num_unique_bound: Optional[int] = None
+    # the first element holds most of the count
     unique_values_sorted_by_counts: Optional[np.ndarray] = None
+    sorted_counts: Optional[np.ndarray] = None
     msg: Optional[str] = None
+
+    @property
+    def need_truncate(self) -> bool:
+        unique_values = self.unique_values_sorted_by_counts
+        if unique_values is None:
+            return False
+        bound_res = len(unique_values) - self.num_unique_bound
+        if not self.contains_nan:
+            return bound_res > 0
+        return bound_res > 1
 
     @property
     def is_string(self) -> bool:

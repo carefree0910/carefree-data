@@ -46,7 +46,7 @@ class Recognizer(DataStructure):
         self._init_config(config)
         self._info: FeatureInfo
         self._counter: Counter
-        self._transform_dict: Dict[Union[str, int], int]
+        self._transform_dict: Dict[Union[str, float], int]
 
     def __str__(self) -> str:
         return f"Recognizer({self.info.column_type})"
@@ -76,6 +76,8 @@ class Recognizer(DataStructure):
             config = {}
         self.config = config
         self._num_thresh = config.setdefault("numerical_threshold", 0.5)
+        self._num_unique_bound = config.setdefault("num_unique_bound", 64)
+        self._truncate_ratio = config.setdefault("truncate_ratio", 0.99)
 
     def _make_invalid_info(
         self,
@@ -92,21 +94,25 @@ class Recognizer(DataStructure):
         )
         return self
 
-    @staticmethod
     def _make_string_info(
-        flat_arr: np.ndarray,
+        self,
+        flat_arr: Optional[np.ndarray],
         is_valid: bool,
         msg: Optional[str],
         unique_values: Optional[np.ndarray] = None,
+        sorted_counts: Optional[np.ndarray] = None,
     ) -> FeatureInfo:
         return FeatureInfo(
             False,
             flat_arr,
-            is_valid=is_valid,
             msg=msg,
+            is_valid=is_valid,
             need_transform=True,
             column_type=ColumnTypes.STRING,
+            truncate_ratio=self._truncate_ratio,
+            num_unique_bound=self._num_unique_bound,
             unique_values_sorted_by_counts=unique_values,
+            sorted_counts=sorted_counts,
         )
 
     def _check_string_column(
@@ -128,7 +134,9 @@ class Recognizer(DataStructure):
             if all_numeric:
                 return False, None
         self._counter = get_counter_from_arr(flat_arr)
-        unique_values = [elem[0] for elem in self._counter.most_common()]
+        most_common = self._counter.most_common()
+        unique_values = [elem[0] for elem in most_common]
+        unique_values_counts = [elem[1] for elem in most_common]
         self._transform_dict = {v: i for i, v in enumerate(unique_values)}
         num_unique_values = len(self._transform_dict)
         if not self.is_valid and num_unique_values == 1:
@@ -149,7 +157,11 @@ class Recognizer(DataStructure):
                 f"({num_unique_values:^12d})"
             )
         return True, self._make_string_info(
-            flat_arr, True, msg, np.array(unique_values)
+            flat_arr,
+            True,
+            msg,
+            np.array(unique_values),
+            np.array(unique_values_counts),
         )
 
     def _check_exclude_categorical(
@@ -186,8 +198,15 @@ class Recognizer(DataStructure):
 
     def _generate_categorical_transform_dict(self) -> None:
         unique_values = self._info.unique_values_sorted_by_counts
-        assert unique_values is not None
-        values = unique_values.tolist()
+        sorted_counts = self._info.sorted_counts
+        assert unique_values is not None and sorted_counts is not None
+        values = list(map(float, unique_values.tolist()))
+        if self._info.need_truncate:
+            counts_cumsum = np.cumsum(sorted_counts)
+            counts_cumsum_ratio = counts_cumsum / counts_cumsum[-1]
+            truncate_mask = counts_cumsum_ratio >= self._info.truncate_ratio
+            truncate_idx = np.nonzero(truncate_mask)[0][0]
+            values = values[: truncate_idx + 1]
         transform_dict = {v: i for i, v in enumerate(values) if not math.isnan(v)}
         if self._info.contains_nan:
             transform_dict["nan"] = len(transform_dict)
@@ -219,7 +238,8 @@ class Recognizer(DataStructure):
         np_flat_valid = np_flat[valid_mask]
         np_flat_valid_int = np_flat_valid.astype(np_int_type)
         num_samples, num_valid_samples = map(len, [np_flat, np_flat_valid])
-        contains_nan = num_samples != num_valid_samples
+        num_nan = num_samples - num_valid_samples
+        contains_nan = num_nan != 0
         if not contains_nan:
             nan_mask = None
         # check whether all nan or not
@@ -301,10 +321,12 @@ class Recognizer(DataStructure):
             return self._make_invalid_info(msg, contains_nan, nan_mask)
         sorted_indices = np.argsort(counts)[::-1]
         unique_values = unique_values[sorted_indices] + min_feat
+        sorted_counts = counts[sorted_indices].astype(np_float_type)
         counter_dict = dict(zip(unique_values, counts))
         if contains_nan:
             unique_values = np.append(unique_values, [float("nan")])
-            counter_dict["nan"] = num_samples - num_valid_samples
+            sorted_counts = np.append(unique_values, [float(num_nan)])
+            counter_dict["nan"] = num_nan
         need_transform = need_transform or contains_nan
         self._counter = Counter(counter_dict)
         self._info = FeatureInfo(
@@ -313,7 +335,10 @@ class Recognizer(DataStructure):
             nan_mask=nan_mask,
             need_transform=need_transform,
             column_type=ColumnTypes.CATEGORICAL,
+            truncate_ratio=self._truncate_ratio,
+            num_unique_bound=self._num_unique_bound,
             unique_values_sorted_by_counts=unique_values,
+            sorted_counts=sorted_counts,
         )
         self._generate_categorical_transform_dict()
         return self
@@ -327,7 +352,10 @@ class Recognizer(DataStructure):
             None,
             self.info.need_transform,
             self.info.column_type,
+            self.info.truncate_ratio,
+            self.info.num_unique_bound,
             self.info.unique_values_sorted_by_counts,
+            self.info.sorted_counts,
             self.info.msg,
         )
         return instance_dict
