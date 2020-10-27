@@ -290,7 +290,16 @@ class TestTabularData(unittest.TestCase):
             processor_recovered = processor.recover(columns)
             converter = data.converters[col_idx]
             recovered = converter.recover(processor_recovered.ravel())
-            self.assertTrue(np.allclose(recovered, dataset_xt[col_idx], atol=1e-5))
+            original = dataset_xt[col_idx]
+            try:
+                self.assertTrue(np.allclose(recovered, original, atol=1e-5))
+            except AssertionError:
+                different = np.nonzero(recovered != original)[0]
+                supported = converter._transform_dict
+                oob_value = converter._reverse_transform_dict[0.0]
+                for idx in different:
+                    self.assertTrue(recovered[idx].item() == oob_value)
+                    self.assertTrue(original[idx].item() not in supported)
 
     def test_recover_features(self):
         self._test_recover_features_core(TabularDataset.iris())
