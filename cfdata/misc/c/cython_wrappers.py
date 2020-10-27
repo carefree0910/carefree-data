@@ -19,9 +19,17 @@ def _to_list(array: Union[list, np.ndarray]) -> list:
 
 def c_transform_flat_data_with_dict(
     flat_data: np.ndarray,
-    transform_dict: Dict[Any, Any],
+    transform_dict: Dict[Union[str, float], Any],
+    need_truncate: bool,
 ) -> np.ndarray:
-    return transform_flat_data_with_dict(flat_data, transform_dict)  # type: ignore
+    nan_value = transform_dict.get("nan", 0)
+    oob_value = nan_value if need_truncate else 0
+    return transform_flat_data_with_dict(  # type: ignore
+        flat_data,
+        nan_value,
+        oob_value,
+        transform_dict,
+    )
 
 
 def c_is_all_numeric(array: np.ndarray) -> bool:

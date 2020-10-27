@@ -28,16 +28,21 @@ def _is_numeric(s):
 
 @cython.wraparound(False)
 @cython.boundscheck(False)
-def transform_flat_data_with_dict(np.ndarray[np.float32_t, ndim=1] flat_data, transform_dict):
+def transform_flat_data_with_dict(
+    np.ndarray[np.float32_t, ndim=1] flat_data,
+    int nan_value,
+    int oob_value,
+    transform_dict,
+):
     cdef dict d = transform_dict
     cdef float elem
     cdef unsigned int i, n=len(flat_data)
     for i in range(n):
         elem = float(flat_data[i])
         if isnan(elem):
-            flat_data[i] = d.get("nan", 0)
+            flat_data[i] = nan_value
         else:
-            flat_data[i] = d.get(elem, 0)
+            flat_data[i] = d.get(elem, oob_value)
     return flat_data
 
 

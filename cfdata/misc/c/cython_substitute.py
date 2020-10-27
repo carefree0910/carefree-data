@@ -3,19 +3,23 @@ import numpy as np
 
 from typing import Any
 from typing import Dict
+from typing import Union
 from cftool.misc import is_numeric
 
 
 def naive_transform_flat_data_with_dict(
     flat_data: np.ndarray,
-    transform_dict: Dict[Any, Any],
+    transform_dict: Dict[Union[str, float], Any],
+    need_truncate: bool,
 ) -> np.ndarray:
+    nan_value = transform_dict.get("nan", 0)
+    oob_value = nan_value if need_truncate else 0
     for i, elem in enumerate(flat_data):
         elem = float(elem)
         if math.isnan(elem):
-            flat_data[i] = transform_dict.get("nan", 0)
+            flat_data[i] = nan_value
         else:
-            flat_data[i] = transform_dict.get(elem, 0)
+            flat_data[i] = transform_dict.get(elem, oob_value)
     return flat_data
 
 

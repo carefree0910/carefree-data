@@ -62,7 +62,7 @@ class TestC(unittest.TestCase):
         ]
         for t, m in zip(types, methods):
             with timeit(t):
-                results.append(m(arr, transform_dict))
+                results.append(m(arr, transform_dict, False))
         self.assertTrue(allclose(*results))
 
 
