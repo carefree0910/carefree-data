@@ -9,7 +9,7 @@ from cftool.misc import is_numeric
 
 def naive_transform_flat_data_with_dict(
     flat_data: np.ndarray,
-    transform_dict: Dict[Union[str, float], Any],
+    transform_dict: Dict[Any, Any],
     need_truncate: bool,
 ) -> np.ndarray:
     nan_value = transform_dict.get("nan", 0)

@@ -197,7 +197,7 @@ class FeatureInfo(NamedTuple):
     @property
     def need_truncate(self) -> bool:
         unique_values = self.unique_values_sorted_by_counts
-        if unique_values is None:
+        if unique_values is None or self.num_unique_bound is None:
             return False
         bound_res = len(unique_values) - self.num_unique_bound
         if not self.contains_nan:

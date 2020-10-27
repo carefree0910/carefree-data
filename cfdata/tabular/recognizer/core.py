@@ -62,7 +62,7 @@ class Recognizer(DataStructure):
         return self._counter
 
     @property
-    def transform_dict(self) -> Dict[Union[int, str], int]:
+    def transform_dict(self) -> Dict[Union[str, float], int]:
         return self._transform_dict
 
     @property
@@ -207,6 +207,7 @@ class Recognizer(DataStructure):
             truncate_mask = counts_cumsum_ratio >= self._info.truncate_ratio
             truncate_idx = np.nonzero(truncate_mask)[0][0]
             values = values[: truncate_idx + 1]
+        transform_dict: Dict[Union[str, float], int]
         transform_dict = {v: i for i, v in enumerate(values) if not math.isnan(v)}
         if self._info.contains_nan:
             transform_dict["nan"] = len(transform_dict)
