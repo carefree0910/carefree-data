@@ -396,7 +396,7 @@ class Recognizer(DataStructure):
         counter_dict = dict(zip(unique_values, counts))
         if contains_nan:
             unique_values = np.append(unique_values, [float("nan")])
-            sorted_counts = np.append(unique_values, [float(num_nan)])
+            sorted_counts = np.append(sorted_counts, [float(num_nan)])
             counter_dict["nan"] = num_nan
         need_transform = need_transform or contains_nan
         self._counter = Counter(counter_dict)
