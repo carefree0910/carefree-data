@@ -118,7 +118,7 @@ class Recognizer(DataStructure):
 
     def _make_dummy_info(
         self,
-        contains_nan: bool,
+        contains_nan: Optional[bool],
         unique_values: np.ndarray,
         sorted_counts: np.ndarray,
     ) -> FeatureInfo:
@@ -133,25 +133,41 @@ class Recognizer(DataStructure):
     def _get_transform_dict(
         self,
         check_nan: bool,
-        values: List[Union[str, float]],
+        values: Union[List[str], List[float]],
         sorted_counts: np.ndarray,
         info: Optional[FeatureInfo] = None,
         contains_nan: Optional[bool] = None,
-    ) -> Tuple[Dict[Union[str, float], int], List[int]]:
+    ) -> Tuple[transform_dict_type, List[int]]:
         if info is None:
             info = self._make_dummy_info(
                 contains_nan,
                 np.array(values),
                 sorted_counts,
             )
-        if not info.need_truncate:
-            iterator = enumerate(values)
-            transformed_unique_values = list(range(len(values)))
+
+        def _core(
+            values_: Union[List[str], List[float]],
+            indices: Optional[List[int]] = None,
+        ) -> transform_dict_type:
+            if indices is None:
+                indices = list(range(len(values_)))
+            iterator = zip(indices, values_)
+            td: transform_dict_type = {}
             if not check_nan:
-                d = {v: i for i, v in iterator}
-            else:
-                d = {v: i for i, v in iterator if not math.isnan(v)}
-            return d, transformed_unique_values
+                for i, v in iterator:
+                    assert isinstance(v, (str, float))
+                    td[v] = i
+                return td
+            for i, v in iterator:
+                assert isinstance(v, float)
+                if math.isnan(v):
+                    continue
+                td[v] = i
+            return td
+
+        if not info.need_truncate:
+            transformed_unique_values = list(range(len(values)))
+            return _core(values), transformed_unique_values
         # truncate
         counts_cumsum = np.cumsum(sorted_counts)
         counts_cumsum_ratio = counts_cumsum / counts_cumsum[-1]
@@ -169,13 +185,8 @@ class Recognizer(DataStructure):
                 idx += 1
                 cursor += 1
                 cumulate = ratio
-        iterator = zip(fused_indices, values)
         transformed_unique_values = sorted(set(fused_indices))
-        if not check_nan:
-            d = {v: i for i, v in iterator}
-        else:
-            d = {v: i for i, v in iterator if not math.isnan(v)}
-        return d, transformed_unique_values
+        return _core(values, fused_indices), transformed_unique_values
 
     def _check_string_column(
         self,

@@ -27,6 +27,7 @@ from ..types import *
 # types
 
 flat_arr_type = Union[list, np.ndarray]
+transform_dict_type = Dict[Union[str, float], int]
 str_data_type = List[List[str]]
 raw_data_type = Optional[List[List[Any]]]
 data_type = Union[raw_data_type, np.ndarray]
@@ -994,6 +995,7 @@ class DataSplitter(SavingMixin):
 
 __all__ = [
     "flat_arr_type",
+    "transform_dict_type",
     "str_data_type",
     "raw_data_type",
     "data_type",
