@@ -43,6 +43,7 @@ class Recognizer(DataStructure):
         self.is_string = is_string
         self.is_numerical = is_numerical
         self.is_categorical = is_categorical
+        self._num_unique_bound: Optional[int]
         self._init_config(config)
         self._info: FeatureInfo
         self._counter: Counter
@@ -76,11 +77,18 @@ class Recognizer(DataStructure):
             config = {}
         self.config = config
         self._num_thresh = config.setdefault("numerical_threshold", 0.5)
-        self._num_unique_bound = config.setdefault("num_unique_bound", 64)
+        default_bound = 128
+        self._num_unique_bound = config.setdefault("num_unique_bound", default_bound)
         self._truncate_ratio = config.setdefault("truncate_ratio", 0.99)
-        default_fuse_threshold = 1.0 / self._num_unique_bound
+        if self._num_unique_bound is None:
+            default_fuse_threshold = 1.0 / default_bound
+        else:
+            default_fuse_threshold = 1.0 / self._num_unique_bound
         self._fuse_thresh = config.setdefault("fuse_threshold", default_fuse_threshold)
-        default_fuse_fix = int(round(0.5 * self._num_unique_bound))
+        if self._num_unique_bound is None:
+            default_fuse_fix = int(default_bound // 2)
+        else:
+            default_fuse_fix = int(round(0.5 * self._num_unique_bound))
         self._num_fuse_fix = config.setdefault("num_fuse_fix", default_fuse_fix)
 
     def _make_invalid_info(
