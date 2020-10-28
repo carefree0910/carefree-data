@@ -128,12 +128,11 @@ class Recognizer(DataStructure):
 
     def _make_dummy_info(
         self,
-        contains_nan: Optional[bool],
         unique_values: np.ndarray,
         sorted_counts: np.ndarray,
     ) -> FeatureInfo:
         return FeatureInfo(
-            contains_nan,
+            None,
             None,
             num_unique_bound=self._num_unique_bound,
             unique_values_sorted_by_counts=unique_values,
@@ -146,14 +145,9 @@ class Recognizer(DataStructure):
         values: Union[List[str], List[float]],
         sorted_counts: np.ndarray,
         info: Optional[FeatureInfo] = None,
-        contains_nan: Optional[bool] = None,
     ) -> Tuple[transform_dict_type, List[int]]:
         if info is None:
-            info = self._make_dummy_info(
-                contains_nan,
-                np.array(values),
-                sorted_counts,
-            )
+            info = self._make_dummy_info(np.array(values), sorted_counts)
 
         def _core(
             values_: Union[List[str], List[float]],
