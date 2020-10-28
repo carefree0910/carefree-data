@@ -80,6 +80,8 @@ class Recognizer(DataStructure):
         self._truncate_ratio = config.setdefault("truncate_ratio", 0.99)
         default_fuse_threshold = 1.0 / self._num_unique_bound
         self._fuse_thresh = config.setdefault("fuse_threshold", default_fuse_threshold)
+        default_fuse_fix = int(round(0.5 * self._num_unique_bound))
+        self._num_fuse_fix = config.setdefault("num_fuse_fix", default_fuse_fix)
 
     def _make_invalid_info(
         self,
@@ -176,14 +178,12 @@ class Recognizer(DataStructure):
         values = values[: truncate_idx + 1]
         # fuse
         idx = 0
-        cursor = 1
         cumulate = 0.0
         fused_indices = []
-        for ratio in counts_cumsum_ratio[: truncate_idx + 1]:
+        for i, ratio in enumerate(counts_cumsum_ratio[: truncate_idx + 1]):
             fused_indices.append(idx)
-            if ratio >= self._fuse_thresh + cumulate:
+            if i < self._num_fuse_fix or ratio >= self._fuse_thresh + cumulate:
                 idx += 1
-                cursor += 1
                 cumulate = ratio
         transformed_unique_values = sorted(set(fused_indices))
         return _core(values, fused_indices), transformed_unique_values
