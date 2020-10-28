@@ -187,7 +187,6 @@ class FeatureInfo(NamedTuple):
     nan_mask: Optional[np.ndarray] = None
     need_transform: Optional[bool] = None
     column_type: ColumnTypes = ColumnTypes.NUMERICAL
-    truncate_ratio: Optional[float] = None
     num_unique_bound: Optional[int] = None
     # the first element holds most of the count
     unique_values_sorted_by_counts: Optional[np.ndarray] = None

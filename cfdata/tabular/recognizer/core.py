@@ -109,7 +109,6 @@ class Recognizer(DataStructure):
             is_valid=is_valid,
             need_transform=True,
             column_type=ColumnTypes.STRING,
-            truncate_ratio=self._truncate_ratio,
             num_unique_bound=self._num_unique_bound,
             unique_values_sorted_by_counts=unique_values,
             sorted_counts=sorted_counts,
@@ -124,7 +123,6 @@ class Recognizer(DataStructure):
         return FeatureInfo(
             contains_nan,
             None,
-            truncate_ratio=self._truncate_ratio,
             num_unique_bound=self._num_unique_bound,
             unique_values_sorted_by_counts=unique_values,
             sorted_counts=sorted_counts,
@@ -147,7 +145,7 @@ class Recognizer(DataStructure):
         if info.need_truncate:
             counts_cumsum = np.cumsum(sorted_counts)
             counts_cumsum_ratio = counts_cumsum / counts_cumsum[-1]
-            truncate_mask = counts_cumsum_ratio >= info.truncate_ratio
+            truncate_mask = counts_cumsum_ratio >= self._truncate_ratio
             truncate_idx = np.nonzero(truncate_mask)[0][0]
             values = values[: truncate_idx + 1]
         if not check_nan:
@@ -377,7 +375,6 @@ class Recognizer(DataStructure):
             nan_mask=nan_mask,
             need_transform=need_transform,
             column_type=ColumnTypes.CATEGORICAL,
-            truncate_ratio=self._truncate_ratio,
             num_unique_bound=self._num_unique_bound,
             unique_values_sorted_by_counts=unique_values,
             sorted_counts=sorted_counts,
@@ -394,7 +391,6 @@ class Recognizer(DataStructure):
             None,
             self.info.need_transform,
             self.info.column_type,
-            self.info.truncate_ratio,
             self.info.num_unique_bound,
             self.info.unique_values_sorted_by_counts,
             self.info.sorted_counts,
