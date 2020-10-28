@@ -659,17 +659,21 @@ class TabularData(DataBase):
         return DataTuple.with_transpose(x, y)
 
     def _read_line(self, line: str) -> List[str]:
+        assert self._delim is not None
         elements = line.strip().split(self._delim)
         elements = ["nan" if not elem else elem for elem in elements]
         if self._quote_char is not None:
-            startswith_quote = [
-                elem.startswith(self._quote_char) for elem in elements
-            ]
+            num_quote = len(self._quote_char)
+            startswith_quote = [elem.startswith(self._quote_char) for elem in elements]
             endswith_quote = [elem.endswith(self._quote_char) for elem in elements]
+            quote_inplace = []
             merge_start, merge_intervals = None, []
             for i, (startswith, endswith) in enumerate(
                 zip(startswith_quote, endswith_quote)
             ):
+                if startswith and endswith:
+                    quote_inplace.append(i)
+                    continue
                 if startswith and not endswith:
                     merge_start = i
                     continue
@@ -677,14 +681,17 @@ class TabularData(DataBase):
                     merge_intervals.append((merge_start, i + 1))
                     merge_start = None
                     continue
+            for i in quote_inplace:
+                elements[i] = elements[i][num_quote:-num_quote]
             idx, new_elements = 0, []
             for start, end in merge_intervals:
                 if start > idx:
                     new_elements += elements[idx:start]
-                new_elements.append(self._delim.join(elements[start:end]))
+                new_element = self._delim.join(elements[start:end])
+                new_elements.append(new_element[num_quote:-num_quote])
                 idx = end
             if idx < len(elements):
-                new_elements += elements[idx: len(elements)]
+                new_elements += elements[idx : len(elements)]
             elements = new_elements
         return elements
 
