@@ -658,6 +658,36 @@ class TabularData(DataBase):
                 x, y = self.read_file(x, contains_labels=contains_labels)
         return DataTuple.with_transpose(x, y)
 
+    def _read_line(self, line: str) -> List[str]:
+        elements = line.strip().split(self._delim)
+        elements = ["nan" if not elem else elem for elem in elements]
+        if self._quote_char is not None:
+            startswith_quote = [
+                elem.startswith(self._quote_char) for elem in elements
+            ]
+            endswith_quote = [elem.endswith(self._quote_char) for elem in elements]
+            merge_start, merge_intervals = None, []
+            for i, (startswith, endswith) in enumerate(
+                zip(startswith_quote, endswith_quote)
+            ):
+                if startswith and not endswith:
+                    merge_start = i
+                    continue
+                if endswith and not startswith and merge_start is not None:
+                    merge_intervals.append((merge_start, i + 1))
+                    merge_start = None
+                    continue
+            idx, new_elements = 0, []
+            for start, end in merge_intervals:
+                if start > idx:
+                    new_elements += elements[idx:start]
+                new_elements.append(self._delim.join(elements[start:end]))
+                idx = end
+            if idx < len(elements):
+                new_elements += elements[idx: len(elements)]
+            elements = new_elements
+        return elements
+
     # API
 
     def read_file(
@@ -686,37 +716,11 @@ class TabularData(DataBase):
         with open(file_path, "r") as f:
             first_row = None
             if has_column_names:
-                first_row = column_names = f.readline().strip().split(delim)
+                first_row = column_names = self._read_line(f.readline())
                 self._column_names = {i: name for i, name in enumerate(column_names)}
             data = []
             for line in f:
-                elements = line.strip().split(delim)
-                elements = ["nan" if not elem else elem for elem in elements]
-                if quote_char is not None:
-                    startswith_quote = [
-                        elem.startswith(quote_char) for elem in elements
-                    ]
-                    endswith_quote = [elem.endswith(quote_char) for elem in elements]
-                    merge_start, merge_intervals = None, []
-                    for i, (startswith, endswith) in enumerate(
-                        zip(startswith_quote, endswith_quote)
-                    ):
-                        if startswith and not endswith:
-                            merge_start = i
-                            continue
-                        if endswith and not startswith and merge_start is not None:
-                            merge_intervals.append((merge_start, i + 1))
-                            merge_start = None
-                            continue
-                    idx, new_elements = 0, []
-                    for start, end in merge_intervals:
-                        if start > idx:
-                            new_elements += elements[idx:start]
-                        new_elements.append(delim.join(elements[start:end]))
-                        idx = end
-                    if idx < len(elements):
-                        new_elements += elements[idx : len(elements)]
-                    elements = new_elements
+                elements = self._read_line(line)
                 if first_row is None:
                     first_row = elements
                 else:
