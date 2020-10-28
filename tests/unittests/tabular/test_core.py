@@ -296,10 +296,19 @@ class TestTabularData(unittest.TestCase):
             except AssertionError:
                 different = np.nonzero(recovered != original)[0]
                 supported = converter._transform_dict
+                reversed_transform = {}
+                for k, v in supported.items():
+                    reversed_transform.setdefault(v, set()).add(k)
                 oob_value = converter._reverse_transform_dict[0.0]
                 for idx in different:
-                    self.assertTrue(recovered[idx].item() == oob_value)
-                    self.assertTrue(original[idx].item() not in supported)
+                    original_item = original[idx].item()
+                    recovered_item = recovered[idx].item()
+                    transformed_idx = supported.get(original_item)
+                    if transformed_idx is None:
+                        self.assertTrue(recovered_item == oob_value)
+                    else:
+                        reverse_supported = reversed_transform[transformed_idx]
+                        self.assertTrue(recovered_item in reverse_supported)
 
     def test_recover_features(self):
         self._test_recover_features_core(TabularDataset.iris())
