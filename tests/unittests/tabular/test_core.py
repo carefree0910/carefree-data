@@ -354,7 +354,7 @@ class TestTabularData(unittest.TestCase):
         data = TabularData().read(data_file)
         gt = {0: "f1", 1: "f2", 2: "f3", 3: "f4", 4: "f5"}
         self.assertDictEqual(data.column_names, gt)
-        self.assertListEqual(data.raw.x[0], ["1", '"2, 3"', '4"', '"5'])
+        self.assertListEqual(data.raw.x[0], ["1", "2, 3", '4"', '"5'])
         self.assertListEqual(data.raw.y[0], ["6"])
 
     def test_ts_split(self):
