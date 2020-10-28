@@ -69,7 +69,7 @@ class Recognizer(DataStructure):
     def num_unique_values(self) -> Union[int, float]:
         if self._info.is_numerical:
             return math.inf
-        return len(self._transform_dict)
+        return len(self._transformed_unique_values)
 
     def _init_config(self, config: Optional[Dict[str, Any]] = None) -> None:
         if config is None:
@@ -78,6 +78,8 @@ class Recognizer(DataStructure):
         self._num_thresh = config.setdefault("numerical_threshold", 0.5)
         self._num_unique_bound = config.setdefault("num_unique_bound", 64)
         self._truncate_ratio = config.setdefault("truncate_ratio", 0.99)
+        default_fuse_threshold = 1.0 / self._num_unique_bound
+        self._fuse_thresh = config.setdefault("fuse_threshold", default_fuse_threshold)
 
     def _make_invalid_info(
         self,
@@ -135,22 +137,45 @@ class Recognizer(DataStructure):
         sorted_counts: np.ndarray,
         info: Optional[FeatureInfo] = None,
         contains_nan: Optional[bool] = None,
-    ) -> Dict[Union[str, float], int]:
+    ) -> Tuple[Dict[Union[str, float], int], List[int]]:
         if info is None:
             info = self._make_dummy_info(
                 contains_nan,
                 np.array(values),
                 sorted_counts,
             )
-        if info.need_truncate:
-            counts_cumsum = np.cumsum(sorted_counts)
-            counts_cumsum_ratio = counts_cumsum / counts_cumsum[-1]
-            truncate_mask = counts_cumsum_ratio >= self._truncate_ratio
-            truncate_idx = np.nonzero(truncate_mask)[0][0]
-            values = values[: truncate_idx + 1]
+        if not info.need_truncate:
+            iterator = enumerate(values)
+            transformed_unique_values = list(range(len(values)))
+            if not check_nan:
+                d = {v: i for i, v in iterator}
+            else:
+                d = {v: i for i, v in iterator if not math.isnan(v)}
+            return d, transformed_unique_values
+        # truncate
+        counts_cumsum = np.cumsum(sorted_counts)
+        counts_cumsum_ratio = counts_cumsum / counts_cumsum[-1]
+        truncate_mask = counts_cumsum_ratio >= self._truncate_ratio
+        truncate_idx = np.nonzero(truncate_mask)[0][0]
+        values = values[: truncate_idx + 1]
+        # fuse
+        idx = 0
+        cursor = 1
+        cumulate = 0.0
+        fused_indices = []
+        for ratio in counts_cumsum_ratio[: truncate_idx + 1]:
+            fused_indices.append(idx)
+            if ratio >= self._fuse_thresh + cumulate:
+                idx += 1
+                cursor += 1
+                cumulate = ratio
+        iterator = zip(fused_indices, values)
+        transformed_unique_values = sorted(set(fused_indices))
         if not check_nan:
-            return {v: i for i, v in enumerate(values)}
-        return {v: i for i, v in enumerate(values) if not math.isnan(v)}
+            d = {v: i for i, v in iterator}
+        else:
+            d = {v: i for i, v in iterator if not math.isnan(v)}
+        return d, transformed_unique_values
 
     def _check_string_column(
         self,
@@ -192,11 +217,8 @@ class Recognizer(DataStructure):
                 f"TOO MANY unique values occurred in column {self.name} "
                 f"({num_unique_values:^12d})"
             )
-        self._transform_dict = self._get_transform_dict(
-            False,
-            unique_values,
-            sorted_counts,
-        )
+        pack = self._get_transform_dict(False, unique_values, sorted_counts)
+        self._transform_dict, self._transformed_unique_values = pack
         return True, self._make_string_info(
             flat_arr,
             True,
@@ -242,14 +264,12 @@ class Recognizer(DataStructure):
         sorted_counts = self._info.sorted_counts
         assert unique_values is not None and sorted_counts is not None
         values = list(map(float, unique_values.tolist()))
-        transform_dict = self._get_transform_dict(
-            True,
-            values,
-            sorted_counts,
-            self._info,
-        )
+        pack = self._get_transform_dict(True, values, sorted_counts, self._info)
+        transform_dict, self._transformed_unique_values = pack
         if self._info.contains_nan:
-            transform_dict["nan"] = len(transform_dict)
+            num_transformed_unique = len(self._transformed_unique_values)
+            transform_dict["nan"] = num_transformed_unique
+            self._transformed_unique_values.append(num_transformed_unique)
         self._transform_dict = transform_dict
 
     def fit(self, flat_arr: flat_arr_type) -> "Recognizer":
