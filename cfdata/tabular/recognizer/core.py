@@ -115,6 +115,45 @@ class Recognizer(DataStructure):
             sorted_counts=sorted_counts,
         )
 
+    def _make_dummy_info(
+        self,
+        contains_nan: bool,
+        unique_values: np.ndarray,
+        sorted_counts: np.ndarray,
+    ) -> FeatureInfo:
+        return FeatureInfo(
+            contains_nan,
+            None,
+            truncate_ratio=self._truncate_ratio,
+            num_unique_bound=self._num_unique_bound,
+            unique_values_sorted_by_counts=unique_values,
+            sorted_counts=sorted_counts,
+        )
+
+    def _get_transform_dict(
+        self,
+        check_nan: bool,
+        values: List[Union[str, float]],
+        sorted_counts: np.ndarray,
+        info: Optional[FeatureInfo] = None,
+        contains_nan: Optional[bool] = None,
+    ) -> Dict[Union[str, float], int]:
+        if info is None:
+            info = self._make_dummy_info(
+                contains_nan,
+                np.array(values),
+                sorted_counts,
+            )
+        if info.need_truncate:
+            counts_cumsum = np.cumsum(sorted_counts)
+            counts_cumsum_ratio = counts_cumsum / counts_cumsum[-1]
+            truncate_mask = counts_cumsum_ratio >= info.truncate_ratio
+            truncate_idx = np.nonzero(truncate_mask)[0][0]
+            values = values[: truncate_idx + 1]
+        if not check_nan:
+            return {v: i for i, v in enumerate(values)}
+        return {v: i for i, v in enumerate(values) if not math.isnan(v)}
+
     def _check_string_column(
         self,
         flat_arr: flat_arr_type,
@@ -136,9 +175,8 @@ class Recognizer(DataStructure):
         self._counter = get_counter_from_arr(flat_arr)
         most_common = self._counter.most_common()
         unique_values = [elem[0] for elem in most_common]
-        unique_values_counts = [elem[1] for elem in most_common]
-        self._transform_dict = {v: i for i, v in enumerate(unique_values)}
-        num_unique_values = len(self._transform_dict)
+        sorted_counts = np.array([elem[1] for elem in most_common])
+        num_unique_values = len(unique_values)
         if not self.is_valid and num_unique_values == 1:
             msg = (
                 f"all values in column {self.name}, which tends to be string column, "
@@ -156,12 +194,17 @@ class Recognizer(DataStructure):
                 f"TOO MANY unique values occurred in column {self.name} "
                 f"({num_unique_values:^12d})"
             )
+        self._transform_dict = self._get_transform_dict(
+            False,
+            unique_values,
+            sorted_counts,
+        )
         return True, self._make_string_info(
             flat_arr,
             True,
             msg,
             np.array(unique_values),
-            np.array(unique_values_counts),
+            sorted_counts,
         )
 
     def _check_exclude_categorical(
@@ -201,14 +244,12 @@ class Recognizer(DataStructure):
         sorted_counts = self._info.sorted_counts
         assert unique_values is not None and sorted_counts is not None
         values = list(map(float, unique_values.tolist()))
-        if self._info.need_truncate:
-            counts_cumsum = np.cumsum(sorted_counts)
-            counts_cumsum_ratio = counts_cumsum / counts_cumsum[-1]
-            truncate_mask = counts_cumsum_ratio >= self._info.truncate_ratio
-            truncate_idx = np.nonzero(truncate_mask)[0][0]
-            values = values[: truncate_idx + 1]
-        transform_dict: Dict[Union[str, float], int]
-        transform_dict = {v: i for i, v in enumerate(values) if not math.isnan(v)}
+        transform_dict = self._get_transform_dict(
+            True,
+            values,
+            sorted_counts,
+            self._info,
+        )
         if self._info.contains_nan:
             transform_dict["nan"] = len(transform_dict)
         self._transform_dict = transform_dict
