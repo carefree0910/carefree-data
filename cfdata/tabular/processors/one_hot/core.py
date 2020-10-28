@@ -20,10 +20,13 @@ class OneHot(Processor):
         return len(self._all_categories)
 
     def fit(self, columns: np.ndarray) -> Processor:
+        # unknown values will occur iff `need_transform` is False and oob values occurs
+        # e.g. training data : [1.0, 2.0, 3.0, 2.0, 3.0]; test data : [4.0]
         self._encoder = OneHotEncoder(
-            categories=self._categories,
-            sparse=False,
             dtype=np_float_type,
+            categories=self._categories,
+            handle_unknown="ignore",
+            sparse=False,
         )
         self._encoder.fit(columns)
         self._all_categories = self._encoder.categories_[0]
