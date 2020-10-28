@@ -47,7 +47,7 @@ class Recognizer(DataStructure):
         self._init_config(config)
         self._info: FeatureInfo
         self._counter: Counter
-        self._transform_dict: Dict[Union[str, float], int]
+        self._transform_dict: transform_dict_type
 
     def __str__(self) -> str:
         return f"Recognizer({self.info.column_type})"
@@ -63,7 +63,7 @@ class Recognizer(DataStructure):
         return self._counter
 
     @property
-    def transform_dict(self) -> Dict[Union[str, float], int]:
+    def transform_dict(self) -> transform_dict_type:
         return self._transform_dict
 
     @property
@@ -164,15 +164,15 @@ class Recognizer(DataStructure):
             iterator = zip(indices, values_)
             td: transform_dict_type = {}
             if not check_nan:
-                for i, v in iterator:
-                    assert isinstance(v, (str, float))
-                    td[v] = i
+                for i_, v_ in iterator:
+                    assert isinstance(v_, (str, float))
+                    td[v_] = i_
                 return td
-            for i, v in iterator:
-                assert isinstance(v, float)
-                if math.isnan(v):
+            for i_, v_ in iterator:
+                assert isinstance(v_, float)
+                if math.isnan(v_):
                     continue
-                td[v] = i
+                td[v_] = i_
             return td
 
         if not info.need_truncate:
