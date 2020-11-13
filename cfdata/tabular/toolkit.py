@@ -381,12 +381,16 @@ class ImbalancedSampler(LoggingMixin):
         aggregation_config = None
         if self._aggregation_config is not None:
             aggregation_config = shallow_copy_dict(self._aggregation_config)
+        sample_weights = None
+        if self.sample_weights is not None:
+            sample_weights = self.sample_weights.copy()
         return ImbalancedSampler(
             self.data,
             self.imbalance_threshold,
             shuffle=self.shuffle,
             aggregation=self._aggregation_name,
             aggregation_config=aggregation_config,
+            sample_weights=sample_weights,
             sample_method=self._sample_method,
             verbose_level=self._verbose_level,
             verbose_imbalance=False,
