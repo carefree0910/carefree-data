@@ -169,6 +169,8 @@ class TabularData(DataBase):
                 if v == id_name:
                     id_idx = k
                     break
+        if id_idx is None:
+            raise ValueError(f"id_name '{id_name}' is not found")
         if time_idx is None:
             if time_name is None:
                 msg = "either `time_column_name` or `time_column` should be provided"
@@ -177,14 +179,14 @@ class TabularData(DataBase):
                 if v == time_name:
                     time_idx = k
                     break
+        if time_idx is None:
+            raise ValueError(f"time_name '{time_name}' is not found")
         raw = self.raw
         if raw is None:
             raise ValueError("`raw` should be provided in `ts_config`")
         raw_xt = raw.xT
         if raw_xt is None:
             raise ValueError("`raw.xT` should be provided in `ts_config`")
-        assert isinstance(id_idx, int)
-        assert isinstance(time_idx, int)
         id_column = raw_xt[id_idx]
         time_column = raw_xt[time_idx]
         return TimeSeriesConfig(
