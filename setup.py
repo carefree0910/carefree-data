@@ -2,7 +2,7 @@ import numpy
 from Cython.Build import cythonize
 from setuptools import setup, find_packages, Extension
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 
 DESCRIPTION = "Data processing module implemented with numpy"
 with open("README.md") as f:
@@ -13,7 +13,7 @@ setup(
     version=VERSION,
     packages=find_packages(exclude=("tests",)),
     install_requires=[
-        "carefree-toolkit>=0.2.0rc.4",
+        "carefree-toolkit>=0.2.0",
         "dill",
         "future",
         "psutil",
