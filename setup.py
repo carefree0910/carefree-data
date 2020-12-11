@@ -23,11 +23,6 @@ setup(
         "scipy>=1.2.1",
         "scikit-learn>=0.20.3",
         "matplotlib>=3.0.3",
-        "mkdocs",
-        "mkdocs-material",
-        "mkdocs-minify-plugin",
-        "Pygments",
-        "pymdown-extensions",
     ],
     ext_modules=cythonize(
         Extension(
