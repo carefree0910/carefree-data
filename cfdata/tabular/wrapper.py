@@ -740,7 +740,10 @@ class TabularData(DataBase):
         with open(file_path, "r") as f:
             first_row = None
             if has_column_names:
-                first_row = column_names = self._read_line(f.readline())
+                while True:
+                    first_row = column_names = self._read_line(f.readline())
+                    if column_names is not None:
+                        break
                 self._column_names = {i: name for i, name in enumerate(column_names)}
             data = []
             for line in f:
