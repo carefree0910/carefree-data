@@ -723,7 +723,19 @@ class TabularData(DataBase):
                 [True, ",", '"'],
             )
         else:
-            raise NotImplementedError(f"file type '{ext}' not recognized")
+            has_column_names, delim, quote_char = map(
+                set_default,
+                [self._has_column_names, self._delim, self._quote_char],
+                [False, ",", '"'],
+            )
+            self.log_msg(
+                f"detected file type '.{ext}', which is not familiar to cfdata.\n"
+                f"We'll us '{has_column_names}', '{delim}' and '{quote_char}' as our "
+                "`has_column_names`, `delim` and `quote_char` settings.",
+                self.warning_prefix,
+                verbose_level=3,
+                msg_level=logging.WARNING,
+            )
         self._delim, self._quote_char = delim, quote_char
         with open(file_path, "r") as f:
             first_row = None
