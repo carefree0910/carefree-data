@@ -660,9 +660,12 @@ class TabularData(DataBase):
                 x, y = self.read_file(x, contains_labels=contains_labels)
         return DataTuple.with_transpose(x, y)
 
-    def _read_line(self, line: str) -> List[str]:
+    def _read_line(self, line: str) -> Optional[List[str]]:
         assert self._delim is not None
-        elements = line.strip().split(self._delim)
+        stripped = line.strip()
+        if not stripped:
+            return None
+        elements = stripped.split(self._delim)
         elements = ["nan" if not elem else elem for elem in elements]
         if self._quote_char is not None:
             num_quote = len(self._quote_char)
@@ -730,6 +733,8 @@ class TabularData(DataBase):
             data = []
             for line in f:
                 elements = self._read_line(line)
+                if elements is None:
+                    continue
                 if first_row is None:
                     first_row = elements
                 else:
