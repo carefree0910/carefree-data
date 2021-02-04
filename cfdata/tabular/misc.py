@@ -35,7 +35,29 @@ data_item_type = Tuple[np.ndarray, np.ndarray]
 batch_type = Union[data_item_type, Tuple[data_item_type, np.ndarray]]
 
 
-def transpose(x: data_type) -> Union[List[List[Any]], np.ndarray]:
+def is_int(dtype: np.dtype) -> bool:
+    return np.issubdtype(dtype, np.integer)
+
+
+def is_bool(dtype: np.dtype) -> bool:
+    return np.issubdtype(dtype, np.bool)
+
+
+def is_float(dtype: np.dtype) -> bool:
+    return np.issubdtype(dtype, np.floating)
+
+
+def is_string(dtype: np.dtype) -> bool:
+    if is_int(dtype):
+        return False
+    if is_bool(dtype):
+        return False
+    if is_float(dtype):
+        return False
+    return True
+
+
+def transpose(x: data_type) -> data_type:
     if isinstance(x, np.ndarray):
         return x.T
     return list(map(list, zip(*x)))  # type: ignore
@@ -1003,6 +1025,10 @@ __all__ = [
     "batch_type",
     "task_type_type",
     "parse_task_type",
+    "is_int",
+    "is_bool",
+    "is_float",
+    "is_string",
     "transpose",
     "DataTuple",
     "ColumnTypes",
