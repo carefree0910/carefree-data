@@ -2,6 +2,10 @@
 
 `carefree-data` implemented a data processing module with numpy.
 
+#### Update 2021.02.04
+
+`carefree-data` now uses [`datatable`](https://github.com/h2oai/datatable) as backend, which significantly improves the performances on file inputs!
+
 #### Why carefree-data?
 
 `carefree-data` is a data processing module which is capable of handling 'dirty' and 'messy' datasets.
