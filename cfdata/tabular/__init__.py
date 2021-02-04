@@ -7,7 +7,6 @@ __all__ = [
     "TabularData",
     "TabularDataset",
     "TimeSeriesConfig",
-    "TimeSeriesModifier",
     "TaskTypes",
     "task_type_type",
     "parse_task_type",
