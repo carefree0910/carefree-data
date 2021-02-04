@@ -187,7 +187,7 @@ class TestTabularData(unittest.TestCase):
             TaskTypes.CLASSIFICATION,
             TaskTypes.CLASSIFICATION,
         ]
-        cls.cannot_regressions = {6, 9, 10}
+        cls.cannot_classifications = {1, 2}
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -221,9 +221,11 @@ class TestTabularData(unittest.TestCase):
             for task_type in [TaskTypes.CLASSIFICATION, TaskTypes.REGRESSION]:
                 local_config = shallow_copy_dict(data_config)
                 local_config["task_type"] = task_type
-                if task_type is TaskTypes.REGRESSION and i in self.cannot_regressions:
-                    with self.assertRaises(ValueError):
-                        self._get_data(y, **local_config)
+                cannot_clf = i in self.cannot_classifications
+                if task_type is TaskTypes.CLASSIFICATION and cannot_clf:
+                    with self.assertRaises(Exception):
+                        data = self._get_data(y, **local_config)
+                        self.assertTrue(self._same_with_y(data, y))
                 else:
                     data = self._get_data(y, **local_config)
                     if not task_type.is_none:
@@ -354,8 +356,8 @@ class TestTabularData(unittest.TestCase):
         data = TabularData().read(data_file)
         gt = {0: "f1", 1: "f2", 2: "f3", 3: "f4", 4: "f5"}
         self.assertDictEqual(data.column_names, gt)
-        self.assertListEqual(data.raw.x[0], ["1", "2, 3", '4"', '"5'])
-        self.assertListEqual(data.raw.y[0], ["6"])
+        self.assertListEqual(data.raw.x[0].tolist(), [3, "2, 3", '4"', 5])
+        self.assertListEqual(data.raw.y[0].tolist(), [0])
 
     def test_ts_split(self):
         data = TabularData(time_series_config=self.ts_config).read(self.x_ts, self.y_ts)
