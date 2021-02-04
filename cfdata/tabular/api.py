@@ -4,6 +4,7 @@ import dill
 import logging
 
 import numpy as np
+import datatable as dt
 
 from typing import *
 from cftool.misc import shallow_copy_dict
@@ -29,18 +30,29 @@ class TabularSplit(NamedTuple):
 
 # TODO : Add outlier detection
 class TabularData(DataBase):
+    label_idx: int
+    label_name: str
+    label_type: dt.stype
+    column_names: Dict[int, str]
+
+    recognizers: Dict[int, Optional[Recognizer]]
+    converters: Dict[int, Optional[Converter]]
+    processors: Dict[int, Optional[Processor]]
+
     def __init__(
         self,
         *,
         simplify: bool = False,
         task_type: task_type_type = TaskTypes.NONE,
         time_series_config: Optional[TimeSeriesConfig] = None,
+        label_idx: Optional[int] = None,
         label_name: Optional[str] = None,
-        string_label: Optional[bool] = None,
-        numerical_label: Optional[bool] = None,
-        categorical_label: Optional[bool] = None,
+        label_type: Optional[dt.stype] = None,
+        label_recognizer_config: Optional[Dict[str, Any]] = None,
+        label_process_method: Optional[str] = None,
         column_names: Optional[Dict[int, str]] = None,
-        valid_columns: Optional[List[int]] = None,
+        valid_columns: Optional[Set[int]] = None,
+        invalid_columns: Optional[Set[int]] = None,
         string_columns: Optional[List[int]] = None,
         numerical_columns: Optional[List[int]] = None,
         categorical_columns: Optional[List[int]] = None,
@@ -48,78 +60,51 @@ class TabularData(DataBase):
         process_methods: Optional[Union[str, Dict[int, str]]] = "auto",
         default_numerical_process: str = "normalize",
         default_categorical_process: str = "one_hot",
-        label_recognizer_config: Optional[Dict[str, Any]] = None,
-        label_process_method: Optional[str] = None,
         use_timing_context: bool = True,
         trigger_logging: bool = False,
         verbose_level: int = 1,
     ):
         task_type = parse_task_type(task_type)
+        # sanity check
+        err_msg = f"{label_type} labels are invalid in {{}} tasks"
         if task_type.is_clf:
-            if numerical_label:
-                raise ValueError("numerical labels are invalid in CLASSIFICATION tasks")
+            if label_type is not None and is_float(label_type.dtype):
+                raise ValueError(err_msg.format("CLASSIFICATION"))
         elif task_type.is_reg:
-            if string_label:
-                raise ValueError("string labels are invalid in REGRESSION tasks")
-            if categorical_label:
-                raise ValueError("categorical labels are invalid in REGRESSION tasks")
-        if simplify and task_type.is_none:
-            msg = "`task_type` should be provided when simplified data is used"
-            raise ValueError(msg)
+            if label_type is not None and not is_float(label_type.dtype):
+                raise ValueError(err_msg.format("REGRESSION"))
         self._simplify = simplify
         self._task_type = task_type
         self._time_series_config = time_series_config
-        self.label_name = label_name
-        if not simplify:
-            self.string_label = string_label
-            self.numerical_label = numerical_label
-            self.categorical_label = categorical_label
-        else:
-            if string_label:
-                msg = "`string_label` should be False when simplified data is used"
-                raise ValueError(msg)
-            self.string_label = False
-            assert task_type is not None
-            if task_type.is_reg and categorical_label:
-                raise ValueError(
-                    "`task_type` indicates regression task but "
-                    "`categorical_label` is set to True"
-                )
-            if task_type.is_clf and numerical_label:
-                raise ValueError(
-                    "`task_type` indicates classification task but "
-                    "`numerical_label` is set to True"
-                )
-            self.numerical_label = task_type.is_reg
-            self.categorical_label = task_type.is_clf
+        self._label_idx = label_idx
+        self._label_name = label_name
+        self._label_type = label_type
+        # column settings
         self._column_names = column_names
-        self._valid_columns = valid_columns
-        self._string_columns = string_columns
-        self._numerical_columns = numerical_columns
-        self._categorical_columns = categorical_columns
-        if recognizer_configs is None:
-            recognizer_configs = {}
-        self._recognizer_configs = recognizer_configs
+        self._valid_columns = valid_columns or set()
+        self._invalid_columns = invalid_columns or set()
+        self._stypes: Dict[str, dt.stype] = {}
+        self._preset_stypes: Dict[int, dt.stype] = {}
+        for i in string_columns or []:
+            self._preset_stypes[i] = dt.str32
+        for i in numerical_columns or []:
+            self._preset_stypes[i] = dt.float32
+        for i in categorical_columns or []:
+            self._preset_stypes[i] = dt.int64
+        self._recognizer_configs = recognizer_configs or {}
+        self._label_recognizer_config = label_recognizer_config or {}
         self._process_methods = process_methods
         self._default_numerical_process = default_numerical_process
         self._default_categorical_process = default_categorical_process
-        if label_recognizer_config is None:
-            label_recognizer_config = {}
-        self._label_recognizer_config = label_recognizer_config
         self._label_process_method = label_process_method
-        self._is_file = self._is_arr = False
+        self._is_file = self._is_arr = self._is_np = False
         self._raw_dim: Optional[int] = None
         self._num_classes: Optional[int] = None
-        self._label_idx: Optional[int]
-        self._has_column_names: Optional[bool]
-        self._delim: Optional[str]
-        self._quote_char: Optional[str]
+        self._x_df: Optional[dt.Frame] = None
+        self._y_df: Optional[dt.Frame] = None
         self._raw: Optional[DataTuple] = None
         self._converted: Optional[DataTuple] = None
         self._processed: Optional[DataTuple] = None
-        self._recognizers: Dict[int, Optional[Recognizer]]
-        self._converters: Dict[int, Optional[Converter]]
-        self._processors: Dict[int, Optional[Processor]]
         self._timing = use_timing_context
         self._verbose_level = verbose_level
         self._init_logging(verbose_level, trigger=trigger_logging)
@@ -200,7 +185,7 @@ class TabularData(DataBase):
 
     @property
     def cache_excludes(self) -> Set[str]:
-        return {"_recognizers", "_converters", "_processors"}
+        return {"recognizers", "converters", "processors", "_x_df", "_y_df"}
 
     @property
     def data_tuple_base(self) -> Optional[Type]:
@@ -223,18 +208,6 @@ class TabularData(DataBase):
         return self._processed
 
     @property
-    def recognizers(self) -> Dict[int, Optional[Recognizer]]:
-        return self._recognizers
-
-    @property
-    def converters(self) -> Dict[int, Optional[Converter]]:
-        return self._converters
-
-    @property
-    def processors(self) -> Dict[int, Optional[Processor]]:
-        return self._processors
-
-    @property
     def raw_dim(self) -> int:
         if self._raw_dim is None:
             raise ValueError("`_raw_dim` is not generated yet")
@@ -252,57 +225,13 @@ class TabularData(DataBase):
     def task_type(self) -> TaskTypes:
         if not self._task_type.is_none:
             return self._task_type
-        if self._recognizers[-1] is None:
+        if self.recognizers[-1] is None:
             return TaskTypes.NONE
         self._task_type = TaskTypes.from_column_type(
-            self._recognizers[-1].info.column_type,
+            self.recognizers[-1].info.column_type,
             is_time_series=self.is_ts,
         )
         return self._task_type
-
-    @property
-    def column_names(self) -> Dict[int, str]:
-        if self._column_names is None:
-            self._column_names = {}
-            for i in range(self.raw_dim):
-                self._column_names.setdefault(i, str(i))
-        return self._column_names
-
-    def _get_prior_dict(
-        self,
-        attr: str,
-        ts_value: Optional[bool],
-    ) -> Dict[int, Optional[bool]]:
-        prior_dict_attr = f"{attr}_dict"
-        prior_dict = getattr(self, prior_dict_attr, None)
-        if prior_dict is None:
-            prior_columns = getattr(self, attr, None)
-            prior_dict = {
-                i: None if prior_columns is None else i in prior_columns
-                for i in range(self.raw_dim)
-            }
-            setattr(self, prior_dict_attr, prior_dict)
-        ts_config = self.ts_config
-        if ts_config is not None:
-            prior_dict[ts_config.id_column_idx] = ts_value
-            prior_dict[ts_config.time_column_idx] = ts_value
-        return prior_dict
-
-    @property
-    def prior_valid_columns(self) -> Dict[int, Optional[bool]]:
-        return self._get_prior_dict("_valid_columns", True)
-
-    @property
-    def prior_string_columns(self) -> Dict[int, Optional[bool]]:
-        return self._get_prior_dict("_string_columns", None)
-
-    @property
-    def prior_numerical_columns(self) -> Dict[int, Optional[bool]]:
-        return self._get_prior_dict("_numerical_columns", False)
-
-    @property
-    def prior_categorical_columns(self) -> Dict[int, Optional[bool]]:
-        return self._get_prior_dict("_categorical_columns", None)
 
     @property
     def is_clf(self) -> bool:
@@ -361,21 +290,32 @@ class TabularData(DataBase):
         stacked = np.hstack(self.splitter._time_indices_list_in_use)
         self.ts_sorting_indices = stacked[::-1].copy()
 
-    def _inject_label_recognizer(self, label_name: str) -> "Recognizer":
+    def _inject_label_recognizer(self) -> "Recognizer":
         self._label_recognizer_config["numerical_threshold"] = 1.0
-        recognizer = self._recognizers[-1] = Recognizer(
-            label_name,
+        recognizer = self.recognizers[-1] = Recognizer(
+            self.label_name,
+            self._is_np,
             is_label=True,
-            task_type=self._task_type,
             is_valid=True,
-            is_string=self.string_label,
-            is_numerical=self.numerical_label,
-            is_categorical=self.categorical_label,
+            task_type=self._task_type,
             config=self._label_recognizer_config,
         )
         assert self._raw is not None and self._raw.y is not None
-        recognizer.fit(self._flatten(self._raw.y))
+        recognizer.fit(self._y_df)
         return recognizer
+
+    def _to_simplify_array(self, raw: DataTuple) -> DataTuple:
+        if not self._is_file:
+            return raw
+        x, y = map(np.array, [raw.x, raw.y])
+        if self.is_ts:
+            ts_config = self.ts_config
+            assert ts_config is not None
+            pop = [ts_config.id_column_idx, ts_config.time_column_idx]
+            x = np.delete(x, pop, axis=1)
+        x = x.astype(np_float_type)
+        y = y.astype(np_int_type if self.is_clf else np_float_type)
+        return DataTuple(x, y)
 
     def _core_fit(self) -> "TabularData":
         if self._raw is None:
@@ -383,31 +323,28 @@ class TabularData(DataBase):
         if self._raw.x is None:
             raise ValueError("`_raw.x` is not provided")
         self._raw_dim = len(self._raw.x[0])
-        if self.label_name is None:
-            label_name = "__label__"
-        else:
-            label_name = self.label_name
         if self._simplify:
-            self._recognizers = {}
-            self._converters = {}
-            self._processors = {}
-            self._converted = self._processed = self._raw
+            self.recognizers = {}
+            self.converters = {}
+            self.processors = {}
+            self._converted = self._processed = self._to_simplify_array(self._raw)
             # fit label recognizer for imbalance sampler
             with timing_context(self, "fit recognizer", enable=self._timing):
-                self._inject_label_recognizer(label_name)
+                self._inject_label_recognizer()
         else:
             ts_indices = self.ts_indices
             # convert features
-            features = self._raw.xT
-            assert features is not None
             converted_features = []
-            self._recognizers, self._converters = {}, {}
-            for i, flat_arr in enumerate(features):
-                column_name = self.column_names[i]
-                is_valid = self.prior_valid_columns[i]
-                is_string = self.prior_string_columns[i]
-                is_numerical = self.prior_numerical_columns[i]
-                is_categorical = self.prior_categorical_columns[i]
+            self.recognizers, self.converters = {}, {}
+            if self._x_df is None:
+                raise ValueError("`_x_df` is required in `_core_fit`")
+            for i in range(self.raw_dim):
+                column_name = self.column_names[i if i < self.label_idx else i + 1]
+                is_valid = None
+                if i in self._valid_columns:
+                    is_valid = True
+                elif i in self._invalid_columns:
+                    is_valid = False
                 if i == self.raw_dim - 1 == len(self.excludes):
                     if i > 0:
                         self.log_msg(
@@ -418,18 +355,16 @@ class TabularData(DataBase):
                             msg_level=logging.WARNING,
                         )
                     is_valid = True
-                kwargs: Dict[str, Any] = {
-                    "is_valid": is_valid,
-                    "is_string": is_string,
-                    "is_numerical": is_numerical,
-                    "is_categorical": is_categorical,
-                }
-                recognizer_config = self._recognizer_configs.setdefault(i, {})
-                kwargs["config"] = recognizer_config
                 with timing_context(self, "fit recognizer", enable=self._timing):
-                    recognizer = Recognizer(column_name, **kwargs)  # type: ignore
-                    recognizer.fit(flat_arr)
-                    self._recognizers[i] = recognizer
+                    recognizer_config = self._recognizer_configs.setdefault(i, {})
+                    recognizer = Recognizer(
+                        column_name,
+                        self._is_np,
+                        is_valid=is_valid,
+                        config=recognizer_config,
+                    )
+                    recognizer.fit(self._x_df[:, i])
+                    self.recognizers[i] = recognizer
                 if not recognizer.info.is_valid:
                     self.log_msg(
                         recognizer.info.msg,
@@ -442,26 +377,26 @@ class TabularData(DataBase):
                 if i not in ts_indices:
                     with timing_context(self, "fit converter", enable=self._timing):
                         converter = Converter.make_with(recognizer)
-                        self._converters[i] = converter
+                        self.converters[i] = converter
                     with timing_context(self, "convert", enable=self._timing):
                         converted = converter.converted_input.astype(np_float_type)
                         converted_features.append(converted)
             # convert labels
             if self._raw is None or self._raw.y is None:
                 converted_labels = None
-                self._recognizers[-1] = None
-                self._converters[-1] = None
+                self.recognizers[-1] = None
+                self.converters[-1] = None
             else:
                 with timing_context(self, "fit recognizer", enable=self._timing):
-                    recognizer = self._inject_label_recognizer(label_name)
+                    recognizer = self._inject_label_recognizer()
                 with timing_context(self, "fit converter", enable=self._timing):
                     converter = Converter.make_with(recognizer)
-                    self._converters[-1] = converter
+                    self.converters[-1] = converter
                 with timing_context(self, "convert", enable=self._timing):
                     converted_labels = converter.converted_input.reshape([-1, 1])
             converted_x = np.vstack(converted_features).T
             # process features
-            self._processors = {}
+            self.processors = {}
             processed_features = []
             previous_processors: List[Processor] = []
             idx = 0
@@ -469,7 +404,7 @@ class TabularData(DataBase):
                 if idx in self.excludes or idx in ts_indices:
                     idx += 1
                     continue
-                local_converter = self._converters[idx]
+                local_converter = self.converters[idx]
                 assert local_converter is not None
                 column_type = local_converter.info.column_type
                 if self._process_methods is None:
@@ -490,7 +425,7 @@ class TabularData(DataBase):
                 base = processor_dict[method]
                 processor = base.make_with(previous_processors.copy())
                 previous_processors.append(processor)
-                self._processors[idx] = processor
+                self.processors[idx] = processor
                 columns = converted_x[..., processor.input_indices]
                 with timing_context(self, "fit processor", enable=self._timing):
                     processor.fit(columns)
@@ -499,9 +434,9 @@ class TabularData(DataBase):
                 idx += processor.input_dim
             # process labels
             if converted_labels is None:
-                processed_labels = self._processors[-1] = None
+                processed_labels = self.processors[-1] = None
             else:
-                label_converter = self._converters[-1]
+                label_converter = self.converters[-1]
                 assert label_converter is not None
                 column_type = label_converter.info.column_type
                 method = None
@@ -515,7 +450,7 @@ class TabularData(DataBase):
                     )
                 with timing_context(self, "fit processor", enable=self._timing):
                     processor = processor_dict[method].make_with([])
-                    self._processors[-1] = processor.fit(converted_labels)
+                    self.processors[-1] = processor.fit(converted_labels)
                 with timing_context(self, "process", enable=self._timing):
                     processed_labels = processor.process(converted_labels)
             has_converted_labels = converted_labels is not None
@@ -527,9 +462,6 @@ class TabularData(DataBase):
                 processed_labels = processed_labels.astype(np_int_type)
             self._converted = DataTuple(converted_x, converted_labels)
             self._processed = DataTuple(np.hstack(processed_features), processed_labels)
-        self._valid_columns = [
-            col for col in range(self.raw_dim) if col not in self.excludes
-        ]
         self.ts_sorting_indices = None
         # time series
         if self.is_ts:
@@ -538,35 +470,75 @@ class TabularData(DataBase):
         if not self.is_reg and self._processed.y is not None:
             assert isinstance(self._processed.y, np.ndarray)
             self._num_classes = self._processed.y.max().item() + 1
-        # prior settings
-        _ = self.prior_valid_columns
-        _ = self.prior_string_columns
-        _ = self.prior_categorical_columns
-        _ = self.prior_numerical_columns
         return self
 
-    def _read_from_file(
-        self,
-        file_path: str,
-        *,
-        contains_labels: bool = True,
-        label_idx: Optional[int] = None,
-        has_column_names: Optional[bool] = None,
-        quote_char: Optional[str] = None,
-        delim: Optional[str] = None,
-    ) -> "TabularData":
+    def _split_df(self, df: dt.Frame) -> Tuple[dt.Frame, dt.Frame, List[int]]:
+        x_indices = list(range(df.ncols))
+        x_indices.pop(self.label_idx)
+        return df[:, x_indices], df[:, self.label_idx], x_indices
+
+    def _read_from_file(self, file_path: str) -> "TabularData":
         self._is_file = True
-        self._label_idx = label_idx
-        self._has_column_names = has_column_names
-        self._delim = delim
-        self._quote_char = quote_char
-        with timing_context(self, "read_file", enable=self._timing):
-            x, y = self.read_file(file_path, contains_labels=contains_labels)
-        self._raw = DataTuple.with_transpose(x, y)
+        # names
+        with open(file_path, "r") as f:
+            df_head = dt.Frame(f.readline())
+        names = list(df_head.names)
+        for i, name in (self._column_names or {}).items():
+            names[i] = name
+        self.column_names = {i: name for i, name in enumerate(names)}
+        # get y info
+        if self._label_idx is not None:
+            while self._label_idx < 0:
+                self._label_idx += len(self.column_names) - 1
+            self.label_idx = self._label_idx
+            label_name = self.column_names[self.label_idx]
+            if self._label_name is not None and label_name != self._label_name:
+                raise ValueError(
+                    f"detected label name ({label_name}) is not identical with "
+                    f"the specified label name ({self._label_name})"
+                )
+        else:
+            if self._label_name is None:
+                self.label_idx = len(names) - 1
+            else:
+                try:
+                    self.label_idx = names.index(self._label_name)
+                except ValueError:
+                    raise ValueError(
+                        f"specified label name ({self._label_name}) could not be found "
+                        f"in the detected names ({names})"
+                    )
+        self.label_name = self.column_names[self.label_idx]
+        # stypes
+        stypes = {names[i]: v for i, v in self._preset_stypes.items()}
+        if self._label_type is not None:
+            stypes[self.label_name] = self._label_type
+        # frames
+        df = dt.Frame(file_path, names=names, stypes=stypes)
+        self._x_df, self._y_df, x_indices = self._split_df(df)
+        # set names
+        self._x_df.names = [self.column_names[i] for i in x_indices]
+        self._y_df.names = [self.column_names[self.label_idx]]
+        # stypes
+        self._stypes = dict(zip(df.names, df.stypes))
+        label_type = self._stypes[self.label_name]
+        if self._label_type is not None:
+            if self._label_type != label_type:
+                self.log_msg(
+                    "`label_type` will be switched "
+                    f"from {self._label_type} to {label_type}",
+                    self.warning_prefix,
+                )
+        self.label_type = label_type
+        # core fit
+        self._raw = DataTuple.from_dfs(self._x_df, self._y_df)
         return self._core_fit()
 
-    @staticmethod
-    def _check_2d_y(y: data_type) -> None:
+    def _read_from_arr(self, x: data_type, y: data_type) -> "TabularData":
+        assert x is not None
+        self._is_arr = True
+        self._is_np = isinstance(x, np.ndarray)
+        # check 2d y
         failed = False
         if isinstance(y, list):
             failed = not isinstance(y[0], list)
@@ -574,10 +546,42 @@ class TabularData(DataBase):
             failed = len(y.shape) != 2
         if failed:
             raise ValueError("input labels should be 2d")
-
-    def _read_from_arr(self, x: data_type, y: data_type) -> "TabularData":
-        self._is_arr = True
-        self._check_2d_y(y)
+        # names
+        self.label_name = self._label_name or "label"
+        x_names = [f"C{i}" for i in range(len(x[0]))]
+        y_names = [self.label_name]
+        names = x_names + y_names
+        for i, name in (self._column_names or {}).items():
+            names[i] = name
+        self.column_names = {i: name for i, name in enumerate(names)}
+        # x settings
+        x_stypes = {x_names[i]: v for i, v in self._preset_stypes.items()}
+        x_kwargs = {"names": x_names, "stypes": x_stypes}
+        if not self._is_np:
+            x_dt = to_dt_data(x)
+        else:
+            assert isinstance(x, np.ndarray)
+            if self._preset_stypes:
+                x_dt = x.T.tolist()
+            else:
+                x_dt = x.astype(np.float32)
+                x_stypes = {n: dt.float32 for n in x_names}
+                x_kwargs.pop("stypes")
+        # y settings
+        if self._is_np and self._label_type is not None:
+            assert isinstance(y, np.ndarray)
+            y = y.astype(self._label_type.dtype)
+        y_dt = to_dt_data(y)
+        y_kwargs = {"names": y_names}
+        self.label_idx = len(self.column_names) - 1
+        # frames
+        self._x_df = dt.Frame(x_dt, **x_kwargs)
+        self._y_df = dt.Frame(y_dt, **y_kwargs)
+        # stypes
+        self._stypes = x_stypes
+        self.label_type = self._y_df.stype
+        self._stypes[self.label_name] = self.label_type
+        # core fit
         self._raw = DataTuple.with_transpose(x, y)
         return self._core_fit()
 
@@ -593,8 +597,8 @@ class TabularData(DataBase):
                 msg = "`TabularData` is set to `simplify` but `raw.y` is not np.ndarray"
                 raise ValueError(msg)
             return raw_y, raw_y
-        label_converter = self._converters[-1]
-        label_processor = self._processors[-1]
+        label_converter = self.converters[-1]
+        label_processor = self.processors[-1]
         if label_converter is None:
             raise ValueError("label_converter is not generated")
         if label_processor is None:
@@ -609,7 +613,8 @@ class TabularData(DataBase):
 
     def _transform(self, raw: DataTuple) -> Tuple[DataTuple, DataTuple]:
         if self._simplify:
-            return raw, raw
+            data_tuple = self._to_simplify_array(raw)
+            return data_tuple, data_tuple
         # transform features
         features = raw.xT
         if features is None:
@@ -619,7 +624,7 @@ class TabularData(DataBase):
         for i, flat_arr in enumerate(features):
             if i in self.excludes or i in ts_indices:
                 continue
-            converter = self._converters[i]
+            converter = self.converters[i]
             assert converter is not None
             converted_features_list.append(converter.convert(flat_arr))
         converted_features = np.vstack(converted_features_list)
@@ -629,7 +634,7 @@ class TabularData(DataBase):
             if idx in self.excludes or idx in ts_indices:
                 idx += 1
                 continue
-            processor = self._processors[idx]
+            processor = self.processors[idx]
             assert processor is not None
             input_indices = processor.input_indices
             columns = processor.process(converted_features[input_indices].T)
@@ -643,62 +648,40 @@ class TabularData(DataBase):
         converted = DataTuple(converted_features.T, converted_labels)
         return converted, transformed
 
-    def _get_raw(
+    def _dt_kwargs(self, contains_labels: bool) -> Dict[str, Any]:
+        stypes = self._stypes.copy()
+        names = [self.column_names[i] for i in range(len(self.column_names))]
+        if not contains_labels:
+            names.pop(self.label_idx)
+            stypes.pop(self.label_name)
+        return {"names": names, "stypes": stypes}
+
+    def _get_dfs(
         self,
         x: Union[str, data_type],
         y: data_type = None,
         *,
         contains_labels: bool = True,
-    ) -> DataTuple:
-        if self._is_file:
-            if isinstance(x, str):
-                if y is not None:
-                    raise ValueError(
-                        "x refers to file_path but y is still provided "
-                        f"({y}), which is illegal"
-                    )
-                x, y = self.read_file(x, contains_labels=contains_labels)
-        return DataTuple.with_transpose(x, y)
-
-    def _read_line(self, line: str) -> Optional[List[str]]:
-        assert self._delim is not None
-        stripped = line.strip()
-        if not stripped:
-            return None
-        elements = stripped.split(self._delim)
-        elements = ["nan" if not elem else elem for elem in elements]
-        if self._quote_char is not None:
-            num_quote = len(self._quote_char)
-            startswith_quote = [elem.startswith(self._quote_char) for elem in elements]
-            endswith_quote = [elem.endswith(self._quote_char) for elem in elements]
-            quote_inplace = []
-            merge_start, merge_intervals = None, []
-            for i, (startswith, endswith) in enumerate(
-                zip(startswith_quote, endswith_quote)
-            ):
-                if startswith and endswith:
-                    quote_inplace.append(i)
-                    continue
-                if startswith and not endswith:
-                    merge_start = i
-                    continue
-                if endswith and not startswith and merge_start is not None:
-                    merge_intervals.append((merge_start, i + 1))
-                    merge_start = None
-                    continue
-            for i in quote_inplace:
-                elements[i] = elements[i][num_quote:-num_quote]
-            idx, new_elements = 0, []
-            for start, end in merge_intervals:
-                if start > idx:
-                    new_elements += elements[idx:start]
-                new_element = self._delim.join(elements[start:end])
-                new_elements.append(new_element[num_quote:-num_quote])
-                idx = end
-            if idx < len(elements):
-                new_elements += elements[idx : len(elements)]
-            elements = new_elements
-        return elements
+    ) -> Tuple[dt.Frame, Optional[dt.Frame]]:
+        if isinstance(x, str):
+            if not self._is_file:
+                raise ValueError("self._is_file is False but file is provided")
+            x_df, y_df = self.read_file(x, contains_labels=contains_labels)
+        else:
+            x_kwargs = self._dt_kwargs(False)
+            if not isinstance(x, list):
+                x_kwargs.pop("stypes")
+            x_df = dt.Frame(to_dt_data(x), **x_kwargs)
+            if y is None:
+                y_df = None
+            else:
+                y_names = [self.label_name]
+                y_stype = self._stypes[self.label_name]
+                y_kwargs = {"names": y_names}
+                if isinstance(y, list):
+                    y_kwargs["stype"] = y_stype
+                y_df = dt.Frame(to_dt_data(y), **y_kwargs)
+        return x_df, y_df
 
     # API
 
@@ -707,84 +690,16 @@ class TabularData(DataBase):
         file_path: str,
         *,
         contains_labels: bool = True,
-    ) -> Tuple[str_data_type, Optional[str_data_type]]:
-        ext = os.path.splitext(file_path)[1][1:]
-        set_default = lambda n, default: n if n is not None else default
-        if ext == "txt":
-            has_column_names, delim, quote_char = map(
-                set_default,
-                [self._has_column_names, self._delim, self._quote_char],
-                [False, " ", None],
-            )
-        elif ext == "csv":
-            has_column_names, delim, quote_char = map(
-                set_default,
-                [self._has_column_names, self._delim, self._quote_char],
-                [True, ",", '"'],
-            )
-        else:
-            has_column_names, delim, quote_char = map(
-                set_default,
-                [self._has_column_names, self._delim, self._quote_char],
-                [False, ",", '"'],
-            )
-            self.log_msg(
-                f"detected file type '.{ext}', which is not familiar to cfdata.\n"
-                f"We'll us '{has_column_names}', '{delim}' and '{quote_char}' as our "
-                "`has_column_names`, `delim` and `quote_char` settings.",
-                self.warning_prefix,
-                verbose_level=3,
-                msg_level=logging.WARNING,
-            )
-        self._delim, self._quote_char = delim, quote_char
-        with open(file_path, "r") as f:
-            first_row = None
-            if has_column_names:
-                while True:
-                    first_row = column_names = self._read_line(f.readline())
-                    if column_names is not None:
-                        break
-                self._column_names = {i: name for i, name in enumerate(column_names)}
-            data = []
-            for line in f:
-                elements = self._read_line(line)
-                if elements is None:
-                    continue
-                if first_row is None:
-                    first_row = elements
-                else:
-                    if len(first_row) != len(elements):
-                        raise ValueError("num_features are not identical")
-                data.append(elements)
+    ) -> Tuple[dt.Frame, Optional[dt.Frame]]:
+        df = dt.Frame(file_path, **self._dt_kwargs(contains_labels))
         if not contains_labels:
             if self._raw is not None:
-                if self._raw.x is None:
-                    raise ValueError("`_raw.x` is not given")
-                if len(data[0]) == len(self._raw.x[0]) + 1:
+                if df.ncols == self.raw_dim + 1:
                     msg = "file contains labels but 'contains_labels=False' passed in"
                     raise ValueError(msg)
-            return data, None
-
-        label_idx: int
-        if self._column_names is None or self.label_name is None:
-            label_idx = -1 if self._label_idx is None else self._label_idx
-        else:
-            reverse_column_names: Dict[str, int]
-            reverse_column_names = {v: k for k, v in self._column_names.items()}
-            infer_label_idx = reverse_column_names.get(self.label_name)
-            if infer_label_idx is None:
-                raise ValueError(
-                    f"'{self.label_name}' is not included in column names "
-                    f"({list(self._column_names.values())})"
-                )
-            label_idx = infer_label_idx
-        if label_idx < 0:
-            label_idx = len(data[0]) + label_idx
-
-        self._label_idx = label_idx
-        x = [line[:label_idx] + line[label_idx + 1 :] for line in data]
-        y = [line[label_idx : label_idx + 1] for line in data]
-        return x, y
+            return df, None
+        x_df, y_df, _ = self._split_df(df)
+        return x_df, y_df
 
     def read(
         self,
@@ -795,17 +710,9 @@ class TabularData(DataBase):
         **kwargs: Any,
     ) -> "TabularData":
         if isinstance(x, str):
-            if y is not None and not isinstance(y, int):
-                raise ValueError(
-                    "`y` should be integer when `x` is a file. "
-                    "In this case, `y` indicates the index of the label column."
-                )
-            self._read_from_file(
-                x,
-                label_idx=y,
-                contains_labels=contains_labels,
-                **kwargs,
-            )
+            if y is not None:
+                raise ValueError("`y` should not provided when `x` is a file.")
+            self._read_from_file(x)
         else:
             if isinstance(y, int):
                 y = None
@@ -873,7 +780,8 @@ class TabularData(DataBase):
         contains_labels: bool = True,
     ) -> "TabularData":
         copied = copy.copy(self)
-        raw = copied._raw = self._get_raw(x, y, contains_labels=contains_labels)
+        dfs = self._get_dfs(x, y, contains_labels=contains_labels)
+        raw = copied._raw = DataTuple.from_dfs(*dfs)
         converted, copied._processed = self._transform(raw)
         assert isinstance(converted.x, np.ndarray), "internal error occurred"
         if not self._simplify:
@@ -889,9 +797,17 @@ class TabularData(DataBase):
                 local_converter = copied_converters[idx]
                 assert local_converter is not None
                 local_converter._converted_features = converted.x[..., i]
-            copied._converters = copied_converters
+            copied.converters = copied_converters
             copied._converted = converted
         if copied.is_ts:
+            ts_config = self.ts_config
+            assert ts_config is not None
+            copied._time_series_config = TimeSeriesConfig(
+                ts_config.id_column_name,
+                ts_config.time_column_name,
+                ts_config.id_column_idx,
+                ts_config.time_column_idx,
+            )
             copied._get_ts_sorting_indices()
         return copied
 
@@ -904,8 +820,8 @@ class TabularData(DataBase):
         return_converted: bool = False,
         **kwargs: Any,
     ) -> Union[DataTuple, Tuple[DataTuple, DataTuple]]:
-        raw = self._get_raw(x, y, contains_labels=contains_labels)
-        bundle = self._transform(raw)
+        dfs = self._get_dfs(x, y, contains_labels=contains_labels)
+        bundle = self._transform(DataTuple.from_dfs(*dfs))
         if return_converted:
             return bundle
         return bundle[1]
@@ -925,7 +841,7 @@ class TabularData(DataBase):
     def recover_labels(self, y: np.ndarray, *, inplace: bool = False) -> np.ndarray:
         if self._simplify:
             return y
-        label_processor = self._processors[-1]
+        label_processor = self.processors[-1]
         if label_processor is None:
             raise ValueError("`processor` for labels is not generated")
         label_converter = self.converters[-1]
@@ -1069,9 +985,9 @@ class TabularData(DataBase):
                         )
                         previous_processors.append(processor)
                 # assign
-                data._recognizers = recognizers
-                data._converters = converters
-                data._processors = processors
+                data.recognizers = recognizers
+                data.converters = converters
+                data.processors = processors
                 # data
                 if not retain_data:
                     data._raw = data._converted = data._processed = None

@@ -17,7 +17,7 @@ from cftool.misc import LoggingMixin
 from abc import *
 from .misc import *
 from ..types import *
-from .wrapper import TabularData
+from .api import TabularData
 
 
 class KFold:

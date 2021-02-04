@@ -4,6 +4,7 @@ import math
 import random
 
 import numpy as np
+import datatable as dt
 
 from typing import *
 from abc import abstractmethod
@@ -61,6 +62,12 @@ def transpose(x: data_type) -> data_type:
     if isinstance(x, np.ndarray):
         return x.T
     return list(map(list, zip(*x)))  # type: ignore
+
+
+def to_dt_data(data: data_type) -> data_type:
+    if not isinstance(data, list):
+        return data
+    return transpose(data)
 
 
 class DataTuple(NamedTuple):
@@ -137,6 +144,16 @@ class DataTuple(NamedTuple):
     @classmethod
     def with_transpose(cls, x: data_type, y: data_type) -> "DataTuple":
         return DataTuple(x, y, transpose(x))
+
+    @classmethod
+    def from_dfs(cls, x_df: dt.Frame, y_df: Optional[dt.Frame]) -> "DataTuple":
+        x = x_df.to_numpy()
+        y = None if y_df is None else y_df.to_numpy()
+        if isinstance(x, np.ma.core.MaskedArray):
+            x = x.data
+        if isinstance(y, np.ma.core.MaskedArray):
+            y = y.data
+        return DataTuple.with_transpose(x, y)
 
 
 class ColumnTypes(Enum):
@@ -1030,6 +1047,7 @@ __all__ = [
     "is_float",
     "is_string",
     "transpose",
+    "to_dt_data",
     "DataTuple",
     "ColumnTypes",
     "TaskTypes",

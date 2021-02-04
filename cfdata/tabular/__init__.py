@@ -1,6 +1,6 @@
 from .misc import *
 from .toolkit import *
-from .wrapper import TabularData
+from .api import TabularData
 
 
 __all__ = [
