@@ -26,6 +26,7 @@ class Recognizer(DataStructure):
         is_np: bool,
         *,
         binning: str = "opt",
+        is_label: bool = False,
         is_valid: Optional[bool] = None,
         task_type: task_type_type = TaskTypes.NONE,
         labels: Optional[np.ndarray] = None,
@@ -35,7 +36,7 @@ class Recognizer(DataStructure):
         self.is_np = is_np
         self.binning = binning
         self.labels = labels
-        self.is_label = labels is None
+        self.is_label = is_label
         self.is_valid = is_valid
         self.task_type = parse_task_type(task_type)
         self._init_config(config)

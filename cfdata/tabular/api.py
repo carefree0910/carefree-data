@@ -295,6 +295,7 @@ class TabularData(DataBase):
         recognizer = self.recognizers[-1] = Recognizer(
             self.label_name,
             self._is_np,
+            is_label=True,
             is_valid=True,
             task_type=self._task_type,
             config=self._label_recognizer_config,
@@ -372,6 +373,7 @@ class TabularData(DataBase):
                     recognizer = Recognizer(
                         column_name,
                         self._is_np,
+                        is_label=False,
                         is_valid=is_valid,
                         labels=converted_labels,
                         config=recognizer_config,
