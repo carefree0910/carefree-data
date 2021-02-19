@@ -190,7 +190,19 @@ class Recognizer(DataStructure):
             return True, self._make_string_info(None, False, msg)
         unique_values_arr = np.array(unique_values)
         dummy_info = self._make_dummy_info(np_flat, unique_values_arr, sorted_counts)
-        pack = self._get_transform_dict(dummy_info, False, unique_values, sorted_counts)
+        args = dummy_info, False, unique_values, sorted_counts
+        try:
+            pack = self._get_transform_dict(*args)
+        except Exception as err:
+            msg = (
+                f"column {self.name}, which tends to be string column, "
+                f"cannot be transformed ({err})."
+            )
+            if not self.is_valid:
+                msg = f"{msg} It'll be excluded since it might be redundant"
+                return True, self._make_string_info(None, False, msg)
+            self.binning = "fuse"
+            pack = self._get_transform_dict(*args)
         self.transform_dict, self._transformed_unique_values = pack
         return True, self._make_string_info(
             np_flat,
@@ -380,7 +392,18 @@ class Recognizer(DataStructure):
             unique_values_sorted_by_counts=unique_values,
             sorted_counts=sorted_counts,
         )
-        self._generate_categorical_transform_dict()
+        try:
+            self._generate_categorical_transform_dict()
+        except Exception as err:
+            msg = (
+                f"column {self.name}, which tends to be categorical column, "
+                f"cannot be transformed ({err})."
+            )
+            if not self.is_valid:
+                msg = f"{msg} It'll be excluded since it might be redundant"
+                return self._make_invalid_info(msg, contains_nan, nan_mask)
+            self.binning = "fuse"
+            self._generate_categorical_transform_dict()
         return self
 
     def dumps_(self) -> Any:
