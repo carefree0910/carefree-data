@@ -332,6 +332,7 @@ class TabularData(DataBase):
                 self._inject_label_recognizer()
         else:
             ts_indices = self.ts_indices
+            self.recognizers, self.converters = {}, {}
             # convert labels
             if self._raw is None or self._raw.y is None:
                 converted_labels = None
@@ -347,7 +348,6 @@ class TabularData(DataBase):
                     converted_labels = converter.converted_input.reshape([-1, 1])
             # convert features
             converted_features = []
-            self.recognizers, self.converters = {}, {}
             if self._x_df is None:
                 raise ValueError("`_x_df` is required in `_core_fit`")
             for i in range(self.raw_dim):

@@ -35,7 +35,7 @@ class Recognizer(DataStructure):
         self.is_np = is_np
         self.binning = binning
         self.labels = labels
-        self.is_labels = labels is None
+        self.is_label = labels is None
         self.is_valid = is_valid
         self.task_type = parse_task_type(task_type)
         self._init_config(config)
@@ -136,6 +136,9 @@ class Recognizer(DataStructure):
                     continue
                 td[v] = i
             return td
+
+        if self.is_label:
+            return _core(values), list(range(len(values)))
 
         binning = BinningBase.make(self.binning, self.labels, self.config)
         results = binning.binning(info, sorted_counts, values)
