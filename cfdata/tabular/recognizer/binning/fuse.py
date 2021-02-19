@@ -12,8 +12,8 @@ from ...misc import FeatureInfo
 
 @BinningBase.register("fuse")
 class FuseBinning(BinningBase):
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(config)
+    def __init__(self, labels: np.ndarray, config: Dict[str, Any]):
+        super().__init__(labels, config)
         default_bound = config["default_bound"]
         self.num_unique_bound = config["num_unique_bound"]
         self._truncate_ratio = config.setdefault("truncate_ratio", 0.99)

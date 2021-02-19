@@ -137,7 +137,7 @@ class Recognizer(DataStructure):
                 td[v] = i
             return td
 
-        binning = BinningBase.make(self.binning, self.config)
+        binning = BinningBase.make(self.binning, self.labels, self.config)
         results = binning.binning(info, sorted_counts, values)
         fused_indices, values, transformed_unique_values = results
         return _core(values, fused_indices), transformed_unique_values

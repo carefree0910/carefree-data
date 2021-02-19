@@ -23,7 +23,8 @@ class BinResults(NamedTuple):
 
 
 class BinningBase:
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, labels: np.ndarray, config: Dict[str, Any]):
+        self.labels = labels
         self.config = config
 
     def binning(
@@ -35,8 +36,13 @@ class BinningBase:
         pass
 
     @classmethod
-    def make(cls, name: str, config: Dict[str, Any]) -> "BinningBase":
-        return binning_dict[name](config)
+    def make(
+        cls,
+        name: str,
+        labels: np.ndarray,
+        config: Dict[str, Any],
+    ) -> "BinningBase":
+        return binning_dict[name](labels, config)
 
     @classmethod
     def register(cls, name: str) -> Callable[[Type], Type]:
