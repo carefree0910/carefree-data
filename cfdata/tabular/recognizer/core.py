@@ -10,6 +10,7 @@ from cftool.misc import get_counter_from_arr
 
 from ..misc import *
 from ...types import *
+from .binning import BinningBase
 
 
 class Recognizer(DataStructure):
@@ -24,6 +25,7 @@ class Recognizer(DataStructure):
         name: str,
         is_np: bool,
         *,
+        binning: str = "fuse",
         is_label: bool = False,
         is_valid: Optional[bool] = None,
         task_type: task_type_type = TaskTypes.NONE,
@@ -31,6 +33,7 @@ class Recognizer(DataStructure):
     ):
         self.name = name
         self.is_np = is_np
+        self.binning = binning
         self.is_label = is_label
         self.is_valid = is_valid
         self.task_type = parse_task_type(task_type)
@@ -52,19 +55,8 @@ class Recognizer(DataStructure):
             config = {}
         self.config = config
         self._num_thresh = config.setdefault("numerical_threshold", 0.5)
-        default_bound = 128
+        default_bound = config.setdefault("default_bound", 128)
         self.num_unique_bound = config.setdefault("num_unique_bound", default_bound)
-        self._truncate_ratio = config.setdefault("truncate_ratio", 0.99)
-        if self.num_unique_bound is None:
-            default_fuse_threshold = 1.0 / default_bound
-        else:
-            default_fuse_threshold = 1.0 / self.num_unique_bound
-        self._fuse_thresh = config.setdefault("fuse_threshold", default_fuse_threshold)
-        if self.num_unique_bound is None:
-            default_fuse_fix = int(default_bound // 2)
-        else:
-            default_fuse_fix = int(round(0.5 * self.num_unique_bound))
-        self._num_fuse_fix = config.setdefault("num_fuse_fix", default_fuse_fix)
 
     def _make_invalid_info(
         self,
@@ -133,36 +125,20 @@ class Recognizer(DataStructure):
             iterator = zip(indices, values_)
             td: transform_dict_type = {}
             if not check_nan:
-                for i_, v_ in iterator:
-                    assert isinstance(v_, (str, float))
-                    td[v_] = i_
+                for i, v in iterator:
+                    assert isinstance(v, (str, float))
+                    td[v] = i
                 return td
-            for i_, v_ in iterator:
-                assert isinstance(v_, float)
-                if math.isnan(v_):
+            for i, v in iterator:
+                assert isinstance(v, float)
+                if math.isnan(v):
                     continue
-                td[v_] = i_
+                td[v] = i
             return td
 
-        if not info.need_truncate:
-            transformed_unique_values = list(range(len(values)))
-            return _core(values), transformed_unique_values
-        # truncate
-        counts_cumsum = np.cumsum(sorted_counts)
-        counts_cumsum_ratio = counts_cumsum / counts_cumsum[-1]
-        truncate_mask = counts_cumsum_ratio >= self._truncate_ratio
-        truncate_idx = np.nonzero(truncate_mask)[0][0]
-        values = values[: truncate_idx + 1]
-        # fuse
-        idx = 0
-        cumulate = 0.0
-        fused_indices = []
-        for i, ratio in enumerate(counts_cumsum_ratio[: truncate_idx + 1]):
-            fused_indices.append(idx)
-            if i < self._num_fuse_fix or ratio >= self._fuse_thresh + cumulate:
-                idx += 1
-                cumulate = ratio
-        transformed_unique_values = sorted(set(fused_indices))
+        binning = BinningBase.make(self.binning, self.config)
+        results = binning.binning(info, sorted_counts, values)
+        fused_indices, values, transformed_unique_values = results
         return _core(values, fused_indices), transformed_unique_values
 
     def _check_string_column(
