@@ -96,12 +96,13 @@ class Recognizer(DataStructure):
 
     def _make_dummy_info(
         self,
+        np_flat: np.ndarray,
         unique_values: np.ndarray,
         sorted_counts: np.ndarray,
     ) -> FeatureInfo:
         return FeatureInfo(
             None,
-            None,
+            np_flat,
             num_unique_bound=self.num_unique_bound,
             unique_values_sorted_by_counts=unique_values,
             sorted_counts=sorted_counts,
@@ -109,14 +110,11 @@ class Recognizer(DataStructure):
 
     def _get_transform_dict(
         self,
+        info: FeatureInfo,
         check_nan: bool,
         values: Union[List[str], List[float]],
         sorted_counts: np.ndarray,
-        info: Optional[FeatureInfo] = None,
     ) -> Tuple[transform_dict_type, List[int]]:
-        if info is None:
-            info = self._make_dummy_info(np.array(values), sorted_counts)
-
         def _core(
             values_: Union[List[str], List[float]],
             indices: Optional[List[int]] = None,
@@ -184,13 +182,15 @@ class Recognizer(DataStructure):
                 "It'll be excluded since it might be redundant"
             )
             return True, self._make_string_info(None, False, msg)
-        pack = self._get_transform_dict(False, unique_values, sorted_counts)
+        unique_values_arr = np.array(unique_values)
+        dummy_info = self._make_dummy_info(np_flat, unique_values_arr, sorted_counts)
+        pack = self._get_transform_dict(dummy_info, False, unique_values, sorted_counts)
         self.transform_dict, self._transformed_unique_values = pack
         return True, self._make_string_info(
             np_flat,
             True,
             msg,
-            np.array(unique_values),
+            unique_values_arr,
             sorted_counts,
         )
 
@@ -228,7 +228,7 @@ class Recognizer(DataStructure):
         sorted_counts = self.info.sorted_counts
         assert unique_values is not None and sorted_counts is not None
         values = list(map(float, unique_values.tolist()))
-        pack = self._get_transform_dict(True, values, sorted_counts, self.info)
+        pack = self._get_transform_dict(self.info, True, values, sorted_counts)
         transform_dict, self._transformed_unique_values = pack
         if self.info.contains_nan:
             num_transformed_unique = len(self._transformed_unique_values)
