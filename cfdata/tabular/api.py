@@ -58,6 +58,7 @@ class TabularData(DataBase):
         categorical_columns: Optional[List[int]] = None,
         recognizer_configs: Optional[Dict[int, Dict[str, Any]]] = None,
         process_methods: Optional[Union[str, Dict[int, str]]] = "auto",
+        binning_method: str = "auto",
         default_numerical_process: str = "normalize",
         default_categorical_process: str = "one_hot",
         use_timing_context: bool = True,
@@ -94,6 +95,7 @@ class TabularData(DataBase):
         self._recognizer_configs = recognizer_configs or {}
         self._label_recognizer_config = label_recognizer_config or {}
         self._process_methods = process_methods
+        self._binning_method = binning_method
         self._default_numerical_process = default_numerical_process
         self._default_categorical_process = default_categorical_process
         self._label_process_method = label_process_method
@@ -298,6 +300,7 @@ class TabularData(DataBase):
             is_label=True,
             is_valid=True,
             task_type=self._task_type,
+            binning=self._binning_method,
             config=self._label_recognizer_config,
         )
         assert self._raw is not None and self._raw.y is not None
@@ -376,6 +379,7 @@ class TabularData(DataBase):
                         is_label=False,
                         is_valid=is_valid,
                         task_type=self.task_type,
+                        binning=self._binning_method,
                         labels=converted_labels,
                         config=recognizer_config,
                     )
