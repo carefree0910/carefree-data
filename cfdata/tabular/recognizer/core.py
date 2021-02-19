@@ -25,7 +25,7 @@ class Recognizer(DataStructure):
         name: str,
         is_np: bool,
         *,
-        binning: str = "fuse",
+        binning: str = "opt",
         is_valid: Optional[bool] = None,
         task_type: task_type_type = TaskTypes.NONE,
         labels: Optional[np.ndarray] = None,
