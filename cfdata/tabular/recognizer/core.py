@@ -256,7 +256,9 @@ class Recognizer(DataStructure):
             self._transformed_unique_values.append(num_transformed_unique)
         self.transform_dict = transform_dict
 
-    def fit(self, df: dt.Frame) -> "Recognizer":
+    def fit(self, df: dt.Frame, *, is_preset: bool) -> "Recognizer":
+        if self.is_label and is_preset:
+            raise ValueError("`is_preset` should always be False when `is_label`")
         msg: Optional[str]
         dtype = df.stype.dtype
         # check name
@@ -319,7 +321,8 @@ class Recognizer(DataStructure):
             )
             return self._make_invalid_info(msg, contains_nan, nan_mask)
         # check whether it's a numerical column
-        not_int = is_float(dtype) and not np.allclose(np_flat_valid, np_flat_valid_int)
+        like_int = np.allclose(np_flat_valid, np_flat_valid_int)
+        not_int = is_float(dtype) and (is_preset or not like_int)
         is_reg_label = self.is_label and self.task_type.is_reg
         if not_int or is_reg_label:
             msg, is_valid = None, True

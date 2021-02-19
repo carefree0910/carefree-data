@@ -301,7 +301,7 @@ class TabularData(DataBase):
             config=self._label_recognizer_config,
         )
         assert self._raw is not None and self._raw.y is not None
-        recognizer.fit(self._y_df)
+        recognizer.fit(self._y_df, is_preset=False)
         return recognizer
 
     def _to_simplify_array(self, raw: DataTuple) -> DataTuple:
@@ -363,7 +363,7 @@ class TabularData(DataBase):
                         is_valid=is_valid,
                         config=recognizer_config,
                     )
-                    recognizer.fit(self._x_df[:, i])
+                    recognizer.fit(self._x_df[:, i], is_preset=i in self._preset_stypes)
                     self.recognizers[i] = recognizer
                 if not recognizer.info.is_valid:
                     self.log_msg(
