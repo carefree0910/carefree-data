@@ -25,7 +25,7 @@ class Recognizer(DataStructure):
         name: str,
         is_np: bool,
         *,
-        binning: str = "opt",
+        binning: str = "auto",
         is_label: bool = False,
         is_valid: Optional[bool] = None,
         task_type: task_type_type = TaskTypes.NONE,
@@ -139,7 +139,11 @@ class Recognizer(DataStructure):
         if self.is_label:
             return _core(values), list(range(len(values)))
 
-        binning = BinningBase.make(self.binning, self.labels, self.config)
+        if self.binning != "auto":
+            binning_type = self.binning
+        else:
+            binning_type = "opt" if self.labels is not None else "fuse"
+        binning = BinningBase.make(binning_type, self.labels, self.config)
         results = binning.binning(info, sorted_counts, values)
         fused_indices, values, transformed_unique_values = results
         return _core(values, fused_indices), transformed_unique_values
