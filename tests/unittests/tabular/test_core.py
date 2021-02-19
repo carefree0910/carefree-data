@@ -35,7 +35,7 @@ class TestTabularData(unittest.TestCase):
             ["banana", "2020-01-02", 1.5],
         ]
         cls.y_ts = np.atleast_2d(
-            [2.0, 2.0, 2.5, 1.5, 2.0, 2.0, 1.5, 2.5, 2.5, 2.5, 2.0, 2.0]
+            [2.0, 2.0, 2.5, 1.5, 2.0, 2.0, 1.5, 2.5, 2.5, 2.5, 2.0]
         ).T
         cls.ts_config = TimeSeriesConfig(id_column_idx=0, time_column_idx=1)
         cls.x = [
@@ -164,14 +164,14 @@ class TestTabularData(unittest.TestCase):
         cls.y_bundle = [
             np.atleast_2d([1, 2, 3, 4, 3, 4, 4]).T,
             np.atleast_2d([1, 2, 3, 4, 3, 4, 4.1]).T,
-            np.atleast_2d([1, 2.3, 3.4, 4.5, 5.6]).T,
-            np.atleast_2d(["1", "2", "3", "4", "3", "4"]).T.tolist(),
+            np.atleast_2d([1, 2.3, 3.4, 4.5, 5.6, 6.7, 7.8]).T,
+            np.atleast_2d(["1", "2", "3", "4", "3", "4", "5"]).T.tolist(),
             np.atleast_2d(["1", "2", "3", "4", "3", "4", "4"]).T,
-            np.atleast_2d(["1", "2.3", "3.4", "4.5", "5.6", "6.7"]).T.tolist(),
-            np.atleast_2d(["1", "2.3", "3.4", "4.5", "5.6", "6.7.8"]).T.tolist(),
-            np.atleast_2d(["1.0", "2.0", "3.0", "4.0", "3.0", "4.0"]).T,
-            np.atleast_2d(["1.0", "2.0", "3.0", "4.0", "3.0", "4.1"]).T,
-            np.atleast_2d(["one", "two", "one", "two", "two", "one"]).T,
+            np.atleast_2d(["1", "2.3", "3.4", "4.5", "5.6", "6.7", "7.8"]).T.tolist(),
+            np.atleast_2d(["1", "2.3", "3.4", "4.5", "5.6", "6.7.8", "8"]).T.tolist(),
+            np.atleast_2d(["1.0", "2.0", "3.0", "4.0", "3.0", "4.0", "5"]).T,
+            np.atleast_2d(["1.0", "2.0", "3.0", "4.0", "3.0", "4.1", "5.2"]).T,
+            np.atleast_2d(["one", "two", "one", "two", "two", "one", "two"]).T,
             np.atleast_2d(["one", "two", "two", "one", "two", "one", "one"]).T.tolist(),
         ]
         cls.task_types = [
