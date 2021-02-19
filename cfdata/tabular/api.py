@@ -333,6 +333,19 @@ class TabularData(DataBase):
                 self._inject_label_recognizer()
         else:
             ts_indices = self.ts_indices
+            # convert labels
+            if self._raw is None or self._raw.y is None:
+                converted_labels = None
+                self.recognizers[-1] = None
+                self.converters[-1] = None
+            else:
+                with timing_context(self, "fit recognizer", enable=self._timing):
+                    recognizer = self._inject_label_recognizer()
+                with timing_context(self, "fit converter", enable=self._timing):
+                    converter = Converter.make_with(recognizer)
+                    self.converters[-1] = converter
+                with timing_context(self, "convert", enable=self._timing):
+                    converted_labels = converter.converted_input.reshape([-1, 1])
             # convert features
             converted_features = []
             self.recognizers, self.converters = {}, {}
@@ -381,19 +394,6 @@ class TabularData(DataBase):
                     with timing_context(self, "convert", enable=self._timing):
                         converted = converter.converted_input.astype(np_float_type)
                         converted_features.append(converted)
-            # convert labels
-            if self._raw is None or self._raw.y is None:
-                converted_labels = None
-                self.recognizers[-1] = None
-                self.converters[-1] = None
-            else:
-                with timing_context(self, "fit recognizer", enable=self._timing):
-                    recognizer = self._inject_label_recognizer()
-                with timing_context(self, "fit converter", enable=self._timing):
-                    converter = Converter.make_with(recognizer)
-                    self.converters[-1] = converter
-                with timing_context(self, "convert", enable=self._timing):
-                    converted_labels = converter.converted_input.reshape([-1, 1])
             converted_x = np.vstack(converted_features).T
             # process features
             self.processors = {}
