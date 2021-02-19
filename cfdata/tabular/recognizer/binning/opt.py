@@ -12,13 +12,19 @@ from cftool.misc import shallow_copy_dict
 from .base import BinResults
 from .base import BinningBase
 from ...misc import is_float
+from ...misc import TaskTypes
 from ...misc import FeatureInfo
 
 
 @BinningBase.register("opt")
 class OptBinning(BinningBase):
-    def __init__(self, labels: np.ndarray, config: Dict[str, Any]):
-        super().__init__(labels, config)
+    def __init__(
+        self,
+        labels: np.ndarray,
+        task_type: TaskTypes,
+        config: Dict[str, Any],
+    ):
+        super().__init__(labels, task_type, config)
         self.opt_config = config.setdefault("opt_config", {})
 
     def binning(
@@ -39,11 +45,11 @@ class OptBinning(BinningBase):
             opt_config.setdefault("solver", "mip")
             opt_config.setdefault("cat_cutoff", 0.1)
         # y info
-        if is_float(y.dtype):
+        if self.task_type.is_reg:
             opt_config.pop("solver")
             base = ContinuousOptimalBinning
         else:
-            if y.max() == 1:
+            if int(round(y.max().item())) == 1:
                 base = OptimalBinning
             else:
                 opt_config.pop("dtype")

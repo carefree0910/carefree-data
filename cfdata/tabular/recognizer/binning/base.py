@@ -10,6 +10,7 @@ from typing import Optional
 from typing import NamedTuple
 from cftool.misc import register_core
 
+from ...misc import TaskTypes
 from ...misc import FeatureInfo
 
 
@@ -23,8 +24,14 @@ class BinResults(NamedTuple):
 
 
 class BinningBase:
-    def __init__(self, labels: np.ndarray, config: Dict[str, Any]):
+    def __init__(
+        self,
+        labels: np.ndarray,
+        task_type: TaskTypes,
+        config: Dict[str, Any],
+    ):
         self.labels = labels
+        self.task_type = task_type
         self.config = config
 
     def binning(
@@ -40,9 +47,10 @@ class BinningBase:
         cls,
         name: str,
         labels: np.ndarray,
+        task_type: TaskTypes,
         config: Dict[str, Any],
     ) -> "BinningBase":
-        return binning_dict[name](labels, config)
+        return binning_dict[name](labels, task_type, config)
 
     @classmethod
     def register(cls, name: str) -> Callable[[Type], Type]:

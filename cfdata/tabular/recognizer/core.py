@@ -143,7 +143,8 @@ class Recognizer(DataStructure):
             binning_type = self.binning
         else:
             binning_type = "opt" if self.labels is not None else "fuse"
-        binning = BinningBase.make(binning_type, self.labels, self.config)
+        args = binning_type, self.labels, self.task_type, self.config
+        binning = BinningBase.make(*args)
         results = binning.binning(info, sorted_counts, values)
         fused_indices, values, transformed_unique_values = results
         return _core(values, fused_indices), transformed_unique_values

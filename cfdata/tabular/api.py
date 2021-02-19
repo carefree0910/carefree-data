@@ -375,6 +375,7 @@ class TabularData(DataBase):
                         self._is_np,
                         is_label=False,
                         is_valid=is_valid,
+                        task_type=self.task_type,
                         labels=converted_labels,
                         config=recognizer_config,
                     )
