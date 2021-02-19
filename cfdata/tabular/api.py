@@ -1040,6 +1040,7 @@ class TabularData(DataBase):
         if simplify:
             kwargs["simplify"] = simplify
         else:
+            kwargs.setdefault("binning_method", "identical")
             kwargs.setdefault("default_numerical_process", "identical")
             kwargs.setdefault("default_categorical_process", "identical")
         return cls(task_type=task_type, verbose_level=0, **kwargs)
