@@ -19,7 +19,7 @@ binning_dict: Dict[str, Type["BinningBase"]] = {}
 class BinResults(NamedTuple):
     indices: Optional[List[int]]
     values: Union[List[str], List[float]]
-    transformed_unique_values: Union[List[str], List[float]]
+    transformed_unique_values: List[int]
 
 
 class BinningBase:

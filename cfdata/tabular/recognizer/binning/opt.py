@@ -29,16 +29,16 @@ class OptBinning(BinningBase):
         values: Union[List[str], List[float]],
     ) -> BinResults:
         self.opt.fit(info.flat_arr, self.labels.ravel())
-        values = []
+        new_values = []
         fused_indices = []
         transformed_unique_values = []
         for i, split in enumerate(self.opt.splits):
             fused_indices.extend([i] * len(split))
             if is_int(split.dtype):
                 split = split.astype(np.float32)
-            values.extend(split.tolist())
+            new_values.extend(split.tolist())
             transformed_unique_values.append(i)
-        return BinResults(fused_indices, values, transformed_unique_values)
+        return BinResults(fused_indices, new_values, transformed_unique_values)
 
 
 __all__ = ["OptBinning"]
