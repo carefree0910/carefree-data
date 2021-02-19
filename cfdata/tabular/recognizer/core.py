@@ -26,15 +26,16 @@ class Recognizer(DataStructure):
         is_np: bool,
         *,
         binning: str = "fuse",
-        is_label: bool = False,
         is_valid: Optional[bool] = None,
         task_type: task_type_type = TaskTypes.NONE,
+        labels: Optional[np.ndarray] = None,
         config: Optional[Dict[str, Any]] = None,
     ):
         self.name = name
         self.is_np = is_np
         self.binning = binning
-        self.is_label = is_label
+        self.labels = labels
+        self.is_labels = labels is None
         self.is_valid = is_valid
         self.task_type = parse_task_type(task_type)
         self._init_config(config)
