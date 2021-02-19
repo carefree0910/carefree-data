@@ -5,10 +5,13 @@ from typing import Dict
 from typing import List
 from typing import Union
 from optbinning import OptimalBinning
+from optbinning import ContinuousOptimalBinning
+from optbinning import MulticlassOptimalBinning
+from cftool.misc import shallow_copy_dict
 
 from .base import BinResults
 from .base import BinningBase
-from ...misc import is_int
+from ...misc import is_float
 from ...misc import FeatureInfo
 
 
@@ -16,11 +19,7 @@ from ...misc import FeatureInfo
 class OptBinning(BinningBase):
     def __init__(self, labels: np.ndarray, config: Dict[str, Any]):
         super().__init__(labels, config)
-        opt_config = config.setdefault("opt_config", {})
-        opt_config["dtype"] = "categorical"
-        opt_config.setdefault("solver", "mip")
-        opt_config.setdefault("cat_cutoff", 0.1)
-        self.opt = OptimalBinning(**opt_config)
+        self.opt_config = config.setdefault("opt_config", {})
 
     def binning(
         self,
@@ -28,17 +27,33 @@ class OptBinning(BinningBase):
         sorted_counts: np.ndarray,
         values: Union[List[str], List[float]],
     ) -> BinResults:
-        self.opt.fit(info.flat_arr, self.labels.ravel())
-        new_values = []
-        fused_indices = []
-        transformed_unique_values = []
-        for i, split in enumerate(self.opt.splits):
-            fused_indices.extend([i] * len(split))
-            if is_int(split.dtype):
-                split = split.astype(np.float32)
-            new_values.extend(split.tolist())
-            transformed_unique_values.append(i)
-        return BinResults(fused_indices, new_values, transformed_unique_values)
+        x = info.flat_arr
+        y = self.labels.ravel()
+        opt_config = shallow_copy_dict(self.opt_config)
+        # x info
+        if is_float(x.dtype):
+            opt_config["dtype"] = "numerical"
+            opt_config.setdefault("solver", "cp")
+        else:
+            opt_config["dtype"] = "categorical"
+            opt_config.setdefault("solver", "mip")
+            opt_config.setdefault("cat_cutoff", 0.1)
+        # y info
+        if is_float(y.dtype):
+            opt_config.pop("solver")
+            base = ContinuousOptimalBinning
+        else:
+            if y.max() == 1:
+                base = OptimalBinning
+            else:
+                opt_config.pop("dtype")
+                opt_config.pop("cat_cutoff", None)
+                base = MulticlassOptimalBinning
+        # core
+        opt = base(**opt_config).fit(x, y)
+        fused_indices = opt.transform(values, metric="indices")
+        transformed_unique_values = sorted(set(fused_indices))
+        return BinResults(fused_indices, values, transformed_unique_values)
 
 
 __all__ = ["OptBinning"]
