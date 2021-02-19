@@ -31,7 +31,7 @@ class OptBinning(BinningBase):
         y = self.labels.ravel()
         opt_config = shallow_copy_dict(self.opt_config)
         # x info
-        if is_float(x.dtype):
+        if is_float(x.dtype):  # type: ignore
             opt_config["dtype"] = "numerical"
             opt_config.setdefault("solver", "cp")
         else:
