@@ -3,7 +3,6 @@ import numpy as np
 
 from typing import Any
 from typing import Dict
-from typing import Union
 from cftool.misc import is_numeric
 
 
