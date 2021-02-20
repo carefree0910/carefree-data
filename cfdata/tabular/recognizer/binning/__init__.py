@@ -1,7 +1,7 @@
 from .opt import *
+from .base import *
 from .fuse import *
 from .identical import *
-from .base import BinningBase
 
 
-__all__ = ["BinningBase"]
+__all__ = ["BinningBase", "BinningError"]

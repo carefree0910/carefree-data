@@ -58,4 +58,8 @@ class BinningBase:
         return register_core(name, binning_dict)
 
 
-__all__ = ["BinningBase"]
+class BinningError(Exception):
+    pass
+
+
+__all__ = ["BinningBase", "BinningError"]

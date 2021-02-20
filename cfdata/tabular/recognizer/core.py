@@ -11,6 +11,7 @@ from cftool.misc import get_counter_from_arr
 from ..misc import *
 from ...types import *
 from .binning import BinningBase
+from .binning import BinningError
 
 
 class Recognizer(DataStructure):
@@ -192,6 +193,9 @@ class Recognizer(DataStructure):
         dummy_info = self._make_dummy_info(np_flat, unique_values_arr, sorted_counts)
         args = dummy_info, False, unique_values, sorted_counts
         try:
+            pack = self._get_transform_dict(*args)
+        except BinningError:
+            self.binning = "fuse"
             pack = self._get_transform_dict(*args)
         except Exception as err:
             msg = (
@@ -393,6 +397,9 @@ class Recognizer(DataStructure):
             sorted_counts=sorted_counts,
         )
         try:
+            self._generate_categorical_transform_dict()
+        except BinningError:
+            self.binning = "fuse"
             self._generate_categorical_transform_dict()
         except Exception as err:
             msg = (
