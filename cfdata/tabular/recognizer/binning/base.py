@@ -38,7 +38,7 @@ class BinningBase:
         self,
         info: FeatureInfo,
         sorted_counts: np.ndarray,
-        values: Union[List[str], List[float]],
+        unique_values: Union[List[str], List[float]],
     ) -> BinResults:
         pass
 

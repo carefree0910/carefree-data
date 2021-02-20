@@ -38,16 +38,16 @@ class FuseBinning(BinningBase):
         self,
         info: FeatureInfo,
         sorted_counts: np.ndarray,
-        values: Union[List[str], List[float]],
+        unique_values: Union[List[str], List[float]],
     ) -> BinResults:
         if not info.need_truncate:
-            return BinResults(None, values, list(range(len(values))))
+            return BinResults(None, unique_values, list(range(len(unique_values))))
         # truncate
         counts_cumsum = np.cumsum(sorted_counts)
         counts_cumsum_ratio = counts_cumsum / counts_cumsum[-1]
         truncate_mask = counts_cumsum_ratio >= self._truncate_ratio
         truncate_idx = np.nonzero(truncate_mask)[0][0]
-        values = values[: truncate_idx + 1]
+        unique_values = unique_values[: truncate_idx + 1]
         # fuse
         idx = 0
         cumulate = 0.0
@@ -58,7 +58,7 @@ class FuseBinning(BinningBase):
                 idx += 1
                 cumulate = ratio
         transformed_unique_values = sorted(set(fused_indices))
-        return BinResults(fused_indices, values, transformed_unique_values)
+        return BinResults(fused_indices, unique_values, transformed_unique_values)
 
 
 __all__ = ["FuseBinning"]

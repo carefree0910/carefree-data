@@ -14,11 +14,11 @@ class IdenticalBinning(BinningBase):
         self,
         info: FeatureInfo,
         sorted_counts: np.ndarray,
-        values: Union[List[str], List[float]],
+        unique_values: Union[List[str], List[float]],
     ) -> BinResults:
-        fused_indices = list(range(len(values)))
+        fused_indices = list(range(len(unique_values)))
         transformed_unique_values = fused_indices.copy()
-        return BinResults(fused_indices, values, transformed_unique_values)
+        return BinResults(fused_indices, unique_values, transformed_unique_values)
 
 
 __all__ = ["IdenticalBinning"]

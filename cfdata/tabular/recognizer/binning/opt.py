@@ -30,7 +30,7 @@ class OptBinning(BinningBase):
         self,
         info: FeatureInfo,
         sorted_counts: np.ndarray,
-        values: Union[List[str], List[float]],
+        unique_values: Union[List[str], List[float]],
     ) -> BinResults:
         x = info.flat_arr
         y = self.labels.ravel()
@@ -51,9 +51,9 @@ class OptBinning(BinningBase):
             base = ContinuousOptimalBinning
         # core
         opt = base(**opt_config).fit(x, y)
-        fused_indices = opt.transform(values, metric="indices")
+        fused_indices = opt.transform(unique_values, metric="indices")
         transformed_unique_values = sorted(set(fused_indices))
-        return BinResults(fused_indices, values, transformed_unique_values)
+        return BinResults(fused_indices, unique_values, transformed_unique_values)
 
 
 __all__ = ["OptBinning"]

@@ -113,16 +113,16 @@ class Recognizer(DataStructure):
         self,
         info: FeatureInfo,
         check_nan: bool,
-        values: Union[List[str], List[float]],
+        unique_values: Union[List[str], List[float]],
         sorted_counts: np.ndarray,
     ) -> Tuple[transform_dict_type, List[int]]:
         def _core(
-            values_: Union[List[str], List[float]],
+            unique_values_: Union[List[str], List[float]],
             indices: Optional[List[int]] = None,
         ) -> transform_dict_type:
             if indices is None:
-                indices = list(range(len(values_)))
-            iterator = zip(indices, values_)
+                indices = list(range(len(unique_values_)))
+            iterator = zip(indices, unique_values_)
             td: transform_dict_type = {}
             if not check_nan:
                 for i, v in iterator:
@@ -137,7 +137,7 @@ class Recognizer(DataStructure):
             return td
 
         if self.is_label:
-            return _core(values), list(range(len(values)))
+            return _core(unique_values), list(range(len(unique_values)))
 
         if self.binning != "auto":
             binning_type = self.binning
@@ -145,9 +145,9 @@ class Recognizer(DataStructure):
             binning_type = "opt" if self.labels is not None else "fuse"
         args = binning_type, self.labels, self.task_type, self.config
         binning = BinningBase.make(*args)
-        results = binning.binning(info, sorted_counts, values)
-        fused_indices, values, transformed_unique_values = results
-        return _core(values, fused_indices), transformed_unique_values
+        results = binning.binning(info, sorted_counts, unique_values)
+        fused_indices, unique_values, transformed_unique_values = results
+        return _core(unique_values, fused_indices), transformed_unique_values
 
     def _check_string_column(
         self,
