@@ -58,7 +58,7 @@ class TabularData(DataBase):
         categorical_columns: Optional[List[int]] = None,
         recognizer_configs: Optional[Dict[int, Dict[str, Any]]] = None,
         process_methods: Optional[Union[str, Dict[int, str]]] = "auto",
-        binning_method: str = "auto",
+        binning_method: str = "fuse",
         default_numerical_process: str = "normalize",
         default_categorical_process: str = "one_hot",
         use_timing_context: bool = True,
