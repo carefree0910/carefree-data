@@ -39,7 +39,7 @@ In short, Pandas is a more general library, and that's why we've written some co
 
 ## Installation
 
-`carefree-data` requires Python 3.6 or higher.
+`carefree-data` requires Python 3.7 or higher.
 
 ```bash
 pip install carefree-data
