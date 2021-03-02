@@ -2,7 +2,7 @@ import numpy
 from Cython.Build import cythonize
 from setuptools import setup, find_packages, Extension
 
-VERSION = "0.2.4"
+VERSION = "0.2.4.1"
 
 DESCRIPTION = "Data processing module implemented with numpy"
 with open("README.md") as f:
@@ -21,7 +21,7 @@ setup(
         "psutil",
         "pillow",
         "cython>=0.29.12",
-        "numpy>=1.20.0",
+        "numpy>=1.19.2",
         "scipy>=1.2.1",
         "scikit-learn>=0.20.3",
         "matplotlib>=3.0.3",
