@@ -556,11 +556,15 @@ class TabularData(DataBase):
         # names
         self.label_name = self._label_name or "label"
         x_names = [f"C{i}" for i in range(len(x[0]))]
-        y_dim = y.shape[1]
-        if y_dim == 1:
-            y_names = [self.label_name]
+        if y is None:
+            y_dim = 0
+            y_names = []
         else:
-            y_names = [f"{self.label_name}_{i}" for i in range(y_dim)]
+            y_dim = len(y[0]) if isinstance(y, list) else y.shape[1]
+            if y_dim == 1:
+                y_names = [self.label_name]
+            else:
+                y_names = [f"{self.label_name}_{i}" for i in range(y_dim)]
         names = x_names + y_names
         for i, name in (self._column_names or {}).items():
             names[i] = name
