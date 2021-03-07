@@ -515,6 +515,7 @@ class TabularData(DataBase):
                         f"specified label name ({self._label_name}) could not be found "
                         f"in the detected names ({names})"
                     )
+        self.label_indices = [self.label_idx]
         self.label_name = self.column_names[self.label_idx]
         # stypes
         stypes = {names[i]: v for i, v in self._preset_stypes.items()}
