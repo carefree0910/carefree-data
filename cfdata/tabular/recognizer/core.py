@@ -264,11 +264,19 @@ class Recognizer(DataStructure):
         msg: Optional[str]
         dtype = df.stype.dtype
         # check name
-        if len(df.names) != 1 or df.names[0] != self.name:
-            raise ValueError(
-                f"df.name ({df.names[0]}) is not identical with "
-                f"Recognizer.name ({self.name})"
-            )
+        if len(df.names) == 1:
+            if df.names[0] != self.name:
+                raise ValueError(
+                    f"df.name ({df.names[0]}) is not identical with "
+                    f"Recognizer.name ({self.name})"
+                )
+        else:
+            for name in df.names:
+                if not name.startswith(self.name):
+                    raise ValueError(
+                        f"one name ({name}) in df.names does not start with "
+                        f"Recognizer.name ({self.name})"
+                    )
         # check valid
         if self.is_valid is False:
             self.info = FeatureInfo(

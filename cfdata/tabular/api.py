@@ -556,7 +556,11 @@ class TabularData(DataBase):
         # names
         self.label_name = self._label_name or "label"
         x_names = [f"C{i}" for i in range(len(x[0]))]
-        y_names = [self.label_name]
+        y_dim = y.shape[1]
+        if y_dim == 1:
+            y_names = [self.label_name]
+        else:
+            y_names = [f"{self.label_name}_{i}" for i in range(y_dim)]
         names = x_names + y_names
         for i, name in (self._column_names or {}).items():
             names[i] = name
@@ -580,7 +584,9 @@ class TabularData(DataBase):
             y = y.astype(self._label_type.dtype)
         y_dt = to_dt_data(y)
         y_kwargs = {"names": y_names}
-        self.label_idx = len(self.column_names) - 1
+        all_dim = len(self.column_names)
+        self.label_idx = all_dim - y_dim
+        self.label_indices = list(range(self.label_idx, all_dim))
         # frames
         self._x_df = dt.Frame(x_dt, **x_kwargs)
         self._y_df = dt.Frame(y_dt, **y_kwargs)
@@ -659,7 +665,8 @@ class TabularData(DataBase):
         stypes = self._stypes.copy()
         names = [self.column_names[i] for i in range(len(self.column_names))]
         if not contains_labels:
-            names.pop(self.label_idx)
+            for idx in sorted(self.label_indices)[::-1]:
+                names.pop(idx)
             stypes.pop(self.label_name)
         return {"names": names, "stypes": stypes}
 
