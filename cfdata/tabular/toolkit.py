@@ -567,7 +567,7 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
             raise ValueError(msg)
         id_column = raw.xT[id_column_idx]
         sorted_id_column = [id_column[i] for i in data.ts_sorting_indices]
-        unique_indices = get_unique_indices(sorted_id_column)
+        unique_indices = get_unique_indices(np.array(sorted_id_column))
         self.indices2id: np.ndarray
         self._unique_id_arr = unique_indices.unique
         self._id2indices = unique_indices.split_indices
