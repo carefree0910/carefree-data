@@ -433,26 +433,17 @@ class DataLoader:
         batch_size: int,
         sampler: ImbalancedSampler,
         *,
-        num_siamese: int = 1,
         return_indices: bool = False,
         label_collator: Optional[Callable[[np.ndarray], np.ndarray]] = None,
         verbose_level: int = 2,
     ):
         self._cursor: int
-        self._siamese_cursor: int
         self._indices_in_use = None
         self._verbose_level = verbose_level
         self.data = sampler.data
         self.sampler = sampler
         self.return_indices = return_indices
         self._label_collator = label_collator
-        if return_indices and num_siamese > 1:
-            print(
-                f"{LoggingMixin.warning_prefix}`return_indices` "
-                "is set to False because siamese loader is used"
-            )
-            self.return_indices = False
-        self._num_siamese = num_siamese
         self._num_samples = len(sampler)
         self.batch_size = min(self._num_samples, batch_size)
 
@@ -466,27 +457,17 @@ class DataLoader:
 
     def __next__(self) -> batch_type:
         data_next = self._get_next_batch()
-        if self._num_siamese == 1:
-            if self.return_indices:
-                (x_batch, y_batch), indices = data_next
-            else:
-                indices = None
-                x_batch, y_batch = data_next
-            if self._label_collator is not None:
-                y_batch = self._label_collator(y_batch)
-            batch = x_batch, y_batch
-            if not self.return_indices:
-                return batch
-            return batch, indices
-        all_data = [data_next] if self._check_full_batch(data_next) else []
-        while len(all_data) < self._num_siamese:
-            data_next = self._get_next_batch()
-            if self._check_full_batch(data_next):
-                all_data.append(data_next)
-        x_batch, y_batch = zip(*all_data)
+        if self.return_indices:
+            (x_batch, y_batch), indices = data_next
+        else:
+            indices = None
+            x_batch, y_batch = data_next
         if self._label_collator is not None:
             y_batch = self._label_collator(y_batch)
-        return x_batch, y_batch
+        batch = x_batch, y_batch
+        if not self.return_indices:
+            return batch
+        return batch, indices
 
     @property
     def enabled_sampling(self) -> bool:
@@ -497,26 +478,16 @@ class DataLoader:
         self.sampler.switch_imbalance_status(value)
 
     def _reset(self) -> None:
-        reset_caches = {
-            "_indices_in_use": self.sampler.get_indices(),
-            "_siamese_cursor": 0,
-            "_cursor": -1,
-        }
-        for attr, init_value in reset_caches.items():
-            setattr(self, attr, init_value)
+        self._cursor = -1
+        self._indices_in_use = self.sampler.get_indices()
 
     def _get_next_batch(self) -> batch_type:
         n_iter, self._cursor = len(self), self._cursor + 1
-        if self._cursor == n_iter * self._num_siamese:
+        if self._cursor == n_iter:
             raise StopIteration
-        if self._num_siamese > 1:
-            new_siamese_cursor = int(self._cursor / n_iter)
-            if new_siamese_cursor > self._siamese_cursor:
-                self._siamese_cursor = new_siamese_cursor
-                self._indices_in_use = self.sampler.get_indices()
         if self._indices_in_use is None:
             raise ValueError("`_indices_in_use` is not yet generated")
-        start = (self._cursor - n_iter * self._siamese_cursor) * self.batch_size
+        start = self._cursor * self.batch_size
         end = start + self.batch_size
         indices = self._indices_in_use[start:end]
         batch = self.data[indices]
@@ -533,7 +504,6 @@ class DataLoader:
         return DataLoader(
             self.batch_size,
             self.sampler.copy(),
-            num_siamese=self._num_siamese,
             return_indices=self.return_indices,
             label_collator=self._label_collator,
             verbose_level=self._verbose_level,
