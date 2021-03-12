@@ -43,8 +43,8 @@ class KFold:
     >>> import numpy as np
     >>>
     >>> from cfdata.types import np_int_type
+    >>> from cfdata.tabular.api import TabularDataset
     >>> from cfdata.tabular.toolkit import KFold
-    >>> from cfdata.tabular.wrapper import TabularDataset
     >>>
     >>> x = np.arange(12).reshape([6, 2])
     >>> # create an imbalance dataset
@@ -109,8 +109,8 @@ class KRandom:
     >>> import numpy as np
     >>>
     >>> from cfdata.types import np_int_type
+    >>> from cfdata.tabular.api import TabularDataset
     >>> from cfdata.tabular.toolkit import KRandom
-    >>> from cfdata.tabular.wrapper import TabularDataset
     >>>
     >>> x = np.arange(12).reshape([6, 2])
     >>> # create an imbalance dataset
@@ -175,8 +175,8 @@ class KBootstrap:
     >>> import numpy as np
     >>>
     >>> from cfdata.types import np_int_type
+    >>> from cfdata.tabular.api import TabularDataset
     >>> from cfdata.tabular.toolkit import KBootstrap
-    >>> from cfdata.tabular.wrapper import TabularDataset
     >>>
     >>> x = np.arange(12).reshape([6, 2])
     >>> # create an imbalance dataset
