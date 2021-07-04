@@ -14,7 +14,7 @@ setup(
     packages=find_packages(exclude=("tests",)),
     install_requires=[
         "optbinning",
-        "datatable",
+        "datatable==0.11.1",
         "carefree-toolkit>=0.2.0",
         "dill",
         "future",
