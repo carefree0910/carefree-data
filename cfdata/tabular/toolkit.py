@@ -550,7 +550,7 @@ class AggregationBase(LoggingMixin, metaclass=ABCMeta):
 
     @abstractmethod
     def _aggregate_core(self, indices: np.ndarray) -> np.ndarray:
-        """ indices should be a column vector """
+        """indices should be a column vector"""
 
     def _initialize(self) -> None:
         num_list = list(map(len, self._id2indices))
