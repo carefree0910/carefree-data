@@ -26,10 +26,10 @@ class TestC(unittest.TestCase):
         del cls.arr1, cls.arr2, cls.arr3
 
     @staticmethod
-    def _print_header(title):
+    def _print_header(title: str) -> None:
         print("\n".join(["=" * 100, title, "-" * 100]))
 
-    def test_is_all_numeric(self):
+    def test_is_all_numeric(self) -> None:
         self._print_header("is_all_numeric")
         methods = [is_all_numeric, c_is_all_numeric, naive_is_all_numeric]
         for t, m in zip(types, methods):
@@ -37,7 +37,7 @@ class TestC(unittest.TestCase):
                 self.assertTrue(m(self.arr1))
                 self.assertFalse(m(self.arr2))
 
-    def test_flat_arr_to_float32(self):
+    def test_flat_arr_to_float32(self) -> None:
         self._print_header("flat_arr_to_float32")
         results = []
         methods = [
@@ -50,7 +50,7 @@ class TestC(unittest.TestCase):
                 results.append(m(self.arr1))
         self.assertTrue(allclose(*results))
 
-    def test_transform_flat_data_with_dict(self):
+    def test_transform_flat_data_with_dict(self) -> None:
         self._print_header("transform_flat_data_with_dict")
         results = []
         arr = np.array(self.arr3, dtype=np_float_type)

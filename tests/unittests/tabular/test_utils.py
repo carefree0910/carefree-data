@@ -3,24 +3,26 @@ import unittest
 
 import numpy as np
 
+from typing import Iterable
+
 from cfdata.types import *
 from cfdata.tabular import *
 from cfdata.tabular.misc import *
 
 
 class TestTabularUtils(unittest.TestCase):
-    def test_data_splitter(self):
-        def _get_proportion(*y_):
+    def test_data_splitter(self) -> None:
+        def _get_proportion(*y_: np.ndarray) -> np.ndarray:
             ratio_arr = []
             for yy_ in y_:
                 yy_ = yy_.ravel()
                 ratio_arr.append(np.bincount(yy_) / len(yy_))
             return np.array(ratio_arr, np.float32)
 
-        def _mae(arr1, arr2):
+        def _mae(arr1: np.ndarray, arr2: np.ndarray) -> np.ndarray:
             return np.abs(arr1 - arr2).mean().item()
 
-        def _assert_proportion(n_, p1, p2):
+        def _assert_proportion(n_: int, p1: np.ndarray, p2: np.ndarray) -> None:
             mae_ = _mae(p1, p2)
             self.assertTrue(n_ * mae_ <= tolerance)
 
@@ -57,7 +59,7 @@ class TestTabularUtils(unittest.TestCase):
             _assert_proportion(n, new_proportion2, new_proportion3)
             _assert_proportion(n, new_proportion3, new_proportion1)
 
-    def _k_core(self, n_total, iterator):
+    def _k_core(self, n_total: int, iterator: Iterable) -> None:
         te_indices = None
         trx_shape = try_shape = tex_shape = tey_shape = None
         for tr_split, te_split in iterator:
@@ -83,7 +85,7 @@ class TestTabularUtils(unittest.TestCase):
                 self.assertTrue(tex_shape == new_tex_shape)
                 self.assertTrue(tey_shape == new_tey_shape)
 
-    def test_k_fold(self):
+    def test_k_fold(self) -> None:
         k = 10
         num_class = 10
         task = "clf"
@@ -94,7 +96,7 @@ class TestTabularUtils(unittest.TestCase):
             k_fold = KFold(k, TabularDataset.from_xy(x, y, task))
             self._k_core(n, k_fold)
 
-    def test_k_random(self):
+    def test_k_random(self) -> None:
         k = 10
         test_ratio = 0.1
         num_class = 10
@@ -106,7 +108,7 @@ class TestTabularUtils(unittest.TestCase):
             k_random = KRandom(k, test_ratio, TabularDataset.from_xy(x, y, task))
             self._k_core(n, k_random)
 
-    def test_k_bootstrap(self):
+    def test_k_bootstrap(self) -> None:
         k = 10
         test_ratio = 0.1
         num_class = 10
@@ -118,7 +120,7 @@ class TestTabularUtils(unittest.TestCase):
             k_bootstrap = KBootstrap(k, test_ratio, TabularDataset.from_xy(x, y, task))
             self._k_core(n, k_bootstrap)
 
-    def test_imbalance_sampler(self):
+    def test_imbalance_sampler(self) -> None:
         counts = []
         tolerance = 0.01
         for power in range(3, 6):
@@ -131,11 +133,11 @@ class TestTabularUtils(unittest.TestCase):
                 count = np.unique(y[sampler.get_indices()], return_counts=True)[1]
                 counts.append(count)
         counts = np.vstack(counts)
-        ratios = (counts / counts.sum(1, keepdims=True)).T
+        ratios = (counts / counts.sum(1, keepdims=True)).T  # type: ignore
         diff = np.mean(ratios[1] - ratios[0])
         self.assertLess(diff, tolerance)
 
-    def test_data_loader(self):
+    def test_data_loader(self) -> None:
         num_class = 10
         n = int(10 ** 5)
 
@@ -146,14 +148,14 @@ class TestTabularUtils(unittest.TestCase):
         loader = DataLoader(128, sampler)
         x_batch_shape = y_batch_shape = None
         for i, (x_batch, y_batch) in enumerate(loader):
-            new_x_shape, new_y_shape = x_batch.shape, y_batch.shape
+            new_x_shape, new_y_shape = x_batch.shape, y_batch.shape  # type: ignore
             if x_batch_shape is None:
                 x_batch_shape, y_batch_shape = new_x_shape, new_y_shape
             elif i != len(loader) - 1:
                 self.assertTrue(x_batch_shape == new_x_shape)
                 self.assertTrue(y_batch_shape == new_y_shape)
 
-    def test_k_fold_sanity(self):
+    def test_k_fold_sanity(self) -> None:
         num_features = 8
         for power in [1, 2, 3]:
             num_samples = int(10 ** power)
@@ -182,7 +184,7 @@ class TestTabularUtils(unittest.TestCase):
                 self.assertEqual(num_elem, len(x_unique))
                 self.assertEqual(sorted(test_fold.dataset.y.ravel()), [0, 1])
 
-    def test_k_random_sanity(self):
+    def test_k_random_sanity(self) -> None:
         num_features = 8
         for power in [1, 2, 3]:
             num_samples = int(10 ** power)

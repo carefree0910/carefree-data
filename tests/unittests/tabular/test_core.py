@@ -1,9 +1,14 @@
+# type: ignore
+
 import os
 import math
 import unittest
 
 import numpy as np
 
+from typing import Any
+from typing import Set
+from typing import Dict
 from cftool.misc import shallow_copy_dict
 
 from cfdata.types import *
@@ -17,7 +22,7 @@ data_folder = os.path.abspath(os.path.join(file_folder, os.pardir, "data"))
 class TestTabularData(unittest.TestCase):
     x_ts = y_ts = ts_config = None
     x = y = y_bundle = task_types = None
-    cannot_regressions = str_columns = cat_columns = None
+    cannot_classifications = str_columns = cat_columns = None
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -198,15 +203,15 @@ class TestTabularData(unittest.TestCase):
             cls.task_types,
             cls.str_columns,
             cls.cat_columns,
-            cls.cannot_regressions,
+            cls.cannot_classifications,
         )
 
-    def _get_data(self, y, **kwargs):
+    def _get_data(self, y: data_type, **kwargs: Any) -> TabularData:
         data = TabularData(**kwargs).read(self.x, y)
         return data
 
     @staticmethod
-    def _same_with_y(data, y):
+    def _same_with_y(data: TabularData, y: data_type) -> bool:
         new_y = data.recover_labels(data.processed.y)
         new = DataTuple([[0]], new_y)
         y_np = np.array(y)
@@ -215,7 +220,7 @@ class TestTabularData(unittest.TestCase):
         original = DataTuple([[0]], y_np)
         return new == original
 
-    def _test_core(self, data_config):
+    def _test_core(self, data_config: Dict[str, Any]) -> None:
         for i, y in enumerate(self.y_bundle):
             preset_task_type = self.task_types[i]
             for task_type in [TaskTypes.CLASSIFICATION, TaskTypes.REGRESSION]:
@@ -235,11 +240,11 @@ class TestTabularData(unittest.TestCase):
                     self.assertTrue(data.transform(self.x, y) == data.processed)
                     self.assertTrue(self._same_with_y(data, y))
 
-    def test_read_features_only(self):
+    def test_read_features_only(self) -> None:
         data = self._get_data(None)
         self.assertTrue(data.transform(self.x, None) == data.processed)
 
-    def test_read_from_list_with_column_info(self):
+    def test_read_from_list_with_column_info(self) -> None:
         self._test_core(
             {
                 "string_columns": self.str_columns,
@@ -247,10 +252,10 @@ class TestTabularData(unittest.TestCase):
             }
         )
 
-    def test_read_from_list_without_column_info(self):
+    def test_read_from_list_without_column_info(self) -> None:
         self._test_core({})
 
-    def test_save_and_load(self):
+    def test_save_and_load(self) -> None:
         task = "mnist_small"
         task_file = os.path.join(data_folder, f"{task}.txt")
         data = TabularData().read(task_file).save(task)
@@ -266,19 +271,19 @@ class TestTabularData(unittest.TestCase):
         os.remove(f"{task}.zip")
         os.remove(f"{simplified_file}.zip")
 
-    def _test_recover_labels_core(self, dataset):
+    def _test_recover_labels_core(self, dataset: TabularDataset) -> None:
         data = TabularData.from_dataset(dataset)
         dataset_processed = data.to_dataset()
         recovered = data.recover_labels(dataset_processed.y)
         self.assertTrue(np.allclose(recovered, dataset.y))
 
-    def test_recover_labels(self):
+    def test_recover_labels(self) -> None:
         self._test_recover_labels_core(TabularDataset.iris())
         self._test_recover_labels_core(TabularDataset.boston())
         self._test_recover_labels_core(TabularDataset.digits())
         self._test_recover_labels_core(TabularDataset.breast_cancer())
 
-    def _test_recover_features_core(self, dataset):
+    def _test_recover_features_core(self, dataset: TabularDataset) -> None:
         column_indices = list(range(dataset.num_features))
         data = TabularData.from_dataset(dataset)
         dataset_processed = data.to_dataset()
@@ -298,7 +303,7 @@ class TestTabularData(unittest.TestCase):
             except AssertionError:
                 different = np.nonzero(recovered != original)[0]
                 supported = converter._transform_dict
-                reversed_transform = {}
+                reversed_transform: Dict[Any, Set[Any]] = {}
                 for k, v in supported.items():
                     reversed_transform.setdefault(v, set()).add(k)
                 oob_value = converter._reverse_transform_dict[0.0]
@@ -312,31 +317,31 @@ class TestTabularData(unittest.TestCase):
                         reverse_supported = reversed_transform[transformed_idx]
                         self.assertTrue(recovered_item in reverse_supported)
 
-    def test_recover_features(self):
+    def test_recover_features(self) -> None:
         self._test_recover_features_core(TabularDataset.iris())
         self._test_recover_features_core(TabularDataset.boston())
         self._test_recover_features_core(TabularDataset.digits())
         self._test_recover_features_core(TabularDataset.breast_cancer())
 
-    def _test_equal_core(self, dataset):
+    def _test_equal_core(self, dataset: TabularDataset) -> None:
         d1 = TabularData().read(*dataset.xy)
         d2 = TabularData.from_dataset(dataset)
         self.assertTrue(d1 == d2)
 
-    def test_equal(self):
+    def test_equal(self) -> None:
         self._test_equal_core(TabularDataset.iris())
         self._test_equal_core(TabularDataset.boston())
         self._test_equal_core(TabularDataset.digits())
         self._test_equal_core(TabularDataset.breast_cancer())
 
-    def test_from_str(self):
+    def test_from_str(self) -> None:
         self.assertTrue(TaskTypes.from_str("") is TaskTypes.NONE)
         self.assertTrue(TaskTypes.from_str("reg") is TaskTypes.REGRESSION)
         self.assertTrue(TaskTypes.from_str("clf") is TaskTypes.CLASSIFICATION)
         self.assertTrue(TaskTypes.from_str("ts_clf") is TaskTypes.TIME_SERIES_CLF)
         self.assertTrue(TaskTypes.from_str("ts_reg") is TaskTypes.TIME_SERIES_REG)
 
-    def test_split_data_tuple_with_indices(self):
+    def test_split_data_tuple_with_indices(self) -> None:
         lst, npy = list(range(10)), np.arange(10)
         dt = DataTuple(lst, None)
         self.assertEqual(dt.split_with([2, 4, 6]).x, [2, 4, 6])
@@ -351,7 +356,7 @@ class TestTabularData(unittest.TestCase):
         dt = DataTuple.with_transpose(npy[..., None], None)
         self.assertTrue(np.allclose(dt.split_with([7, 8, 9]).xT, [[7, 8, 9]]))
 
-    def test_quote(self):
+    def test_quote(self) -> None:
         data_file = os.path.join(data_folder, "quote_test.csv")
         data = TabularData().read(data_file)
         gt = {0: "f1", 1: "f2", 2: "f3", 3: "f4", 4: "f5"}
@@ -359,7 +364,7 @@ class TestTabularData(unittest.TestCase):
         self.assertListEqual(data.raw.x[0].tolist(), [3, "2, 3", '4"', 5])
         self.assertListEqual(data.raw.y[0].tolist(), [0])
 
-    def test_ts_split(self):
+    def test_ts_split(self) -> None:
         data = TabularData(time_series_config=self.ts_config).read(self.x_ts, self.y_ts)
         split = data.split(5).split.raw.xT[1]
         self.assertListEqual(split, ["2020-01-02"] + ["2020-01-03"] * 4)
@@ -377,7 +382,7 @@ class TestTabularData(unittest.TestCase):
                     self.assertNotEqual(self.x_ts[indices[1]][0], "pear")
                     self.assertEqual(self.x_ts[indices[0]][0], self.x_ts[indices[1]][0])
 
-    def test_ts_sorting_indices(self):
+    def test_ts_sorting_indices(self) -> None:
         shuffled_indices = np.random.permutation(len(self.x_ts))
         x_ts = [self.x_ts[i] for i in shuffled_indices]
         y_ts = [self.y_ts[i].tolist() for i in shuffled_indices]
@@ -397,7 +402,7 @@ class TestTabularData(unittest.TestCase):
         ]
         self.assertListEqual([x_ts[i][1] for i in data.ts_sorting_indices], gt)
 
-    def test_simplify(self):
+    def test_simplify(self) -> None:
         n = 1000000
         x = np.random.random([n, 5])
         y = np.random.randint(0, 2, [n, 1])
