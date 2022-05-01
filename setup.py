@@ -21,7 +21,7 @@ setup(
         "psutil",
         "pillow",
         "cython>=0.29.12",
-        "numpy>=1.19.2",
+        "numpy>=1.22.3",
         "scipy>=1.2.1",
         "scikit-learn>=0.20.3",
         "matplotlib>=3.0.3",
