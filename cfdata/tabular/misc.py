@@ -41,7 +41,7 @@ def is_int(dtype: np.dtype) -> bool:
 
 
 def is_bool(dtype: np.dtype) -> bool:
-    return np.issubdtype(dtype, bool)
+    return np.issubdtype(dtype, np.bool_)
 
 
 def is_float(dtype: np.dtype) -> bool:
