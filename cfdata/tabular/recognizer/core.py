@@ -291,9 +291,11 @@ class Recognizer(DataStructure):
         if isinstance(df_data, np.ma.core.MaskedArray):
             np_flat = df_data.data.ravel()
             nan_mask = df_data.mask.ravel()
+            need_calculate_nan_mask = False
         else:
             np_flat = df_data.ravel()
             nan_mask = np.zeros_like(np_flat, dtype=bool)
+            need_calculate_nan_mask = True
         is_string_, info = self._check_string_column(df, np_flat, nan_mask)
         if is_string_:
             assert info is not None
@@ -304,6 +306,8 @@ class Recognizer(DataStructure):
             dtype = np.int64
             np_flat = np_flat.astype(dtype)
         # gather info
+        if need_calculate_nan_mask:
+            nan_mask = np.isnan(np_flat)
         valid_mask = ~nan_mask
         np_flat_valid = np_flat[valid_mask]
         np_flat_valid_int = np_flat_valid.astype(np_int_type)
