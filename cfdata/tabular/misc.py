@@ -479,10 +479,10 @@ class TabularDataset(NamedTuple):
     ) -> Tuple["TabularDataset", "TabularDataset"]:
         assert p > 1, "p should be greater than 1"
         x_train = np.random.randn(size, n_dim)
-        x_train_list = [x_train] + [x_train ** i for i in range(2, p + 1)]
+        x_train_list = [x_train] + [x_train**i for i in range(2, p + 1)]
         x_train_noise = x_train + np.random.randn(size, n_dim) * noise_scale
         x_test = np.random.randn(int(size * test_ratio), n_dim)
-        x_test_list = [x_test] + [x_test ** i for i in range(2, p + 1)]
+        x_test_list = [x_test] + [x_test**i for i in range(2, p + 1)]
         idx_list = [np.random.permutation(n_dim)[:n_valid] for _ in range(p)]
         w_list = [np.random.randn(n_valid, 1) for _ in range(p)]
         o_train = [

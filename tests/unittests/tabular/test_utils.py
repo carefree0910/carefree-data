@@ -31,7 +31,7 @@ class TestTabularUtils(unittest.TestCase):
         ratios = [0.1, 0.1]
         task = "clf"
         for power in range(3, 6):
-            n = int(10 ** power)
+            n = int(10**power)
             n_cv, n_test = map(int, map(operator.mul, 2 * [n], ratios))
             x = np.random.random([n, 100]).astype(np_float_type)
             y = np.random.randint(0, n_class, [n, 1])
@@ -90,7 +90,7 @@ class TestTabularUtils(unittest.TestCase):
         num_class = 10
         task = "clf"
         for power in range(3, 6):
-            n = int(10 ** power)
+            n = int(10**power)
             x = np.random.random([n, 100]).astype(np_float_type)
             y = np.random.randint(0, num_class, [n, 1])
             k_fold = KFold(k, TabularDataset.from_xy(x, y, task))
@@ -102,7 +102,7 @@ class TestTabularUtils(unittest.TestCase):
         num_class = 10
         task = "clf"
         for power in range(3, 6):
-            n = int(10 ** power)
+            n = int(10**power)
             x = np.random.random([n, 100]).astype(np_float_type)
             y = np.random.randint(0, num_class, [n, 1])
             k_random = KRandom(k, test_ratio, TabularDataset.from_xy(x, y, task))
@@ -114,7 +114,7 @@ class TestTabularUtils(unittest.TestCase):
         num_class = 10
         task = "clf"
         for power in range(3, 6):
-            n = int(10 ** power)
+            n = int(10**power)
             x = np.random.random([n, 100]).astype(np_float_type)
             y = np.random.randint(0, num_class, [n, 1])
             k_bootstrap = KBootstrap(k, test_ratio, TabularDataset.from_xy(x, y, task))
@@ -124,7 +124,7 @@ class TestTabularUtils(unittest.TestCase):
         counts = []
         tolerance = 0.01
         for power in range(3, 6):
-            n = int(10 ** power)
+            n = int(10**power)
             x = np.random.random([n, 100]).astype(np_float_type)
             y = (np.random.random([n, 1]) >= 0.95).astype(np_int_type) + 2
             for _ in range((5 - power) * 10 + 1):
@@ -139,7 +139,7 @@ class TestTabularUtils(unittest.TestCase):
 
     def test_data_loader(self) -> None:
         num_class = 10
-        n = int(10 ** 5)
+        n = int(10**5)
 
         x = np.random.random([n, 100]).astype(np_float_type)
         y = np.random.randint(0, num_class, [n, 1])
@@ -158,7 +158,7 @@ class TestTabularUtils(unittest.TestCase):
     def test_k_fold_sanity(self) -> None:
         num_features = 8
         for power in [1, 2, 3]:
-            num_samples = int(10 ** power)
+            num_samples = int(10**power)
             half_samples = num_samples // 2
             num_elem = num_samples * num_features
             x = np.arange(num_elem).reshape([num_samples, num_features])
@@ -187,7 +187,7 @@ class TestTabularUtils(unittest.TestCase):
     def test_k_random_sanity(self) -> None:
         num_features = 8
         for power in [1, 2, 3]:
-            num_samples = int(10 ** power)
+            num_samples = int(10**power)
             num_elem = num_samples * num_features
             x = np.arange(num_elem).reshape([num_samples, num_features])
             y = np.zeros(num_samples, np_int_type)

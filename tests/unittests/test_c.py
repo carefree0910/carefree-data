@@ -16,7 +16,7 @@ class TestC(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        multiple = 10 ** 5
+        multiple = 10**5
         cls.arr1 = ["1", 2, 3.4, "5.6"] * multiple
         cls.arr2 = ["1", 2, 3.4, "5.6", "7.8.9"] * multiple
         cls.arr3 = [1, 2, 3.4, 5.6, 7.8] * multiple
