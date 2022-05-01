@@ -293,7 +293,7 @@ class Recognizer(DataStructure):
             nan_mask = df_data.mask.ravel()
         else:
             np_flat = df_data.ravel()
-            nan_mask = np.zeros_like(np_flat, dtype=np.bool)
+            nan_mask = np.zeros_like(np_flat, dtype=bool)
         is_string_, info = self._check_string_column(df, np_flat, nan_mask)
         if is_string_:
             assert info is not None

@@ -18,9 +18,9 @@ from cftool.misc import SavingMixin
 from cftool.misc import LoggingMixin
 from sklearn.utils import Bunch
 from sklearn.datasets import load_iris
-from sklearn.datasets import load_boston
 from sklearn.datasets import load_digits
 from sklearn.datasets import load_breast_cancer
+from sklearn.datasets import fetch_california_housing
 
 from ..types import *
 
@@ -41,7 +41,7 @@ def is_int(dtype: np.dtype) -> bool:
 
 
 def is_bool(dtype: np.dtype) -> bool:
-    return np.issubdtype(dtype, np.bool)
+    return np.issubdtype(dtype, bool)
 
 
 def is_float(dtype: np.dtype) -> bool:
@@ -147,8 +147,8 @@ class DataTuple(NamedTuple):
 
     @classmethod
     def from_dfs(cls, x_df: dt.Frame, y_df: Optional[dt.Frame]) -> "DataTuple":
-        x = x_df.to_numpy()
-        y = None if y_df is None else y_df.to_numpy()
+        x = x_df.to_numpy(object)
+        y = None if y_df is None else y_df.to_numpy(object)
         if isinstance(x, np.ma.core.MaskedArray):
             x = x.data
         if isinstance(y, np.ma.core.MaskedArray):
@@ -340,12 +340,12 @@ class TabularDataset(NamedTuple):
         return cls.from_bunch(load_iris(), "clf")
 
     @classmethod
-    def boston(cls) -> "TabularDataset":
-        return cls.from_bunch(load_boston(), "reg")
-
-    @classmethod
     def digits(cls) -> "TabularDataset":
         return cls.from_bunch(load_digits(), "clf")
+
+    @classmethod
+    def california(cls) -> "TabularDataset":
+        return cls.from_bunch(fetch_california_housing(), "reg")
 
     @classmethod
     def breast_cancer(cls) -> "TabularDataset":

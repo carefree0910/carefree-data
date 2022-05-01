@@ -279,7 +279,7 @@ class TestTabularData(unittest.TestCase):
 
     def test_recover_labels(self) -> None:
         self._test_recover_labels_core(TabularDataset.iris())
-        self._test_recover_labels_core(TabularDataset.boston())
+        self._test_recover_labels_core(TabularDataset.california())
         self._test_recover_labels_core(TabularDataset.digits())
         self._test_recover_labels_core(TabularDataset.breast_cancer())
 
@@ -319,7 +319,7 @@ class TestTabularData(unittest.TestCase):
 
     def test_recover_features(self) -> None:
         self._test_recover_features_core(TabularDataset.iris())
-        self._test_recover_features_core(TabularDataset.boston())
+        self._test_recover_features_core(TabularDataset.california())
         self._test_recover_features_core(TabularDataset.digits())
         self._test_recover_features_core(TabularDataset.breast_cancer())
 
@@ -330,7 +330,7 @@ class TestTabularData(unittest.TestCase):
 
     def test_equal(self) -> None:
         self._test_equal_core(TabularDataset.iris())
-        self._test_equal_core(TabularDataset.boston())
+        self._test_equal_core(TabularDataset.california())
         self._test_equal_core(TabularDataset.digits())
         self._test_equal_core(TabularDataset.breast_cancer())
 

@@ -20,7 +20,7 @@ class StringConverter(Converter):
 
     def _recover(self, flat_arr: flat_arr_type) -> np.ndarray:
         recovered = [self._reverse_transform_dict[elem] for elem in flat_arr]
-        return np.array(recovered, np.str)
+        return np.array(recovered, str)
 
 
 __all__ = ["StringConverter"]

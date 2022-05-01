@@ -15,7 +15,7 @@ setup(
     install_requires=[
         "optbinning",
         "datatable>=1.0.0",
-        "carefree-toolkit>=0.2.0",
+        "carefree-toolkit>=0.2.9",
         "dill",
         "future",
         "psutil",
@@ -24,7 +24,7 @@ setup(
         "numpy>=1.22.3",
         "scipy>=1.8.0",
         "scikit-learn>=1.0.2",
-        "matplotlib>=3.0.3",
+        "matplotlib>=3.5.1",
     ],
     ext_modules=cythonize(
         Extension(
