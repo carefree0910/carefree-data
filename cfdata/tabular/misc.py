@@ -70,6 +70,13 @@ def to_dt_data(data: data_type) -> data_type:
     return transpose(data)
 
 
+def df_to_numpy(df: dt.Frame) -> np.ndarray:
+    try:
+        return df.to_numpy()
+    except:
+        return df.to_numpy(object)
+
+
 class DataTuple(NamedTuple):
     x: data_type
     y: data_type
@@ -147,8 +154,8 @@ class DataTuple(NamedTuple):
 
     @classmethod
     def from_dfs(cls, x_df: dt.Frame, y_df: Optional[dt.Frame]) -> "DataTuple":
-        x = x_df.to_numpy(object)
-        y = None if y_df is None else y_df.to_numpy(object)
+        x = df_to_numpy(x_df)
+        y = None if y_df is None else df_to_numpy(y_df)
         if isinstance(x, np.ma.core.MaskedArray):
             x = x.data
         if isinstance(y, np.ma.core.MaskedArray):
