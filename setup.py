@@ -1,8 +1,8 @@
-import numpy
-from Cython.Build import cythonize
-from setuptools import setup, find_packages, Extension
+from setuptools import setup
+from setuptools import find_packages
 
-VERSION = "0.2.6"
+
+VERSION = "0.2.7"
 
 DESCRIPTION = "Data processing module implemented with numpy"
 with open("README.md") as f:
@@ -15,32 +15,12 @@ setup(
     install_requires=[
         "optbinning",
         "datatable>=1.0.0",
-        "carefree-toolkit>=0.2.9",
-        "dill",
-        "future",
-        "psutil",
-        "pillow",
-        "cython>=0.29.28",
-        "numpy>=1.22.3",
-        "scipy>=1.8.0",
+        "carefree-toolkit>=0.2.10",
+        "carefree-cython>=0.1.0",
         "scikit-learn>=1.0.2",
-        "matplotlib>=3.5.1",
     ],
-    ext_modules=cythonize(
-        Extension(
-            "cfdata.misc.c.cython_utils",
-            sources=["cfdata/misc/c/cython_utils.pyx"],
-            language="c",
-            include_dirs=[numpy.get_include(), "cfdata/misc/c"],
-            library_dirs=[],
-            libraries=[],
-            extra_compile_args=[],
-            extra_link_args=[],
-        )
-    ),
-    package_data={"cfdata.misc.c": ["cython_utils.pyx"]},
     author="carefree0910",
-    author_email="syameimaru_kurumi@pku.edu.cn",
+    author_email="syameimaru.saki@gmail.com",
     url="https://github.com/carefree0910/carefree-data",
     download_url=f"https://github.com/carefree0910/carefree-data/archive/v{VERSION}.tar.gz",
     description=DESCRIPTION,

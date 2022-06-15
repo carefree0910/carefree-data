@@ -1,9 +1,10 @@
 import numpy as np
 
+from cfc.api import transform_flat_data_with_dict
+
 from ...misc import *
 from ....types import *
 from ..base import Converter
-from ....misc.c import transform_flat_data_with_dict
 
 
 @Converter.register("categorical")
