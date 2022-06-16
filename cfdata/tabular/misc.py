@@ -11,11 +11,11 @@ from abc import abstractmethod
 from abc import ABCMeta
 from enum import Enum
 from functools import partial
-from cftool.misc import get_unique_indices
 from cftool.misc import lock_manager
 from cftool.misc import Saving
 from cftool.misc import SavingMixin
 from cftool.misc import LoggingMixin
+from cftool.array import get_unique_indices
 from sklearn.utils import Bunch
 from sklearn.datasets import load_iris
 from sklearn.datasets import load_digits

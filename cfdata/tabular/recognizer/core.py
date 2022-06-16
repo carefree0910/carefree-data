@@ -6,7 +6,7 @@ import datatable as dt
 from typing import *
 from collections import Counter
 from cftool.misc import shallow_copy_dict
-from cftool.misc import get_counter_from_arr
+from cftool.array import get_counter_from_arr
 
 from ..misc import *
 from ...types import *

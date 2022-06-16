@@ -10,9 +10,9 @@ from typing import Callable
 from typing import Optional
 from cftool.misc import register_core
 from cftool.misc import shallow_copy_dict
-from cftool.misc import get_unique_indices
 from cftool.misc import Sampler
 from cftool.misc import LoggingMixin
+from cftool.array import get_unique_indices
 
 from abc import *
 from .misc import *
@@ -247,7 +247,7 @@ class ImbalancedSampler(LoggingMixin):
     >>> from cfdata.types import np_int_type
     >>> from cfdata.tabular import TabularData
     >>> from cfdata.tabular.toolkit import ImbalancedSampler
-    >>> from cftool.misc import get_counter_from_arr
+    >>> from cftool.array import get_counter_from_arr
     >>>
     >>> n = 20
     >>> x = np.arange(2 * n).reshape([n, 2])
@@ -408,7 +408,7 @@ class DataLoader:
     >>> from cfdata.types import np_int_type
     >>> from cfdata.tabular import TabularData
     >>> from cfdata.tabular.toolkit import DataLoader, ImbalancedSampler
-    >>> from cftool.misc import get_counter_from_arr
+    >>> from cftool.array import get_counter_from_arr
     >>>
     >>> n = 20
     >>> x = np.arange(2 * n).reshape([n, 2])

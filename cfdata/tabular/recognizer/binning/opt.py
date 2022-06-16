@@ -8,10 +8,10 @@ from optbinning import OptimalBinning
 from optbinning import ContinuousOptimalBinning
 from optbinning import MulticlassOptimalBinning
 from cftool.misc import shallow_copy_dict
+from cftool.array import is_float
 
 from .base import BinResults
 from .base import BinningBase
-from ...misc import is_float
 from ...misc import TaskTypes
 from ...misc import FeatureInfo
 

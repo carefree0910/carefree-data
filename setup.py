@@ -2,7 +2,7 @@ from setuptools import setup
 from setuptools import find_packages
 
 
-VERSION = "0.2.7"
+VERSION = "0.2.8"
 
 DESCRIPTION = "Data processing module implemented with numpy"
 with open("README.md") as f:
@@ -15,8 +15,8 @@ setup(
     install_requires=[
         "optbinning",
         "datatable>=1.0.0",
-        "carefree-toolkit>=0.2.10",
-        "carefree-cython>=0.1.0",
+        "carefree-toolkit>=0.2.11",
+        "carefree-cython>=0.1.1",
         "scikit-learn>=1.0.2",
     ],
     author="carefree0910",
