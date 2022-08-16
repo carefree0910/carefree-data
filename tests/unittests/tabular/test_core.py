@@ -268,6 +268,9 @@ class TestTabularData(unittest.TestCase):
         data.save(simplified_file, retain_data=False)
         loaded_simplified = TabularData.load(simplified_file)
         self.assertTrue(loaded_simplified.transform(task_file) == data.processed)
+        loaded_simplified.save(simplified_file, retain_data=False)
+        loaded_simplified = TabularData.load(simplified_file)
+        self.assertTrue(loaded_simplified.transform(task_file) == data.processed)
         os.remove(f"{task}.zip")
         os.remove(f"{simplified_file}.zip")
 
